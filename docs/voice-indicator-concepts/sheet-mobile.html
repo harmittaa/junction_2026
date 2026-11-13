@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sponky Voice UI in Mobile Context — Light & Dark Mode</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 1440px;
+      height: 1000px;
+      background: #F0F4F1;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #1F1F1F;
+      padding: 24px 32px;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    /* Board Header */
+    .board-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #DCE5DF;
+      margin-bottom: 16px;
+    }
+    .kicker {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: #007841;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .kicker-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px;
+      background: #00AA46;
+    }
+    .board-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #004628;
+      letter-spacing: -0.3px;
+    }
+    .board-desc {
+      font-size: 12.5px;
+      color: #666666;
+    }
+    .board-tags {
+      display: flex;
+      gap: 8px;
+    }
+    .tag {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 9999px;
+      background: #FFFFFF;
+      border: 1px solid #D6E0D9;
+      color: #004628;
+    }
+    .tag-accent {
+      background: #EBF7EC;
+      border-color: #99D59F;
+      color: #007841;
+    }
+
+    /* 4 Phones Layout Grid */
+    .phones-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .phone-column {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .frame-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 4px;
+    }
+    .frame-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #004628;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .frame-title.dark-title {
+      color: #0F1411;
+    }
+    .mode-pill {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .mode-pill.light {
+      background: #EBF7EC;
+      color: #007841;
+      border: 1px solid #99D59F;
+    }
+    .mode-pill.dark {
+      background: #171F1A;
+      color: #00EB5A;
+      border: 1px solid #2B3A31;
+    }
+
+    /* Mobile Phone Shell */
+    .phone-shell {
+      width: 326px;
+      height: 810px;
+      border-radius: 36px;
+      padding: 10px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 16px 32px rgba(0, 30, 15, 0.08), 0 2px 6px rgba(0, 30, 15, 0.04);
+      overflow: hidden;
+    }
+    .phone-shell.light-shell {
+      background: #FFFFFF;
+      border: 3px solid #DCE5DF;
+    }
+    .phone-shell.dark-shell {
+      background: #171F1A;
+      border: 3px solid #2B3A31;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+    }
+
+    /* Inner Screen Container */
+    .screen {
+      flex: 1;
+      border-radius: 28px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .screen.light-screen {
+      background: #FAFAFA;
+      color: #1F1F1F;
+    }
+    .screen.dark-screen {
+      background: #0F1411;
+      color: #F4F7F5;
+    }
+
+    /* Dynamic Island & Status Bar */
+    .status-bar {
+      height: 38px;
+      padding: 4px 16px 0 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 600;
+      position: relative;
+      z-index: 10;
+    }
+    .dynamic-island {
+      position: absolute;
+      top: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 84px;
+      height: 20px;
+      border-radius: 10px;
+      background: #000000;
+    }
+    .light-screen .status-bar {
+      color: #1F1F1F;
+    }
+    .dark-screen .status-bar {
+      color: #F4F7F5;
+    }
+
+    /* App Bar */
+    .app-bar {
+      height: 48px;
+      padding: 0 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(0, 70, 40, 0.08);
+      position: relative;
+      z-index: 5;
+    }
+    .dark-screen .app-bar {
+      border-bottom-color: #2B3A31;
+      background: #171F1A;
+    }
+    .light-screen .app-bar {
+      background: #FFFFFF;
+    }
+
+    .app-profile {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .app-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 9999px;
+      background: #91FA9B;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .app-title-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .app-title {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 15px;
+    }
+    .app-subtitle {
+      font-size: 9.5px;
+      color: #666666;
+    }
+    .dark-screen .app-subtitle {
+      color: #98A89E;
+    }
+
+    .app-status-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .app-status-badge.listening-light {
+      background: #EBF7EC;
+      color: #007841;
+      border: 1px solid #99D59F;
+    }
+    .app-status-badge.speaking-light {
+      background: #004628;
+      color: #91FA9B;
+    }
+    .app-status-badge.listening-dark {
+      background: #102B1C;
+      color: #6EE7A0;
+      border: 1px solid #00AA46;
+    }
+    .app-status-badge.speaking-dark {
+      background: #142B1D;
+      color: #6EE7A0;
+      border: 1px solid #2B3A31;
+    }
+
+    /* Screen Content Scroll */
+    .screen-content {
+      flex: 1;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: hidden;
+    }
+
+    /* Date Pill */
+    .date-pill {
+      align-self: center;
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      background: rgba(0,0,0,0.04);
+      color: #666666;
+    }
+    .dark-screen .date-pill {
+      background: #1F2A23;
+      color: #98A89E;
+    }
+
+    /* Balance Summary Mini-Card */
+    .summary-card {
+      padding: 8px 12px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .light-screen .summary-card {
+      background: #FFFFFF;
+      border: 1px solid #E6E6E6;
+    }
+    .dark-screen .summary-card {
+      background: #171F1A;
+      border: 1px solid #2B3A31;
+    }
+    .summary-label {
+      font-size: 10px;
+      color: #666666;
+    }
+    .dark-screen .summary-label {
+      color: #98A89E;
+    }
+    .summary-amount {
+      font-size: 14px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #004628;
+    }
+    .dark-screen .summary-amount {
+      color: #6EE7A0;
+    }
+
+    /* User Message Bubble */
+    .user-bubble {
+      align-self: flex-end;
+      background: #00AA46;
+      color: #FFFFFF;
+      padding: 8px 12px;
+      border-radius: 16px 16px 4px 16px;
+      max-width: 82%;
+      font-size: 12.5px;
+      line-height: 17px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .dark-screen .user-bubble {
+      background: #00C853;
+      color: #002914;
+      font-weight: 600;
+    }
+
+    /* Open-Top Speech Bubble (S-Pankki Per Tieeri style) */
+    .open-bubble {
+      border: 2px solid #00AA46;
+      border-radius: 16px;
+      padding: 10px 12px 10px 12px;
+      background: #FFFFFF;
+      position: relative;
+      margin-top: 6px;
+    }
+    .dark-screen .open-bubble {
+      background: #171F1A;
+      border-color: #00EB5A;
+    }
+    .open-bubble-notch {
+      position: absolute;
+      top: -9px;
+      left: 14px;
+      background: #FAFAFA;
+      padding: 0 6px;
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #007841;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .dark-screen .open-bubble-notch {
+      background: #0F1411;
+      color: #00EB5A;
+    }
+    .open-bubble-text {
+      font-size: 13.5px;
+      font-weight: 600;
+      line-height: 18px;
+      color: #1F1F1F;
+    }
+    .dark-screen .open-bubble-text {
+      color: #F4F7F5;
+    }
+    .open-bubble-sub {
+      font-size: 10.5px;
+      color: #666666;
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dark-screen .open-bubble-sub {
+      color: #98A89E;
+    }
+
+    /* Waveform Ticker Bars */
+    .waveform-mini {
+      display: flex;
+      align-items: center;
+      gap: 2.5px;
+      height: 14px;
+      margin-top: 4px;
+    }
+    .wave-bar {
+      width: 2.5px;
+      border-radius: 2px;
+      background: #00EB5A;
+    }
+
+    /* AI Coach Chat Bubble */
+    .ai-bubble {
+      align-self: flex-start;
+      border-radius: 4px 16px 16px 16px;
+      padding: 10px 12px;
+      max-width: 96%;
+      font-size: 12px;
+      line-height: 17px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .light-screen .ai-bubble {
+      background: #EBF7EC;
+      border: 1px solid #D2FCD5;
+      color: #1F1F1F;
+    }
+    .dark-screen .ai-bubble {
+      background: #142B1D;
+      border: 1px solid #2B3A31;
+      color: #F4F7F5;
+    }
+    .ai-bubble-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #007841;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .dark-screen .ai-bubble-header {
+      color: #6EE7A0;
+    }
+
+    .hypercorrection-text {
+      font-size: 12.5px;
+      font-weight: 500;
+      line-height: 18px;
+    }
+    .hypercorrection-text b {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #004628;
+    }
+    .dark-screen .hypercorrection-text b {
+      color: #6EE7A0;
+    }
+
+    /* Insight Basket Mini-Card */
+    .basket-callout {
+      padding: 7px 10px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+    }
+    .basket-callout.slipping-light {
+      background: #FFF1D8;
+      border: 1px solid #CF8300;
+      color: #885600;
+    }
+    .basket-callout.slipping-dark {
+      background: #2E220D;
+      border: 1px solid #FFCA6B;
+      color: #FFCA6B;
+    }
+    .basket-delta {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Three Baskets Bar */
+    .baskets-bar-container {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: 2px;
+    }
+    .segmented-bar {
+      height: 10px;
+      border-radius: 9999px;
+      display: flex;
+      overflow: hidden;
+      width: 100%;
+    }
+    .seg-1 { background: #6EE7A0; width: 52%; }
+    .seg-2 { background: #67D5EB; width: 18%; }
+    .seg-3 { background: #FFCA6B; width: 30%; }
+
+    .baskets-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 9.5px;
+    }
+    .legend-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .legend-left {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .legend-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+    .legend-amount {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Caption Chip */
+    .caption-chip {
+      font-size: 9.5px;
+      color: #666666;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 2px;
+    }
+    .dark-screen .caption-chip {
+      color: #98A89E;
+    }
+
+    /* Bottom Voice Composer Dock */
+    .bottom-dock {
+      margin-top: auto;
+      border-radius: 20px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 14px rgba(0, 40, 20, 0.06);
+    }
+    .light-screen .bottom-dock {
+      background: #FFFFFF;
+      border: 1px solid #E6E6E6;
+    }
+    .dark-screen .bottom-dock {
+      background: #171F1A;
+      border: 1px solid #2B3A31;
+    }
+
+    .dock-indicator-col {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .dock-avatar-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .dock-text-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .dock-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      line-height: 15px;
+    }
+    .dock-sub {
+      font-size: 9.5px;
+      color: #666666;
+    }
+    .dark-screen .dock-sub {
+      color: #98A89E;
+    }
+
+    .dock-action-pill {
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      border: none;
+      cursor: pointer;
+    }
+    .dock-action-pill.btn-cancel {
+      background: #F5F5F5;
+      color: #363636;
+    }
+    .dock-action-pill.btn-dark {
+      background: #1F2A23;
+      color: #00EB5A;
+      border: 1px solid #2B3A31;
+    }
+
+    /* Home Indicator */
+    .home-indicator {
+      width: 90px;
+      height: 4px;
+      border-radius: 2px;
+      margin: 6px auto 2px auto;
+    }
+    .light-screen .home-indicator {
+      background: #000000;
+      opacity: 0.2;
+    }
+    .dark-screen .home-indicator {
+      background: #FFFFFF;
+      opacity: 0.3;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Board Header -->
+  <header class="board-header">
+    <div>
+      <div class="kicker">
+        <span class="kicker-dot"></span>
+        S-Pankki Personal Economic Trainer • Mobile Viewport Reference (390 × 844 pt)
+      </div>
+      <h1 class="board-title">Sponky Voice UI in Mobile Context — Light &amp; Dark Mode</h1>
+      <p class="board-desc">Four realistic mobile frames demonstrating active listening, speaking wave feedback, hypercorrection dialogue, and token parity.</p>
+    </div>
+    <div class="board-tags">
+      <div class="tag tag-accent">Concept A: S-Ribbon Wave</div>
+      <div class="tag">Concept B: Capsule Buddy</div>
+      <div class="tag">Tabular Euro (€)</div>
+    </div>
+  </header>
+
+  <!-- 4 Phones Grid -->
+  <main class="phones-grid">
+
+    <!-- ==================== FRAME 1: LIGHT MODE - LISTENING (CONCEPT A) ==================== -->
+    <div class="phone-column">
+      <div class="frame-header">
+        <span class="frame-title">1. Light • Listening</span>
+        <span class="mode-pill light">Concept A: S-Ribbon</span>
+      </div>
+
+      <div class="phone-shell light-shell">
+        <div class="screen light-screen">
+          <!-- Dynamic Island & Status Bar -->
+          <div class="status-bar">
+            <span>9:41</span>
+            <div class="dynamic-island"></div>
+            <span>5G 94%</span>
+          </div>
+
+          <!-- App Bar -->
+          <div class="app-bar">
+            <div class="app-profile">
+              <div class="app-avatar">
+                <!-- Mini S-Pankki Aulis Avatar -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M17.5 15V9C17.5 5.96 15.03 3.5 12 3.5C8.96 3.5 6.5 5.96 6.5 9V15C6.5 18.04 8.96 20.5 12 20.5C15.03 20.5 17.5 18.04 17.5 15Z" fill="#004628"/>
+                  <circle cx="10.25" cy="9.5" r="1.2" fill="#91FA9B"/>
+                  <circle cx="14" cy="9.5" r="1.2" fill="#91FA9B"/>
+                  <path d="M10.5 13 C11 14 13 14 13.5 13" stroke="#91FA9B" stroke-width="1" fill="none"/>
+                </svg>
+              </div>
+              <div class="app-title-group">
+                <span class="app-title">Sponky</span>
+                <span class="app-subtitle">Talousvalmentaja</span>
+              </div>
+            </div>
+            <div class="app-status-badge listening-light">
+              <span style="width:6px; height:6px; border-radius:50%; background:#00AA46;"></span>
+              Kuuntelee
+            </div>
+          </div>
+
+          <!-- Screen Content -->
+          <div class="screen-content">
+            <div class="date-pill">Tänään 14. marraskuuta</div>
+
+            <!-- Budget widget -->
+            <div class="summary-card">
+              <div>
+                <div class="summary-label">Vapaa marraskuun budjetti</div>
+                <div class="summary-amount">480,00 €</div>
+              </div>
+              <div style="font-size:10px; color:#007841; font-weight:600; text-align:right;">
+                15 pv jäljellä<br><span style="color:#666;">32,00 €/pv</span>
+              </div>
+            </div>
+
+            <!-- Open-Top Speech Bubble (S-Pankki Per Tieeri style) -->
+            <div class="open-bubble">
+              <div class="open-bubble-notch">
+                <span style="width:5px; height:5px; border-radius:50%; background:#00AA46;"></span>
+                PUHUTTU KYSYMYS
+              </div>
+              <div class="open-bubble-text">
+                &ldquo;Paljonko käytin takseihin viime kuussa?&rdquo;
+              </div>
+              <div class="open-bubble-sub">
+                <span>Tunnistettu puheesta</span>
+                <span>&bull;</span>
+<span style="display:inline-flex; align-items:center; gap:4px;">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="12" r="2" fill="#00AA46"/>
+                    <path d="M5 8.5 C6 7.5, 10 7.5, 11 8.5" stroke="#007841" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+                    <path d="M3 5.5 C5.5 3.5, 10.5 3.5, 13 5.5" stroke="#00EB5A" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+                  </svg>
+                  <span style="font-size:10px; font-weight:600; color:#007841;">3-kaari aktiivinen</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- System hint -->
+            <div style="font-size:10.5px; color:#666666; background:#F5F5F5; padding:6px 10px; border-radius:8px;">
+              💡 Vinkki: Sponky etsii taksitapahtumat S-Mobiilin tilitapahtumista.
+            </div>
+          </div>
+
+          <!-- Bottom Voice Dock (Concept A Active Listening) -->
+          <div class="bottom-dock" style="margin:0 10px 10px 10px;">
+            <div class="dock-indicator-col">
+              <div class="dock-avatar-box" style="background:#91FA9B; border:2px solid #00AA46; box-shadow:0 0 0 4px rgba(145,250,155,0.45);">
+                <!-- Concept A S-Ribbon -->
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path fill-rule="evenodd" clip-rule="evenodd" d="M8.17152 9.75C8.17152 5.46979 11.6413 2 15.9215 2H18.0005V3.5H15.9215C12.4697 3.5 9.67152 6.29822 9.67152 9.75V13.9079C9.67152 15.1505 8.66416 16.1579 7.42152 16.1579H7.2373V17.5789H7.84257C9.63749 17.5789 11.0926 16.1239 11.0926 14.3289V9.67105C11.0926 7.0477 13.2192 4.92105 15.8426 4.92105H18.0005V9.3421H16.2636C15.8494 9.3421 15.5136 9.67789 15.5136 10.0921V14.25C15.5136 18.5302 12.0438 22 7.76362 22H5.75046V20.5H7.76362C11.2154 20.5 14.0136 17.7018 14.0136 14.25V10.0921C14.0136 8.84946 15.021 7.8421 16.2636 7.8421H16.5005V6.42105H15.8426C14.0476 6.42105 12.5926 7.87613 12.5926 9.67105V14.3289C12.5926 16.9523 10.4659 19.0789 7.84257 19.0789H5.7373V14.6579H7.42152C7.83573 14.6579 8.17152 14.3221 8.17152 13.9079V9.75Z" fill="#004628"/>
+                </svg>
+              </div>
+              <div class="dock-text-group">
+                <span class="dock-title">Kuunnellaan...</span>
+                <span class="dock-sub">S-Ribbon halo aktiivinen</span>
+              </div>
+            </div>
+            <button class="dock-action-pill btn-cancel">Peruuta</button>
+          </div>
+
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== FRAME 2: LIGHT MODE - SPEAKING BACK (CONCEPT A) ==================== -->
+    <div class="phone-column">
+      <div class="frame-header">
+        <span class="frame-title">2. Light • Speaking</span>
+        <span class="mode-pill light">Concept A: S-Ribbon</span>
+      </div>
+
+      <div class="phone-shell light-shell">
+        <div class="screen light-screen">
+          <!-- Status Bar -->
+          <div class="status-bar">
+            <span>9:41</span>
+            <div class="dynamic-island"></div>
+            <span>5G 94%</span>
+          </div>
+
+          <!-- App Bar -->
+          <div class="app-bar">
+            <div class="app-profile">
+              <div class="app-avatar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M17.5 15V9C17.5 5.96 15.03 3.5 12 3.5C8.96 3.5 6.5 5.96 6.5 9V15C6.5 18.04 8.96 20.5 12 20.5C15.03 20.5 17.5 18.04 17.5 15Z" fill="#004628"/>
+                  <circle cx="10.25" cy="9.5" r="1.2" fill="#91FA9B"/>
+                  <circle cx="14" cy="9.5" r="1.2" fill="#91FA9B"/>
+                  <path d="M10.5 13 C11 14 13 14 13.5 13" stroke="#91FA9B" stroke-width="1" fill="none"/>
+                </svg>
+              </div>
+              <div class="app-title-group">
+                <span class="app-title">Sponky</span>
+                <span class="app-subtitle">Talousvalmentaja</span>
+              </div>
+            </div>
+            <div class="app-status-badge speaking-light">
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 4v4h2l3 3V1L4 4H2z" fill="#91FA9B"/><path d="M9 4c.6.6.6 3.4 0 4" stroke="#91FA9B" stroke-linecap="round"/></svg>
+              Puhuu
+            </div>
+          </div>
+
+          <!-- Screen Content -->
+          <div class="screen-content">
+            <!-- User Bubble -->
+            <div class="user-bubble">
+              Paljonko käytin takseihin viime kuussa?
+            </div>
+
+            <!-- AI Coach Chat Bubble -->
+            <div class="ai-bubble">
+              <div class="ai-bubble-header">
+                <span style="width:6px; height:6px; border-radius:50%; background:#00AA46;"></span>
+                Sponky Valmentaja &bull; Äsken
+              </div>
+
+              <!-- Hypercorrection Text -->
+              <div class="hypercorrection-text">
+                Arvioit <b>20,00 €</b>. Todellinen summa: <b>60,00 €</b> yhteensä 6 matkalta.
+              </div>
+
+              <!-- Slipping Basket callout -->
+              <div class="basket-callout slipping-light">
+                <div>
+                  <div style="font-weight:700; font-size:10.5px;">Arjen liukumat (Everyday Slipping)</div>
+                  <div style="font-size:9.5px; opacity:0.85;">Taksimatkat &amp; kyytipalvelut</div>
+                </div>
+                <div class="basket-delta">+40,00 € yli arvion</div>
+              </div>
+
+              <!-- Source Caption Chip -->
+              <div class="caption-chip">
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#666" stroke-width="1"/><path d="M6 3v3l2 1" stroke="#666" stroke-width="1"/></svg>
+                Laskettu S-Mobiilin tilitiedoista &bull; 6 tapahtumaa &bull; Varmista
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Voice Dock (Concept A Active Speaking) -->
+          <div class="bottom-dock" style="margin:0 10px 10px 10px;">
+            <div class="dock-indicator-col">
+              <div class="dock-avatar-box" style="background:#91FA9B; border:2px solid #004628; box-shadow:0 0 0 4px rgba(0,235,90,0.35);">
+                <!-- Speaking S-Ribbon with outward waves -->
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path fill-rule="evenodd" clip-rule="evenodd" d="M8.17152 9.75C8.17152 5.46979 11.6413 2 15.9215 2H18.0005V3.5H15.9215C12.4697 3.5 9.67152 6.29822 9.67152 9.75V13.9079C9.67152 15.1505 8.66416 16.1579 7.42152 16.1579H7.2373V17.5789H7.84257C9.63749 17.5789 11.0926 16.1239 11.0926 14.3289V9.67105C11.0926 7.0477 13.2192 4.92105 15.8426 4.92105H18.0005V9.3421H16.2636C15.8494 9.3421 15.5136 9.67789 15.5136 10.0921V14.25C15.5136 18.5302 12.0438 22 7.76362 22H5.75046V20.5H7.76362C11.2154 20.5 14.0136 17.7018 14.0136 14.25V10.0921C14.0136 8.84946 15.021 7.8421 16.2636 7.8421H16.5005V6.42105H15.8426C14.0476 6.42105 12.5926 7.87613 12.5926 9.67105V14.3289C12.5926 16.9523 10.4659 19.0789 7.84257 19.0789H5.7373V14.6579H7.42152C7.83573 14.6579 8.17152 14.3221 8.17152 13.9079V9.75Z" fill="#004628"/>
+                </svg>
+              </div>
+              <div class="dock-text-group">
+                <span class="dock-title">Puhutaan vastausta...</span>
+                <span class="dock-sub">Aalto-resonanssi aktiivinen</span>
+              </div>
+            </div>
+            <button class="dock-action-pill btn-cancel" style="background:#004628; color:#91FA9B;">Pysäytä</button>
+          </div>
+
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== FRAME 3: DARK MODE - LISTENING (CONCEPT B) ==================== -->
+    <div class="phone-column">
+      <div class="frame-header">
+        <span class="frame-title dark-title">3. Dark • Listening</span>
+        <span class="mode-pill dark">Concept B: Capsule</span>
+      </div>
+
+      <div class="phone-shell dark-shell">
+        <div class="screen dark-screen">
+          <!-- Status Bar -->
+          <div class="status-bar">
+            <span>9:41</span>
+            <div class="dynamic-island"></div>
+            <span>5G 94%</span>
+          </div>
+
+          <!-- App Bar -->
+          <div class="app-bar">
+            <div class="app-profile">
+              <div class="app-avatar" style="background:#102B1C; border:1px solid #00EB5A;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M17.5 15V9C17.5 5.96 15.03 3.5 12 3.5C8.96 3.5 6.5 5.96 6.5 9V15C6.5 18.04 8.96 20.5 12 20.5C15.03 20.5 17.5 18.04 17.5 15Z" fill="#00EB5A"/>
+                  <circle cx="10.25" cy="9.5" r="1" fill="#002914"/>
+                  <circle cx="14" cy="9.5" r="1" fill="#002914"/>
+                </svg>
+              </div>
+              <div class="app-title-group">
+                <span class="app-title">Sponky</span>
+                <span class="app-subtitle">Talousvalmentaja</span>
+              </div>
+            </div>
+            <div class="app-status-badge listening-dark">
+              <span style="width:6px; height:6px; border-radius:50%; background:#00EB5A;"></span>
+              Kuuntelee
+            </div>
+          </div>
+
+          <!-- Screen Content -->
+          <div class="screen-content">
+            <div class="date-pill">Tänään 14. marraskuuta</div>
+
+            <!-- Savings Buffer Snapshot -->
+            <div class="summary-card">
+              <div>
+                <div class="summary-label">Säästöpuskuri yhteensä</div>
+                <div class="summary-amount">1 234,56 €</div>
+              </div>
+              <div style="font-size:10px; color:#6EE7A0; font-weight:600; text-align:right;">
+                +120,00 €<br><span style="color:#98A89E;">tässä kuussa</span>
+              </div>
+            </div>
+
+            <!-- Dark Mode Open Speech Bubble (In progress) -->
+            <div class="open-bubble">
+              <div class="open-bubble-notch">
+                <span style="width:5px; height:5px; border-radius:50%; background:#00EB5A;"></span>
+                SIMULAATIOKYSYMYS
+              </div>
+              <div class="open-bubble-text">
+                &ldquo;Entä jos vähentäisin takseja 20 %?&rdquo;
+              </div>
+              <div class="open-bubble-sub">
+                <span>Käsitellään simulaatiota</span>
+                <span>&bull;</span>
+                <span style="display:inline-flex; align-items:center; gap:4px;">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="12" r="2" fill="#00EB5A"/>
+                    <path d="M5 8.5 C6 7.5, 10 7.5, 11 8.5" stroke="#6EE7A0" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+                    <path d="M3 5.5 C5.5 3.5, 10.5 3.5, 13 5.5" stroke="#91FA9B" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+                  </svg>
+                  <span style="font-size:10px; font-weight:600; color:#6EE7A0;">3-kaari aktiivinen</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- Context tip -->
+            <div style="font-size:10.5px; color:#98A89E; background:#1F2A23; padding:6px 10px; border-radius:8px;">
+              💡 Sponky Simulaatio: Lasketaan 20 % vähennyksen vaikutus.
+            </div>
+          </div>
+
+          <!-- Bottom Voice Dock (Concept B Attentive Listening) -->
+          <div class="bottom-dock" style="margin:0 10px 10px 10px;">
+            <div class="dock-indicator-col">
+              <div class="dock-avatar-box" style="background:#91FA9B; border:2px solid #00EB5A; box-shadow:0 0 0 4px rgba(0,235,90,0.3);">
+                <!-- Concept B Capsule Face Attentive -->
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <rect x="5.5" y="2.5" width="13" height="19" rx="6.5" fill="#91FA9B"/>
+                  <path fill-rule="evenodd" clip-rule="evenodd" d="M17.5 15V9C17.5 5.96 15.03 3.5 12 3.5C8.96 3.5 6.5 5.96 6.5 9V15C6.5 18.04 8.96 20.5 12 20.5C15.03 20.5 17.5 18.04 17.5 15ZM12 2C8.13 2 5 5.13 5 9V15C5 18.86 8.13 22 12 22C15.86 22 19 18.86 19 15V9C19 5.13 15.86 2 12 2Z" fill="#004628"/>
+                  <!-- Raised brows -->
+                  <path d="M8.5 6.2 Q 10 5.5, 11 6.2" stroke="#004628" stroke-width="0.9" stroke-linecap="round" fill="none"/>
+                  <path d="M13 6.2 Q 14 5.5, 15.5 6.2" stroke="#004628" stroke-width="0.9" stroke-linecap="round" fill="none"/>
+                  <circle cx="10.25" cy="9.5" r="1.3" fill="#004628"/>
+                  <circle cx="14" cy="9.5" r="1.3" fill="#004628"/>
+                  <path d="M10.5 12.8 Q 12 13.8, 13.5 12.8" stroke="#004628" stroke-width="1" stroke-linecap="round" fill="none"/>
+                </svg>
+              </div>
+              <div class="dock-text-group">
+                <span class="dock-title" style="color:#F4F7F5;">Sponky kuuntelee</span>
+                <span class="dock-sub">20 % säästösimulaatio</span>
+              </div>
+            </div>
+            <button class="dock-action-pill btn-dark">Peruuta</button>
+          </div>
+
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== FRAME 4: DARK MODE - SPEAKING BACK (CONCEPT B) ==================== -->
+    <div class="phone-column">
+      <div class="frame-header">
+        <span class="frame-title dark-title">4. Dark • Speaking</span>
+        <span class="mode-pill dark">Concept B: Capsule</span>
+      </div>
+
+      <div class="phone-shell dark-shell">
+        <div class="screen dark-screen">
+          <!-- Status Bar -->
+          <div class="status-bar">
+            <span>9:41</span>
+            <div class="dynamic-island"></div>
+            <span>5G 94%</span>
+          </div>
+
+          <!-- App Bar -->
+          <div class="app-bar">
+            <div class="app-profile">
+              <div class="app-avatar" style="background:#102B1C; border:1px solid #00EB5A;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M17.5 15V9C17.5 5.96 15.03 3.5 12 3.5C8.96 3.5 6.5 5.96 6.5 9V15C6.5 18.04 8.96 20.5 12 20.5C15.03 20.5 17.5 18.04 17.5 15Z" fill="#00EB5A"/>
+                  <circle cx="10.25" cy="9.5" r="1" fill="#002914"/>
+                  <circle cx="14" cy="9.5" r="1" fill="#002914"/>
+                </svg>
+              </div>
+              <div class="app-title-group">
+                <span class="app-title">Sponky</span>
+                <span class="app-subtitle">Talousvalmentaja</span>
+              </div>
+            </div>
+            <div class="app-status-badge speaking-dark">
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 4v4h2l3 3V1L4 4H2z" fill="#6EE7A0"/><path d="M9 4c.6.6.6 3.4 0 4" stroke="#6EE7A0" stroke-linecap="round"/></svg>
+              Puhuu
+            </div>
+          </div>
+
+          <!-- Screen Content -->
+          <div class="screen-content">
+            <!-- User Bubble -->
+            <div class="user-bubble">
+              Näytä marraskuun korit ja budjetti.
+            </div>
+
+            <!-- AI Coach Chat Bubble -->
+            <div class="ai-bubble">
+              <div class="ai-bubble-header">
+                <span style="width:6px; height:6px; border-radius:50%; background:#00EB5A;"></span>
+                Sponky &bull; Kolme Kulutuskoria
+              </div>
+
+              <div class="hypercorrection-text">
+                Marraskuun kulutus <b>1 615,00 €</b> jakautuu kolmeen koriin:
+              </div>
+
+              <!-- Three Baskets Breakdown Bar -->
+              <div class="baskets-bar-container">
+                <div class="segmented-bar">
+                  <div class="seg-1" title="Mandatory Regular (52%)"></div>
+                  <div class="seg-2" title="Mandatory Irregular (18%)"></div>
+                  <div class="seg-3" title="Everyday Slipping (30%)"></div>
+                </div>
+
+                <div class="baskets-legend">
+                  <div class="legend-row">
+                    <div class="legend-left"><span class="legend-dot" style="background:#6EE7A0;"></span>Pakolliset säännölliset (52%)</div>
+                    <span class="legend-amount" style="color:#6EE7A0;">840,00 €</span>
+                  </div>
+                  <div class="legend-row">
+                    <div class="legend-left"><span class="legend-dot" style="background:#67D5EB;"></span>Pakolliset epäsäännölliset (18%)</div>
+                    <span class="legend-amount" style="color:#67D5EB;">290,00 €</span>
+                  </div>
+                  <div class="legend-row">
+                    <div class="legend-left"><span class="legend-dot" style="background:#FFCA6B;"></span>Arjen liukumat (30%)</div>
+                    <span class="legend-amount" style="color:#FFCA6B;">485,00 €</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Caption Chip -->
+              <div class="caption-chip">
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#98A89E" stroke-width="1"/><path d="M6 3v3l2 1" stroke="#98A89E" stroke-width="1"/></svg>
+                Päivitetty äsken &bull; 24 tapahtumaa &bull; S-Mobiili
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Voice Dock (Concept B Active Speaking with Ripple) -->
+          <div class="bottom-dock" style="margin:0 10px 10px 10px;">
+            <div class="dock-indicator-col">
+              <div class="dock-avatar-box" style="background:#91FA9B; border:2px solid #004628; box-shadow:0 0 0 4px rgba(110,231,160,0.3);">
+                <!-- Concept B Capsule Face Speaking with smile wave -->
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <rect x="5.5" y="2.5" width="13" height="19" rx="6.5" fill="#91FA9B"/>
+                  <path fill-rule="evenodd" clip-rule="evenodd" d="M17.5 15V9C17.5 5.96 15.03 3.5 12 3.5C8.96 3.5 6.5 5.96 6.5 9V15C6.5 18.04 8.96 20.5 12 20.5C15.03 20.5 17.5 18.04 17.5 15ZM12 2C8.13 2 5 5.13 5 9V15C5 18.86 8.13 22 12 22C15.86 22 19 18.86 19 15V9C19 5.13 15.86 2 12 2Z" fill="#004628"/>
+                  <!-- Animated smile wave mouth -->
+                  <path d="M9.8 12.2 Q 11 11.5, 12 12.2 Q 13 11.5, 14.2 12.2 C 14 14.2, 10 14.2, 9.8 12.2 Z" fill="#004628"/>
+                  <circle cx="10.25" cy="9.5" r="1.2" fill="#004628"/>
+                  <circle cx="14" cy="9.5" r="1.2" fill="#004628"/>
+                </svg>
+              </div>
+              <div class="dock-text-group">
+                <span class="dock-title" style="color:#F4F7F5;">Sponky puhuu</span>
+                <span class="dock-sub">Aulis hymyaalto &bull; korit</span>
+              </div>
+            </div>
+            <button class="dock-action-pill btn-dark" style="background:#142B1D; color:#6EE7A0;">Pysäytä</button>
+          </div>
+
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+</body>
+</html>

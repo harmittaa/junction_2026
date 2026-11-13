@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 260" width="1000" height="260">
+  <defs>
+    <style>
+      .title { font-family: 'Inter', -apple-system, sans-serif; font-size: 13px; font-weight: 700; fill: #004628; letter-spacing: 0.8px; text-anchor: middle; }
+      .subtitle { font-family: 'Inter', -apple-system, sans-serif; font-size: 11px; font-weight: 500; fill: #666666; text-anchor: middle; }
+      .badge-text { font-family: 'Inter', -apple-system, sans-serif; font-size: 10px; font-weight: 600; text-anchor: middle; }
+      .mono-text { font-family: 'SF Mono', 'Roboto Mono', Menlo, monospace; font-size: 9.5px; fill: #666666; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <!-- Background surface -->
+  <rect width="1000" height="260" rx="16" fill="#FFFFFF" stroke="#E6E6E6" stroke-width="1"/>
+
+  <!-- Column Dividers -->
+  <line x1="200" y1="16" x2="200" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="400" y1="16" x2="400" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="600" y1="16" x2="600" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="800" y1="16" x2="800" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+
+  <!-- 1. STATE IDLE -->
+  <g id="state-idle">
+    <text x="100" y="36" class="title">IDLE</text>
+    <text x="100" y="52" class="subtitle">Compact 3-basket dock</text>
+
+    <!-- Dock Circle -->
+    <circle cx="100" cy="136" r="34" fill="#EBF7EC" stroke="#00AA46" stroke-width="1.5"/>
+
+    <!-- Microphone Body in Center -->
+    <g transform="translate(100, 140)">
+      <rect x="-5" y="-12" width="10" height="16" rx="5" fill="#004628"/>
+      <path d="M-8 -4 C-8 4, 8 4, 8 -4" stroke="#004628" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <line x1="0" y1="5" x2="0" y2="11" stroke="#004628" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="-5" y1="11" x2="5" y2="11" stroke="#004628" stroke-width="1.8" stroke-linecap="round"/>
+    </g>
+
+    <!-- 3 Subtle Concentric Resting Arcs at Top -->
+    <path d="M92 110 C96 107, 104 107, 108 110" stroke="#004628" stroke-width="2" stroke-linecap="round" fill="none"/>
+    <path d="M88 104 C94 100, 106 100, 112 104" stroke="#006E87" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.75"/>
+    <path d="M84 98 C92 93, 108 93, 116 98" stroke="#CF8300" stroke-width="1.6" stroke-linecap="round" fill="none" opacity="0.55"/>
+
+    <!-- State Tag -->
+    <rect x="54" y="214" width="92" height="20" rx="10" fill="#F5F5F5"/>
+    <text x="100" y="228" class="mono-text">3 baskets • 0 dB</text>
+  </g>
+
+  <!-- 2. STATE LISTENING -->
+  <g id="state-listening">
+    <text x="300" y="36" class="title">LISTENING</text>
+    <text x="300" y="52" class="subtitle">Expanding arcs &amp; bubble</text>
+
+    <!-- Open-Top Speech Bubble Outline (Per Tieeri campaign signature) -->
+    <!-- Frame with open top edge -->
+    <path d="M248 84 H236 C226 84, 218 92, 218 102 V162 C218 172, 226 180, 236 180 H280 L292 192 L296 180 H364 C374 180, 382 172, 382 162 V102 C382 92, 374 84, 364 84 H352" stroke="#99D59F" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-dasharray="120 18"/>
+
+    <!-- Dock Circle Active -->
+    <circle cx="300" cy="136" r="34" fill="#91FA9B" stroke="#00AA46" stroke-width="2"/>
+
+    <!-- 3 Concentric Signal Arcs Expanding Outward (The Three Spending Baskets) -->
+    <!-- Basket 1: Mandatory Regular (#004628) -->
+    <path d="M278 114 C290 102, 310 102, 322 114" stroke="#004628" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+    <!-- Basket 2: Mandatory Irregular (#006E87) -->
+    <path d="M270 104 C286 89, 314 89, 330 104" stroke="#006E87" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+    <!-- Basket 3: Everyday Slipping (#CF8300) -->
+    <path d="M262 94 C282 76, 318 76, 338 94" stroke="#CF8300" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+
+    <!-- Active Mic in Center -->
+    <g transform="translate(300, 142)">
+      <rect x="-5" y="-12" width="10" height="16" rx="5" fill="#004628"/>
+      <path d="M-8 -4 C-8 4, 8 4, 8 -4" stroke="#004628" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <line x1="0" y1="5" x2="0" y2="11" stroke="#004628" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="-5" y1="11" x2="5" y2="11" stroke="#004628" stroke-width="1.8" stroke-linecap="round"/>
+    </g>
+
+    <!-- State Tag -->
+    <rect x="246" y="214" width="108" height="20" rx="10" fill="#EBF7EC" stroke="#99D59F" stroke-width="1"/>
+    <text x="300" y="228" class="badge-text" fill="#007841">Open Bubble • 3 Arcs</text>
+  </g>
+
+  <!-- 3. STATE THINKING -->
+  <g id="state-thinking">
+    <text x="500" y="36" class="title">THINKING</text>
+    <text x="500" y="52" class="subtitle">Rotating basket orbit</text>
+
+    <!-- Circular Tri-Basket Orbital Ring -->
+    <!-- Arc 1: Regular Green -->
+    <path d="M482 100 A 42 42 0 0 1 536 112" stroke="#004628" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <!-- Arc 2: Irregular Teal -->
+    <path d="M542 128 A 42 42 0 0 1 512 176" stroke="#006E87" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <!-- Arc 3: Everyday Amber -->
+    <path d="M492 174 A 42 42 0 0 1 462 122" stroke="#CF8300" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+    <!-- Dock Circle -->
+    <circle cx="500" cy="136" r="32" fill="#EBF7EC" stroke="#007841" stroke-width="1.8"/>
+
+    <!-- Central S-Core Orb & 3 Mini Dots -->
+    <circle cx="500" cy="136" r="6" fill="#004628"/>
+    <circle cx="500" cy="118" r="2.5" fill="#004628"/>
+    <circle cx="516" cy="145" r="2.5" fill="#006E87"/>
+    <circle cx="484" cy="145" r="2.5" fill="#CF8300"/>
+
+    <!-- State Tag -->
+    <rect x="448" y="214" width="104" height="20" rx="10" fill="#EBF7EC" stroke="#99D59F" stroke-width="1"/>
+    <text x="500" y="228" class="badge-text" fill="#007841">Tri-Orbit • Cadence</text>
+  </g>
+
+  <!-- 4. STATE SPEAKING -->
+  <g id="state-speaking">
+    <text x="700" y="36" class="title">SPEAKING</text>
+    <text x="700" y="52" class="subtitle">Stereo basket wave pulses</text>
+
+    <!-- Stereo Wave Arcs in 3 Basket Colors (Left and Right) -->
+    <!-- Left Pulses -->
+    <path d="M660 126 C652 131 652 141 660 146" stroke="#004628" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M650 120 C638 128 638 144 650 152" stroke="#006E87" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+    <path d="M640 114 C624 125 624 147 640 158" stroke="#CF8300" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+    <!-- Right Pulses -->
+    <path d="M740 126 C748 131 748 141 740 146" stroke="#004628" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M750 120 C762 128 762 144 750 152" stroke="#006E87" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+    <path d="M760 114 C776 125 776 147 760 158" stroke="#CF8300" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+
+    <!-- Dock Pill Active -->
+    <rect x="666" y="106" width="68" height="60" rx="30" fill="#91FA9B" stroke="#004628" stroke-width="2.2"/>
+
+    <!-- Speaker Cone & Wave Waves inside pill -->
+    <g transform="translate(700, 136)">
+      <path d="M-12 -6 L-6 -6 L0 -12 L0 12 L-6 6 L-12 6 Z" fill="#004628"/>
+      <!-- Wave arcs inside pill -->
+      <path d="M4 -4 C6 -2, 6 2, 4 4" stroke="#004628" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <path d="M8 -8 C12 -4, 12 4, 8 8" stroke="#006E87" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <path d="M12 -12 C18 -6, 18 6, 12 12" stroke="#CF8300" stroke-width="2" stroke-linecap="round" fill="none"/>
+    </g>
+
+    <!-- State Tag -->
+    <rect x="644" y="214" width="112" height="20" rx="10" fill="#004628"/>
+    <text x="700" y="228" class="badge-text" fill="#91FA9B">Stereo • 3 Baskets</text>
+  </g>
+
+  <!-- 5. STATE REDUCED MOTION -->
+  <g id="state-reduced-motion">
+    <text x="900" y="36" class="title">REDUCED MOTION</text>
+    <text x="900" y="52" class="subtitle">Static 3-basket badge</text>
+
+    <!-- Static High-Contrast Ring -->
+    <circle cx="900" cy="136" r="38" fill="none" stroke="#00AA46" stroke-width="3"/>
+    <circle cx="900" cy="136" r="34" fill="#FFFFFF" stroke="#004628" stroke-width="1.5"/>
+
+    <!-- Static Mic & 3 Arcs -->
+    <g transform="translate(900, 142)">
+      <rect x="-5" y="-12" width="10" height="16" rx="5" fill="#004628"/>
+      <path d="M-8 -4 C-8 4, 8 4, 8 -4" stroke="#004628" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <line x1="0" y1="5" x2="0" y2="11" stroke="#004628" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="-5" y1="11" x2="5" y2="11" stroke="#004628" stroke-width="1.8" stroke-linecap="round"/>
+    </g>
+    <path d="M892 114 C896 111, 904 111, 908 114" stroke="#004628" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+    <path d="M888 108 C894 104, 906 104, 912 108" stroke="#006E87" stroke-width="2" stroke-linecap="round" fill="none"/>
+    <path d="M884 102 C892 97, 908 97, 916 102" stroke="#CF8300" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+
+    <!-- Static Status Badge Pill -->
+    <rect x="834" y="188" width="132" height="22" rx="11" fill="#004628" stroke="#00AA46" stroke-width="1.5"/>
+    <circle cx="847" cy="199" r="4" fill="#00EB5A"/>
+    <text x="906" y="202" font-family="'Inter', -apple-system, sans-serif" font-size="9px" font-weight="700" fill="#FFFFFF" letter-spacing="0.6px" text-anchor="middle">3 BASKETS • ACTIVE</text>
+
+    <!-- State Tag -->
+    <rect x="834" y="220" width="132" height="18" rx="9" fill="#F5F5F5"/>
+    <text x="900" y="232" class="mono-text">prefers-reduced-motion</text>
+  </g>
+</svg>

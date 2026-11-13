@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sponky Voice-Reactive Indicator — S-Pankki Brand Concepts</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 1400px;
+      height: 1120px;
+      padding: 24px 32px 32px 32px;
+      background: #F4F6F4;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #1F1F1F;
+      padding: 24px 32px 32px 32px;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    /* Header Bar */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #E0E8E2;
+      margin-bottom: 18px;
+    }
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .kicker {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: #007841;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .kicker-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px;
+      background: #00AA46;
+    }
+    .header-title {
+      font-size: 26px;
+      font-weight: 700;
+      color: #004628;
+      letter-spacing: -0.4px;
+    }
+    .header-desc {
+      font-size: 13px;
+      color: #666666;
+    }
+    .header-badges {
+      display: flex;
+      gap: 8px;
+    }
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      background: #FFFFFF;
+      border: 1px solid #D9E2DC;
+      color: #004628;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .badge-accent {
+      background: #EBF7EC;
+      border-color: #99D59F;
+      color: #007841;
+    }
+
+    /* Concept Rows Grid */
+    .concepts-container {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .concept-card {
+      background: #FFFFFF;
+      border: 1px solid #E6ECE8;
+      border-radius: 16px;
+      padding: 12px 18px 12px 18px;
+      box-shadow: 0 2px 6px rgba(0, 70, 40, 0.03);
+    }
+
+    .concept-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .concept-title-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .concept-tag {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      background: #004628;
+      color: #FFFFFF;
+      letter-spacing: 0.5px;
+    }
+    .concept-tag.secondary {
+      background: #006E87;
+    }
+    .concept-tag.tertiary {
+      background: #CF8300;
+    }
+
+    .concept-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #004628;
+    }
+
+    .concept-desc {
+      font-size: 12px;
+      color: #666666;
+    }
+
+    .concept-meta {
+      font-size: 11.5px;
+      color: #007841;
+      font-weight: 600;
+    }
+
+    .svg-embed {
+      width: 100%;
+      height: 185px;
+      display: block;
+    }
+
+    /* Spec Strip Footer */
+    .spec-strip {
+      margin-top: 14px;
+      background: #FFFFFF;
+      border: 1px solid #E6ECE8;
+      border-radius: 16px;
+      padding: 12px 20px;
+      display: grid;
+      grid-template-columns: 1.1fr 1.9fr;
+      gap: 20px;
+      align-items: center;
+      box-shadow: 0 2px 6px rgba(0, 70, 40, 0.03);
+    }
+
+    .spec-section-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #004628;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+    }
+
+    .spec-motion-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .spec-code-line {
+      font-family: 'SF Mono', Menlo, monospace;
+      font-size: 11px;
+      color: #363636;
+      background: #F7FAF8;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid #EAEFEA;
+    }
+    .spec-code-line b {
+      color: #007841;
+    }
+
+    .spec-tokens-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      align-items: center;
+    }
+
+    .token-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      background: #F7FAF8;
+      border: 1px solid #EAEFEA;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .token-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid rgba(0,0,0,0.1);
+      flex-shrink: 0;
+    }
+    .token-name {
+      color: #363636;
+      font-weight: 500;
+    }
+    .token-hex {
+      font-family: 'SF Mono', Menlo, monospace;
+      font-size: 10px;
+      color: #666666;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="kicker">
+        <span class="kicker-dot"></span>
+        S-Pankki Design System (--sds-*) • Junction 2026 • Voice Indicator Spec
+      </div>
+      <h1 class="header-title">Sponky Voice-Reactive Indicator — S-Pankki Brand Concepts</h1>
+      <p class="header-desc">Clean vector reference states for voice interaction: Idle standby, active listening halo, thinking cadence, speaking wave, and reduced motion.</p>
+    </div>
+    <div class="header-badges">
+      <div class="badge badge-accent">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#007841" stroke-width="1.5"/><path d="M4 6L5.5 7.5L8 4.5" stroke="#007841" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Issue #9: Modest Motion
+      </div>
+      <div class="badge">
+        <span style="width:6px; height:6px; border-radius:50%; background:#00AA46;"></span>
+        WCAG AAA Accessible
+      </div>
+      <div class="badge">
+        Spring: D40 M1 S700
+      </div>
+    </div>
+  </header>
+
+  <!-- Concepts Container -->
+  <main class="concepts-container">
+
+    <!-- Row 1: Concept A -->
+    <section class="concept-card">
+      <div class="concept-card-header">
+        <div class="concept-title-group">
+          <span class="concept-tag">CONCEPT A</span>
+          <h2 class="concept-title">S-Ribbon Wave (Official Brand Mark)</h2>
+          <span class="concept-desc">Official two-band S-Pankki curve (s-logo.svg) inside mint dock with undulating S-wave crests &amp; concentric audio echo.</span>
+        </div>
+        <div class="concept-meta">Primary Brand Recommendation</div>
+      </div>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 260" style="width:100%; height:185px; display:block;">
+  <defs>
+    <style>
+      .title { font-family: 'Inter', -apple-system, sans-serif; font-size: 13px; font-weight: 700; fill: #004628; letter-spacing: 0.8px; text-anchor: middle; }
+      .subtitle { font-family: 'Inter', -apple-system, sans-serif; font-size: 11px; font-weight: 500; fill: #666666; text-anchor: middle; }
+      .badge-text { font-family: 'Inter', -apple-system, sans-serif; font-size: 10px; font-weight: 600; text-anchor: middle; }
+      .mono-text { font-family: 'SF Mono', 'Roboto Mono', Menlo, monospace; font-size: 9.5px; fill: #666666; text-anchor: middle; }
+    </style>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background surface -->
+  <rect style="width:100%; height:185px; display:block;" rx="16" fill="#FFFFFF" stroke="#E6E6E6" stroke-width="1"/>
+
+  <!-- Column Dividers -->
+  <line x1="200" y1="16" x2="200" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="400" y1="16" x2="400" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="600" y1="16" x2="600" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="800" y1="16" x2="800" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+
+  <!-- 1. STATE IDLE -->
+  <g id="state-idle">
+    <text x="100" y="36" class="title">IDLE</text>
+    <text x="100" y="52" class="subtitle">Standby dock</text>
+    
+    <!-- Dock Circle -->
+    <circle cx="100" cy="136" r="34" fill="#EBF7EC" stroke="#00AA46" stroke-width="1.5"/>
+    <!-- S-Ribbon Path -->
+    <g transform="translate(100, 136) scale(2.2) translate(-11.87, -12)">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M8.17152 9.75C8.17152 5.46979 11.6413 2 15.9215 2H18.0005V3.5H15.9215C12.4697 3.5 9.67152 6.29822 9.67152 9.75V13.9079C9.67152 15.1505 8.66416 16.1579 7.42152 16.1579H7.2373V17.5789H7.84257C9.63749 17.5789 11.0926 16.1239 11.0926 14.3289V9.67105C11.0926 7.0477 13.2192 4.92105 15.8426 4.92105H18.0005V9.3421H16.2636C15.8494 9.3421 15.5136 9.67789 15.5136 10.0921V14.25C15.5136 18.5302 12.0438 22 7.76362 22H5.75046V20.5H7.76362C11.2154 20.5 14.0136 17.7018 14.0136 14.25V10.0921C14.0136 8.84946 15.021 7.8421 16.2636 7.8421H16.5005V6.42105H15.8426C14.0476 6.42105 12.5926 7.87613 12.5926 9.67105V14.3289C12.5926 16.9523 10.4659 19.0789 7.84257 19.0789H5.7373V14.6579H7.42152C7.83573 14.6579 8.17152 14.3221 8.17152 13.9079V9.75Z" fill="#004628"/>
+    </g>
+
+    <!-- State Tag -->
+    <rect x="54" y="214" width="92" height="20" rx="10" fill="#F5F5F5"/>
+    <text x="100" y="228" class="mono-text">scale: 1.0 • 0 dB</text>
+  </g>
+
+  <!-- 2. STATE LISTENING -->
+  <g id="state-listening">
+    <text x="300" y="36" class="title">LISTENING</text>
+    <text x="300" y="52" class="subtitle">Expanded mint halo</text>
+
+    <!-- Outer Mint Halos -->
+    <circle cx="300" cy="136" r="52" fill="none" stroke="#91FA9B" stroke-width="2" stroke-opacity="0.45" stroke-dasharray="6 4"/>
+    <circle cx="300" cy="136" r="43" fill="none" stroke="#00EB5A" stroke-width="2.5" stroke-opacity="0.75"/>
+
+    <!-- Dock Circle Active -->
+    <circle cx="300" cy="136" r="34" fill="#91FA9B" stroke="#00AA46" stroke-width="2"/>
+
+    <!-- Widened S-Ribbon Path with Green Glow -->
+    <g transform="translate(300, 136) scale(2.35) translate(-11.87, -12)">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M8.17152 9.75C8.17152 5.46979 11.6413 2 15.9215 2H18.0005V3.5H15.9215C12.4697 3.5 9.67152 6.29822 9.67152 9.75V13.9079C9.67152 15.1505 8.66416 16.1579 7.42152 16.1579H7.2373V17.5789H7.84257C9.63749 17.5789 11.0926 16.1239 11.0926 14.3289V9.67105C11.0926 7.0477 13.2192 4.92105 15.8426 4.92105H18.0005V9.3421H16.2636C15.8494 9.3421 15.5136 9.67789 15.5136 10.0921V14.25C15.5136 18.5302 12.0438 22 7.76362 22H5.75046V20.5H7.76362C11.2154 20.5 14.0136 17.7018 14.0136 14.25V10.0921C14.0136 8.84946 15.021 7.8421 16.2636 7.8421H16.5005V6.42105H15.8426C14.0476 6.42105 12.5926 7.87613 12.5926 9.67105V14.3289C12.5926 16.9523 10.4659 19.0789 7.84257 19.0789H5.7373V14.6579H7.42152C7.83573 14.6579 8.17152 14.3221 8.17152 13.9079V9.75Z" fill="#004628"/>
+    </g>
+
+    <!-- Active Mic Indicator Dot -->
+    <circle cx="300" cy="96" r="3.5" fill="#00EB5A" stroke="#004628" stroke-width="1"/>
+
+    <!-- State Tag -->
+    <rect x="246" y="214" width="108" height="20" rx="10" fill="#EBF7EC" stroke="#99D59F" stroke-width="1"/>
+    <text x="300" y="228" class="badge-text" fill="#007841">Halo • Mic Active</text>
+  </g>
+
+  <!-- 3. STATE THINKING -->
+  <g id="state-thinking">
+    <text x="500" y="36" class="title">THINKING</text>
+    <text x="500" y="52" class="subtitle">Staggered dash phase</text>
+
+    <!-- Orbital Phase Track -->
+    <circle cx="500" cy="136" r="44" fill="none" stroke="#D2FCD5" stroke-width="2" stroke-dasharray="4 8"/>
+    <!-- Orbiting Pulse Beads -->
+    <circle cx="538" cy="114" r="4" fill="#00EB5A" filter="url(#glow)"/>
+    <circle cx="466" cy="154" r="3.5" fill="#00AA46"/>
+    <circle cx="510" cy="178" r="2.5" fill="#91FA9B"/>
+
+    <!-- Dock Circle -->
+    <circle cx="500" cy="136" r="34" fill="#EBF7EC" stroke="#007841" stroke-width="2"/>
+
+    <!-- Staggered Phase S-Ribbon -->
+    <g transform="translate(500, 136) scale(2.2) translate(-11.87, -12)">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M8.17152 9.75C8.17152 5.46979 11.6413 2 15.9215 2H18.0005V3.5H15.9215C12.4697 3.5 9.67152 6.29822 9.67152 9.75V13.9079C9.67152 15.1505 8.66416 16.1579 7.42152 16.1579H7.2373V17.5789H7.84257C9.63749 17.5789 11.0926 16.1239 11.0926 14.3289V9.67105C11.0926 7.0477 13.2192 4.92105 15.8426 4.92105H18.0005V9.3421H16.2636C15.8494 9.3421 15.5136 9.67789 15.5136 10.0921V14.25C15.5136 18.5302 12.0438 22 7.76362 22H5.75046V20.5H7.76362C11.2154 20.5 14.0136 17.7018 14.0136 14.25V10.0921C14.0136 8.84946 15.021 7.8421 16.2636 7.8421H16.5005V6.42105H15.8426C14.0476 6.42105 12.5926 7.87613 12.5926 9.67105V14.3289C12.5926 16.9523 10.4659 19.0789 7.84257 19.0789H5.7373V14.6579H7.42152C7.83573 14.6579 8.17152 14.3221 8.17152 13.9079V9.75Z" fill="#004628" opacity="0.85"/>
+      <!-- Pulse overlay along ribbon curve -->
+      <path d="M15.9 3.5C12.5 3.5 9.7 6.3 9.7 9.8V13.9" stroke="#00EB5A" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-dasharray="3 5"/>
+    </g>
+
+    <!-- State Tag -->
+    <rect x="448" y="214" width="104" height="20" rx="10" fill="#EBF7EC" stroke="#99D59F" stroke-width="1"/>
+    <text x="500" y="228" class="badge-text" fill="#007841">Phase • Orbit 400ms</text>
+  </g>
+
+  <!-- 4. STATE SPEAKING -->
+  <g id="state-speaking">
+    <text x="700" y="36" class="title">SPEAKING</text>
+    <text x="700" y="52" class="subtitle">S-wave crests &amp; echo</text>
+
+    <!-- Concentric Sound Echo Waves -->
+    <circle cx="700" cy="136" r="62" fill="none" stroke="#91FA9B" stroke-width="1" stroke-opacity="0.35" stroke-dasharray="6 6"/>
+    <circle cx="700" cy="136" r="52" fill="none" stroke="#00EB5A" stroke-width="1.8" stroke-opacity="0.6"/>
+    <circle cx="700" cy="136" r="42" fill="none" stroke="#00AA46" stroke-width="2.2" stroke-opacity="0.85"/>
+
+    <!-- Dock Circle Active -->
+    <circle cx="700" cy="136" r="34" fill="#91FA9B" stroke="#004628" stroke-width="2.2"/>
+
+    <!-- Speaking S-Ribbon Wave -->
+    <g transform="translate(700, 136) scale(2.2) translate(-11.87, -12)">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M8.17152 9.75C8.17152 5.46979 11.6413 2 15.9215 2H18.0005V3.5H15.9215C12.4697 3.5 9.67152 6.29822 9.67152 9.75V13.9079C9.67152 15.1505 8.66416 16.1579 7.42152 16.1579H7.2373V17.5789H7.84257C9.63749 17.5789 11.0926 16.1239 11.0926 14.3289V9.67105C11.0926 7.0477 13.2192 4.92105 15.8426 4.92105H18.0005V9.3421H16.2636C15.8494 9.3421 15.5136 9.67789 15.5136 10.0921V14.25C15.5136 18.5302 12.0438 22 7.76362 22H5.75046V20.5H7.76362C11.2154 20.5 14.0136 17.7018 14.0136 14.25V10.0921C14.0136 8.84946 15.021 7.8421 16.2636 7.8421H16.5005V6.42105H15.8426C14.0476 6.42105 12.5926 7.87613 12.5926 9.67105V14.3289C12.5926 16.9523 10.4659 19.0789 7.84257 19.0789H5.7373V14.6579H7.42152C7.83573 14.6579 8.17152 14.3221 8.17152 13.9079V9.75Z" fill="#004628"/>
+    </g>
+
+    <!-- Outward Wave Crests (Left and Right) -->
+    <path d="M646 126 C640 131 640 141 646 146" stroke="#004628" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    <path d="M638 120 C630 128 630 144 638 152" stroke="#007841" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.75"/>
+    <path d="M754 126 C760 131 760 141 754 146" stroke="#004628" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    <path d="M762 120 C770 128 770 144 762 152" stroke="#007841" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.75"/>
+
+    <!-- State Tag -->
+    <rect x="644" y="214" width="112" height="20" rx="10" fill="#004628"/>
+    <text x="700" y="228" class="badge-text" fill="#91FA9B">Speaking • Wave Echo</text>
+  </g>
+
+  <!-- 5. STATE REDUCED MOTION -->
+  <g id="state-reduced-motion">
+    <text x="900" y="36" class="title">REDUCED MOTION</text>
+    <text x="900" y="52" class="subtitle">Static contrast badge</text>
+
+    <!-- Static High-Contrast Ring -->
+    <circle cx="900" cy="136" r="38" fill="none" stroke="#00AA46" stroke-width="3"/>
+    <circle cx="900" cy="136" r="34" fill="#FFFFFF" stroke="#004628" stroke-width="1.5"/>
+
+    <!-- Standard S-Ribbon -->
+    <g transform="translate(900, 136) scale(2.2) translate(-11.87, -12)">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M8.17152 9.75C8.17152 5.46979 11.6413 2 15.9215 2H18.0005V3.5H15.9215C12.4697 3.5 9.67152 6.29822 9.67152 9.75V13.9079C9.67152 15.1505 8.66416 16.1579 7.42152 16.1579H7.2373V17.5789H7.84257C9.63749 17.5789 11.0926 16.1239 11.0926 14.3289V9.67105C11.0926 7.0477 13.2192 4.92105 15.8426 4.92105H18.0005V9.3421H16.2636C15.8494 9.3421 15.5136 9.67789 15.5136 10.0921V14.25C15.5136 18.5302 12.0438 22 7.76362 22H5.75046V20.5H7.76362C11.2154 20.5 14.0136 17.7018 14.0136 14.25V10.0921C14.0136 8.84946 15.021 7.8421 16.2636 7.8421H16.5005V6.42105H15.8426C14.0476 6.42105 12.5926 7.87613 12.5926 9.67105V14.3289C12.5926 16.9523 10.4659 19.0789 7.84257 19.0789H5.7373V14.6579H7.42152C7.83573 14.6579 8.17152 14.3221 8.17152 13.9079V9.75Z" fill="#004628"/>
+    </g>
+
+    <!-- Static Status Badge Pill -->
+    <rect x="845" y="188" width="110" height="22" rx="11" fill="#004628" stroke="#00AA46" stroke-width="1.5"/>
+    <circle cx="858" cy="199" r="4" fill="#00EB5A"/>
+    <text x="905" y="202" font-family="'Inter', -apple-system, sans-serif" font-size="9px" font-weight="700" fill="#FFFFFF" letter-spacing="0.6px" text-anchor="middle">LISTENING</text>
+
+    <!-- State Tag -->
+    <rect x="834" y="220" width="132" height="18" rx="9" fill="#F5F5F5"/>
+    <text x="900" y="232" class="mono-text">prefers-reduced-motion</text>
+  </g>
+</svg>
+
+    </section>
+
+    <!-- Row 2: Concept B -->
+    <section class="concept-card">
+      <div class="concept-card-header">
+        <div class="concept-title-group">
+          <span class="concept-tag secondary">CONCEPT B</span>
+          <h2 class="concept-title">Capsule Face (Aulis-Inspired Buddy)</h2>
+          <span class="concept-desc">Pill-head geometry from S-Pankki Aulis chatbot (aulis.svg): raised eyebrow inquiry, 3-dot cadence, and dual-arc smile wave.</span>
+        </div>
+        <div class="concept-meta">Gamification &amp; Young Adults Direction</div>
+      </div>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 260" style="width:100%; height:185px; display:block;">
+  <defs>
+    <style>
+      .title { font-family: 'Inter', -apple-system, sans-serif; font-size: 13px; font-weight: 700; fill: #004628; letter-spacing: 0.8px; text-anchor: middle; }
+      .subtitle { font-family: 'Inter', -apple-system, sans-serif; font-size: 11px; font-weight: 500; fill: #666666; text-anchor: middle; }
+      .badge-text { font-family: 'Inter', -apple-system, sans-serif; font-size: 10px; font-weight: 600; text-anchor: middle; }
+      .mono-text { font-family: 'SF Mono', 'Roboto Mono', Menlo, monospace; font-size: 9.5px; fill: #666666; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <!-- Background surface -->
+  <rect style="width:100%; height:185px; display:block;" rx="16" fill="#FFFFFF" stroke="#E6E6E6" stroke-width="1"/>
+
+  <!-- Column Dividers -->
+  <line x1="200" y1="16" x2="200" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="400" y1="16" x2="400" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="600" y1="16" x2="600" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="800" y1="16" x2="800" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+
+  <!-- 1. STATE IDLE -->
+  <g id="state-idle">
+    <text x="100" y="36" class="title">IDLE</text>
+    <text x="100" y="52" class="subtitle">Calm soft smile</text>
+
+    <!-- Capsule Head Group -->
+    <g transform="translate(100, 134) scale(3.0) translate(-12, -12)">
+      <!-- Capsule Inner Fill -->
+      <rect x="5.5" y="2.5" width="13" height="19" rx="6.5" fill="#EBF7EC"/>
+      <!-- Capsule Outline -->
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M17.5 15V9C17.5 5.96243 15.0376 3.5 12 3.5C8.96243 3.5 6.5 5.96243 6.5 9V15C6.5 18.0376 8.96243 20.5 12 20.5C15.0376 20.5 17.5 18.0376 17.5 15ZM12 2C8.13401 2 5 5.13401 5 9V15C5 18.866 8.13401 22 12 22C15.866 22 19 18.866 19 15V9C19 5.13401 15.866 2 12 2Z" fill="#004628"/>
+      <!-- Resting Eyebrows -->
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M13.3499 7.31964C13.2682 7.32385 13.1892 7.32793 13.1092 7.3279C12.833 7.32779 12.6093 7.10385 12.6094 6.82771C12.6095 6.55156 12.8334 6.32779 13.1096 6.3279C13.1532 6.32792 13.2065 6.32483 13.2694 6.32119C13.582 6.30307 14.1326 6.27115 14.9221 6.53829C15.3596 6.68634 15.8342 6.89728 16.1601 7.13022C16.3847 7.29082 16.4367 7.60312 16.2761 7.82776C16.1155 8.0524 15.8032 8.10432 15.5785 7.94373C15.3666 7.79224 14.9962 7.61906 14.6016 7.48553C14.0105 7.28552 13.661 7.30357 13.3499 7.31964Z" fill="#004628"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M10.5643 7.39375C10.5782 7.39375 10.5919 7.39376 10.6055 7.39376C10.8816 7.39376 11.1055 7.1699 11.1055 6.89375C11.1055 6.61761 10.8816 6.39376 10.6055 6.39376C10.591 6.39376 10.5761 6.39375 10.5606 6.39373C10.3814 6.39358 10.1394 6.39338 9.89301 6.41249C9.63018 6.43287 9.32144 6.47757 9.0487 6.58983C8.3212 6.88926 7.90564 7.39614 7.68545 7.66471C7.66151 7.69391 7.63987 7.7203 7.6204 7.7433C7.44195 7.95403 7.46812 8.26953 7.67885 8.44798C7.88959 8.62644 8.20509 8.60027 8.38354 8.38953C8.40786 8.36081 8.43252 8.33111 8.45777 8.3007C8.67864 8.03467 8.94491 7.71394 9.42932 7.51456C9.55817 7.46152 9.74443 7.42701 9.97031 7.4095C10.1759 7.39355 10.3807 7.39366 10.5643 7.39375Z" fill="#004628"/>
+      <!-- Eyes -->
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M15.5 9.5C15.5 10.3284 14.8284 11 14 11C13.1716 11 12.5 10.3284 12.5 9.5C12.5 8.67157 13.1716 8 14 8C14.8284 8 15.5 8.67157 15.5 9.5Z" fill="#004628"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M11.75 9.5C11.75 10.3284 11.0784 11 10.25 11C9.42157 11 8.75 10.3284 8.75 9.5C8.75 8.67157 9.42157 8 10.25 8C11.0784 8 11.75 8.67157 11.75 9.5Z" fill="#004628"/>
+      <!-- Soft Smile -->
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M10.252 12.4584C10.4114 12.2329 10.7234 12.1793 10.9489 12.3387C11.1532 12.483 11.4956 12.6838 12.0901 12.6838C12.8479 12.6838 13.1545 12.5034 13.3578 12.3489C13.5777 12.1818 13.8914 12.2246 14.0584 12.4445C14.2255 12.6643 14.1827 12.978 13.9629 13.1451C13.5759 13.4391 13.0541 13.6838 12.0901 13.6838C11.2301 13.6838 10.6895 13.3798 10.3718 13.1553C10.1463 12.9959 10.0926 12.6839 10.252 12.4584Z" fill="#004628"/>
+    </g>
+
+    <!-- State Tag -->
+    <rect x="54" y="214" width="92" height="20" rx="10" fill="#F5F5F5"/>
+    <text x="100" y="228" class="mono-text">scale: 1.0 • standby</text>
+  </g>
+
+  <!-- 2. STATE LISTENING -->
+  <g id="state-listening">
+    <text x="300" y="36" class="title">LISTENING</text>
+    <text x="300" y="52" class="subtitle">Raised brows &amp; mint aura</text>
+
+    <!-- Outer Aura Pills -->
+    <rect x="266" y="92" width="68" height="86" rx="34" fill="none" stroke="#91FA9B" stroke-width="2" stroke-opacity="0.5" stroke-dasharray="6 4"/>
+    <rect x="272" y="98" width="56" height="74" rx="28" fill="none" stroke="#00EB5A" stroke-width="2.5" stroke-opacity="0.75"/>
+
+    <!-- Capsule Head Active -->
+    <g transform="translate(300, 134) scale(3.15) translate(-12, -12)">
+      <rect x="5.5" y="2.5" width="13" height="19" rx="6.5" fill="#91FA9B"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M17.5 15V9C17.5 5.96243 15.0376 3.5 12 3.5C8.96243 3.5 6.5 5.96243 6.5 9V15C6.5 18.0376 8.96243 20.5 12 20.5C15.0376 20.5 17.5 18.0376 17.5 15ZM12 2C8.13401 2 5 5.13401 5 9V15C5 18.866 8.13401 22 12 22C15.866 22 19 18.866 19 15V9C19 5.13401 15.866 2 12 2Z" fill="#004628"/>
+      <!-- Raised Attentive Eyebrows (-1.2px) -->
+      <g transform="translate(0, -1.2)">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M13.3499 7.31964C13.2682 7.32385 13.1892 7.32793 13.1092 7.3279C12.833 7.32779 12.6093 7.10385 12.6094 6.82771C12.6095 6.55156 12.8334 6.32779 13.1096 6.3279C13.1532 6.32792 13.2065 6.32483 13.2694 6.32119C13.582 6.30307 14.1326 6.27115 14.9221 6.53829C15.3596 6.68634 15.8342 6.89728 16.1601 7.13022C16.3847 7.29082 16.4367 7.60312 16.2761 7.82776C16.1155 8.0524 15.8032 8.10432 15.5785 7.94373C15.3666 7.79224 14.9962 7.61906 14.6016 7.48553C14.0105 7.28552 13.661 7.30357 13.3499 7.31964Z" fill="#004628"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M10.5643 7.39375C10.5782 7.39375 10.5919 7.39376 10.6055 7.39376C10.8816 7.39376 11.1055 7.1699 11.1055 6.89375C11.1055 6.61761 10.8816 6.39376 10.6055 6.39376C10.591 6.39376 10.5761 6.39375 10.5606 6.39373C10.3814 6.39358 10.1394 6.39338 9.89301 6.41249C9.63018 6.43287 9.32144 6.47757 9.0487 6.58983C8.3212 6.88926 7.90564 7.39614 7.68545 7.66471C7.66151 7.69391 7.63987 7.7203 7.6204 7.7433C7.44195 7.95403 7.46812 8.26953 7.67885 8.44798C7.88959 8.62644 8.20509 8.60027 8.38354 8.38953C8.40786 8.36081 8.43252 8.33111 8.45777 8.3007C8.67864 8.03467 8.94491 7.71394 9.42932 7.51456C9.55817 7.46152 9.74443 7.42701 9.97031 7.4095C10.1759 7.39355 10.3807 7.39366 10.5643 7.39375Z" fill="#004628"/>
+      </g>
+      <!-- Attentive Eyes -->
+      <circle cx="14" cy="9.5" r="1.4" fill="#004628"/>
+      <circle cx="10.25" cy="9.5" r="1.4" fill="#004628"/>
+      <circle cx="14.4" cy="9.0" r="0.4" fill="#FFFFFF"/>
+      <circle cx="10.65" cy="9.0" r="0.4" fill="#FFFFFF"/>
+      <!-- Gentle Smile -->
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M10.252 12.4584C10.4114 12.2329 10.7234 12.1793 10.9489 12.3387C11.1532 12.483 11.4956 12.6838 12.0901 12.6838C12.8479 12.6838 13.1545 12.5034 13.3578 12.3489C13.5777 12.1818 13.8914 12.2246 14.0584 12.4445C14.2255 12.6643 14.1827 12.978 13.9629 13.1451C13.5759 13.4391 13.0541 13.6838 12.0901 13.6838C11.2301 13.6838 10.6895 13.3798 10.3718 13.1553C10.1463 12.9959 10.0926 12.6839 10.252 12.4584Z" fill="#004628"/>
+    </g>
+
+    <!-- State Tag -->
+    <rect x="246" y="214" width="108" height="20" rx="10" fill="#EBF7EC" stroke="#99D59F" stroke-width="1"/>
+    <text x="300" y="228" class="badge-text" fill="#007841">Attentive • Scale 1.05</text>
+  </g>
+
+  <!-- 3. STATE THINKING -->
+  <g id="state-thinking">
+    <text x="500" y="36" class="title">THINKING</text>
+    <text x="500" y="52" class="subtitle">Tilted brows &amp; cadence dots</text>
+
+    <!-- Thought sparkle beads -->
+    <circle cx="524" cy="96" r="3.5" fill="#00EB5A"/>
+    <circle cx="534" cy="86" r="2.5" fill="#00AA46"/>
+    <circle cx="476" cy="98" r="2" fill="#91FA9B"/>
+
+    <g transform="translate(500, 134) scale(3.0) translate(-12, -12)">
+      <rect x="5.5" y="2.5" width="13" height="19" rx="6.5" fill="#EBF7EC"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M17.5 15V9C17.5 5.96243 15.0376 3.5 12 3.5C8.96243 3.5 6.5 5.96243 6.5 9V15C6.5 18.0376 8.96243 20.5 12 20.5C15.0376 20.5 17.5 18.0376 17.5 15ZM12 2C8.13401 2 5 5.13401 5 9V15C5 18.866 8.13401 22 12 22C15.866 22 19 18.866 19 15V9C19 5.13401 15.866 2 12 2Z" fill="#004628"/>
+      <!-- Tilted Pondering Eyebrows (Left lower, Right raised) -->
+      <g transform="translate(-0.2, 0.4) rotate(-8 10.25 7)">
+        <path d="M8.2 7.4 Q 10.2 6.8, 11.2 7.3" stroke="#004628" stroke-width="0.85" stroke-linecap="round" fill="none"/>
+      </g>
+      <g transform="translate(0.2, -1.2) rotate(8 14 7)">
+        <path d="M12.8 7.3 Q 13.8 6.5, 15.8 7.2" stroke="#004628" stroke-width="0.85" stroke-linecap="round" fill="none"/>
+      </g>
+      <!-- Eyes Looking Up-Right -->
+      <circle cx="14.3" cy="9.2" r="1.3" fill="#004628"/>
+      <circle cx="10.55" cy="9.2" r="1.3" fill="#004628"/>
+      <!-- 3 Processing Cadence Dots in mouth area -->
+      <circle cx="10.6" cy="13.0" r="0.75" fill="#007841"/>
+      <circle cx="12.0" cy="13.0" r="0.75" fill="#007841"/>
+      <circle cx="13.4" cy="13.0" r="0.75" fill="#007841"/>
+    </g>
+
+    <!-- State Tag -->
+    <rect x="448" y="214" width="104" height="20" rx="10" fill="#EBF7EC" stroke="#99D59F" stroke-width="1"/>
+    <text x="500" y="228" class="badge-text" fill="#007841">Pondering • 3 Dots</text>
+  </g>
+
+  <!-- 4. STATE SPEAKING -->
+  <g id="state-speaking">
+    <text x="700" y="36" class="title">SPEAKING</text>
+    <text x="700" y="52" class="subtitle">Wave smile &amp; sound ripples</text>
+
+    <!-- Sound Ripple Brackets Beside Capsule -->
+    <!-- Left ripples -->
+    <path d="M666 124 C660 130 660 140 666 146" stroke="#00AA46" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+    <path d="M658 116 C648 126 648 144 658 154" stroke="#00EB5A" stroke-width="2.0" stroke-linecap="round" fill="none" opacity="0.8"/>
+    <path d="M650 110 C636 122 636 148 650 160" stroke="#91FA9B" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.55"/>
+    <!-- Right ripples -->
+    <path d="M734 124 C740 130 740 140 734 146" stroke="#00AA46" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+    <path d="M742 116 C752 126 752 144 742 154" stroke="#00EB5A" stroke-width="2.0" stroke-linecap="round" fill="none" opacity="0.8"/>
+    <path d="M750 110 C764 122 764 148 750 160" stroke="#91FA9B" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.55"/>
+
+    <g transform="translate(700, 134) scale(3.1) translate(-12, -12)">
+      <rect x="5.5" y="2.5" width="13" height="19" rx="6.5" fill="#91FA9B"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M17.5 15V9C17.5 5.96243 15.0376 3.5 12 3.5C8.96243 3.5 6.5 5.96243 6.5 9V15C6.5 18.0376 8.96243 20.5 12 20.5C15.0376 20.5 17.5 18.0376 17.5 15ZM12 2C8.13401 2 5 5.13401 5 9V15C5 18.866 8.13401 22 12 22C15.866 22 19 18.866 19 15V9C19 5.13401 15.866 2 12 2Z" fill="#004628"/>
+      <!-- Expressive Brows -->
+      <g transform="translate(0, -0.6)">
+        <path d="M8.2 7.0 Q 10.2 6.0, 11.2 7.0" stroke="#004628" stroke-width="0.85" stroke-linecap="round" fill="none"/>
+        <path d="M12.8 7.0 Q 13.8 6.0, 15.8 7.0" stroke="#004628" stroke-width="0.85" stroke-linecap="round" fill="none"/>
+      </g>
+      <!-- Happy Smiling Eyes (Cheek crease arcs) -->
+      <path d="M8.8 10.0 C9.2 8.6, 11.2 8.6, 11.6 10.0" stroke="#004628" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+      <path d="M12.4 10.0 C12.8 8.6, 14.8 8.6, 15.2 10.0" stroke="#004628" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+      <!-- Dynamic Wave Smile Mouth (Dual-arc speaking cavity) -->
+      <path d="M9.8 12.2 Q 11.0 11.5, 12.0 12.2 Q 13.0 11.5, 14.2 12.2 C 14.0 14.2, 10.0 14.2, 9.8 12.2 Z" fill="#004628"/>
+      <!-- Soft Tongue Highlight inside mouth -->
+      <path d="M11.0 13.3 Q 12.0 12.7, 13.0 13.3" stroke="#FFCA6B" stroke-width="0.6" stroke-linecap="round" fill="none"/>
+    </g>
+
+    <!-- State Tag -->
+    <rect x="636" y="214" width="128" height="20" rx="10" fill="#004628"/>
+    <text x="700" y="228" class="badge-text" fill="#91FA9B">Speaking • Wave</text>
+  </g>
+
+  <!-- 5. STATE REDUCED MOTION -->
+  <g id="state-reduced-motion">
+    <text x="900" y="36" class="title">REDUCED MOTION</text>
+    <text x="900" y="52" class="subtitle">Static capsule badge</text>
+
+    <!-- Static High-Contrast Ring -->
+    <rect x="872" y="98" width="56" height="74" rx="28" fill="none" stroke="#00AA46" stroke-width="3"/>
+
+    <g transform="translate(900, 135) scale(3.0) translate(-12, -12)">
+      <rect x="5.5" y="2.5" width="13" height="19" rx="6.5" fill="#FFFFFF" stroke="#004628" stroke-width="0.5"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M17.5 15V9C17.5 5.96243 15.0376 3.5 12 3.5C8.96243 3.5 6.5 5.96243 6.5 9V15C6.5 18.0376 8.96243 20.5 12 20.5C15.0376 20.5 17.5 18.0376 17.5 15ZM12 2C8.13401 2 5 5.13401 5 9V15C5 18.866 8.13401 22 12 22C15.866 22 19 18.866 19 15V9C19 5.13401 15.866 2 12 2Z" fill="#004628"/>
+      <circle cx="14" cy="9.5" r="1.4" fill="#004628"/>
+      <circle cx="10.25" cy="9.5" r="1.4" fill="#004628"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M10.252 12.4584C10.4114 12.2329 10.7234 12.1793 10.9489 12.3387C11.1532 12.483 11.4956 12.6838 12.0901 12.6838C12.8479 12.6838 13.1545 12.5034 13.3578 12.3489C13.5777 12.1818 13.8914 12.2246 14.0584 12.4445C14.2255 12.6643 14.1827 12.978 13.9629 13.1451C13.5759 13.4391 13.0541 13.6838 12.0901 13.6838C11.2301 13.6838 10.6895 13.3798 10.3718 13.1553C10.1463 12.9959 10.0926 12.6839 10.252 12.4584Z" fill="#004628"/>
+    </g>
+
+    <!-- Static Status Badge Pill -->
+    <rect x="838" y="188" width="124" height="22" rx="11" fill="#004628" stroke="#00AA46" stroke-width="1.5"/>
+    <circle cx="851" cy="199" r="4" fill="#00EB5A"/>
+    <text x="904" y="202" font-family="'Inter', -apple-system, sans-serif" font-size="9px" font-weight="700" fill="#FFFFFF" letter-spacing="0.6px" text-anchor="middle">SPONKY • READY</text>
+
+    <!-- State Tag -->
+    <rect x="834" y="220" width="132" height="18" rx="9" fill="#F5F5F5"/>
+    <text x="900" y="232" class="mono-text">prefers-reduced-motion</text>
+  </g>
+</svg>
+
+    </section>
+
+    <!-- Row 3: Concept C -->
+    <section class="concept-card">
+      <div class="concept-card-header">
+        <div class="concept-title-group">
+          <span class="concept-tag tertiary">CONCEPT C</span>
+          <h2 class="concept-title">Basket Signal Arcs + Open Speech Bubble</h2>
+          <span class="concept-desc">Three curved signal arcs in spending basket colors (#004628, #006E87, #CF8300) paired with S-Pankki Per Tieeri open-top speech frame.</span>
+        </div>
+        <div class="concept-meta">Domain Category Insight Direction</div>
+      </div>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 260" style="width:100%; height:185px; display:block;">
+  <defs>
+    <style>
+      .title { font-family: 'Inter', -apple-system, sans-serif; font-size: 13px; font-weight: 700; fill: #004628; letter-spacing: 0.8px; text-anchor: middle; }
+      .subtitle { font-family: 'Inter', -apple-system, sans-serif; font-size: 11px; font-weight: 500; fill: #666666; text-anchor: middle; }
+      .badge-text { font-family: 'Inter', -apple-system, sans-serif; font-size: 10px; font-weight: 600; text-anchor: middle; }
+      .mono-text { font-family: 'SF Mono', 'Roboto Mono', Menlo, monospace; font-size: 9.5px; fill: #666666; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <!-- Background surface -->
+  <rect style="width:100%; height:185px; display:block;" rx="16" fill="#FFFFFF" stroke="#E6E6E6" stroke-width="1"/>
+
+  <!-- Column Dividers -->
+  <line x1="200" y1="16" x2="200" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="400" y1="16" x2="400" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="600" y1="16" x2="600" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="800" y1="16" x2="800" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+
+  <!-- 1. STATE IDLE -->
+  <g id="state-idle">
+    <text x="100" y="36" class="title">IDLE</text>
+    <text x="100" y="52" class="subtitle">Compact 3-basket dock</text>
+
+    <!-- Dock Circle -->
+    <circle cx="100" cy="136" r="34" fill="#EBF7EC" stroke="#00AA46" stroke-width="1.5"/>
+
+    <!-- Microphone Body in Center -->
+    <g transform="translate(100, 140)">
+      <rect x="-5" y="-12" width="10" height="16" rx="5" fill="#004628"/>
+      <path d="M-8 -4 C-8 4, 8 4, 8 -4" stroke="#004628" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <line x1="0" y1="5" x2="0" y2="11" stroke="#004628" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="-5" y1="11" x2="5" y2="11" stroke="#004628" stroke-width="1.8" stroke-linecap="round"/>
+    </g>
+
+    <!-- 3 Subtle Concentric Resting Arcs at Top -->
+    <path d="M92 110 C96 107, 104 107, 108 110" stroke="#004628" stroke-width="2" stroke-linecap="round" fill="none"/>
+    <path d="M88 104 C94 100, 106 100, 112 104" stroke="#006E87" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.75"/>
+    <path d="M84 98 C92 93, 108 93, 116 98" stroke="#CF8300" stroke-width="1.6" stroke-linecap="round" fill="none" opacity="0.55"/>
+
+    <!-- State Tag -->
+    <rect x="54" y="214" width="92" height="20" rx="10" fill="#F5F5F5"/>
+    <text x="100" y="228" class="mono-text">3 baskets • 0 dB</text>
+  </g>
+
+  <!-- 2. STATE LISTENING -->
+  <g id="state-listening">
+    <text x="300" y="36" class="title">LISTENING</text>
+    <text x="300" y="52" class="subtitle">Expanding arcs &amp; bubble</text>
+
+    <!-- Open-Top Speech Bubble Outline (Per Tieeri campaign signature) -->
+    <!-- Frame with open top edge -->
+    <path d="M248 84 H236 C226 84, 218 92, 218 102 V162 C218 172, 226 180, 236 180 H280 L292 192 L296 180 H364 C374 180, 382 172, 382 162 V102 C382 92, 374 84, 364 84 H352" stroke="#99D59F" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-dasharray="120 18"/>
+
+    <!-- Dock Circle Active -->
+    <circle cx="300" cy="136" r="34" fill="#91FA9B" stroke="#00AA46" stroke-width="2"/>
+
+    <!-- 3 Concentric Signal Arcs Expanding Outward (The Three Spending Baskets) -->
+    <!-- Basket 1: Mandatory Regular (#004628) -->
+    <path d="M278 114 C290 102, 310 102, 322 114" stroke="#004628" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+    <!-- Basket 2: Mandatory Irregular (#006E87) -->
+    <path d="M270 104 C286 89, 314 89, 330 104" stroke="#006E87" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+    <!-- Basket 3: Everyday Slipping (#CF8300) -->
+    <path d="M262 94 C282 76, 318 76, 338 94" stroke="#CF8300" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+
+    <!-- Active Mic in Center -->
+    <g transform="translate(300, 142)">
+      <rect x="-5" y="-12" width="10" height="16" rx="5" fill="#004628"/>
+      <path d="M-8 -4 C-8 4, 8 4, 8 -4" stroke="#004628" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <line x1="0" y1="5" x2="0" y2="11" stroke="#004628" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="-5" y1="11" x2="5" y2="11" stroke="#004628" stroke-width="1.8" stroke-linecap="round"/>
+    </g>
+
+    <!-- State Tag -->
+    <rect x="246" y="214" width="108" height="20" rx="10" fill="#EBF7EC" stroke="#99D59F" stroke-width="1"/>
+    <text x="300" y="228" class="badge-text" fill="#007841">Open Bubble • 3 Arcs</text>
+  </g>
+
+  <!-- 3. STATE THINKING -->
+  <g id="state-thinking">
+    <text x="500" y="36" class="title">THINKING</text>
+    <text x="500" y="52" class="subtitle">Rotating basket orbit</text>
+
+    <!-- Circular Tri-Basket Orbital Ring -->
+    <!-- Arc 1: Regular Green -->
+    <path d="M482 100 A 42 42 0 0 1 536 112" stroke="#004628" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <!-- Arc 2: Irregular Teal -->
+    <path d="M542 128 A 42 42 0 0 1 512 176" stroke="#006E87" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <!-- Arc 3: Everyday Amber -->
+    <path d="M492 174 A 42 42 0 0 1 462 122" stroke="#CF8300" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+    <!-- Dock Circle -->
+    <circle cx="500" cy="136" r="32" fill="#EBF7EC" stroke="#007841" stroke-width="1.8"/>
+
+    <!-- Central S-Core Orb & 3 Mini Dots -->
+    <circle cx="500" cy="136" r="6" fill="#004628"/>
+    <circle cx="500" cy="118" r="2.5" fill="#004628"/>
+    <circle cx="516" cy="145" r="2.5" fill="#006E87"/>
+    <circle cx="484" cy="145" r="2.5" fill="#CF8300"/>
+
+    <!-- State Tag -->
+    <rect x="448" y="214" width="104" height="20" rx="10" fill="#EBF7EC" stroke="#99D59F" stroke-width="1"/>
+    <text x="500" y="228" class="badge-text" fill="#007841">Tri-Orbit • Cadence</text>
+  </g>
+
+  <!-- 4. STATE SPEAKING -->
+  <g id="state-speaking">
+    <text x="700" y="36" class="title">SPEAKING</text>
+    <text x="700" y="52" class="subtitle">Stereo basket wave pulses</text>
+
+    <!-- Stereo Wave Arcs in 3 Basket Colors (Left and Right) -->
+    <!-- Left Pulses -->
+    <path d="M660 126 C652 131 652 141 660 146" stroke="#004628" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M650 120 C638 128 638 144 650 152" stroke="#006E87" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+    <path d="M640 114 C624 125 624 147 640 158" stroke="#CF8300" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+    <!-- Right Pulses -->
+    <path d="M740 126 C748 131 748 141 740 146" stroke="#004628" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M750 120 C762 128 762 144 750 152" stroke="#006E87" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+    <path d="M760 114 C776 125 776 147 760 158" stroke="#CF8300" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+
+    <!-- Dock Pill Active -->
+    <rect x="666" y="106" width="68" height="60" rx="30" fill="#91FA9B" stroke="#004628" stroke-width="2.2"/>
+
+    <!-- Speaker Cone & Wave Waves inside pill -->
+    <g transform="translate(700, 136)">
+      <path d="M-12 -6 L-6 -6 L0 -12 L0 12 L-6 6 L-12 6 Z" fill="#004628"/>
+      <!-- Wave arcs inside pill -->
+      <path d="M4 -4 C6 -2, 6 2, 4 4" stroke="#004628" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <path d="M8 -8 C12 -4, 12 4, 8 8" stroke="#006E87" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <path d="M12 -12 C18 -6, 18 6, 12 12" stroke="#CF8300" stroke-width="2" stroke-linecap="round" fill="none"/>
+    </g>
+
+    <!-- State Tag -->
+    <rect x="644" y="214" width="112" height="20" rx="10" fill="#004628"/>
+    <text x="700" y="228" class="badge-text" fill="#91FA9B">Stereo • 3 Baskets</text>
+  </g>
+
+  <!-- 5. STATE REDUCED MOTION -->
+  <g id="state-reduced-motion">
+    <text x="900" y="36" class="title">REDUCED MOTION</text>
+    <text x="900" y="52" class="subtitle">Static 3-basket badge</text>
+
+    <!-- Static High-Contrast Ring -->
+    <circle cx="900" cy="136" r="38" fill="none" stroke="#00AA46" stroke-width="3"/>
+    <circle cx="900" cy="136" r="34" fill="#FFFFFF" stroke="#004628" stroke-width="1.5"/>
+
+    <!-- Static Mic & 3 Arcs -->
+    <g transform="translate(900, 142)">
+      <rect x="-5" y="-12" width="10" height="16" rx="5" fill="#004628"/>
+      <path d="M-8 -4 C-8 4, 8 4, 8 -4" stroke="#004628" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <line x1="0" y1="5" x2="0" y2="11" stroke="#004628" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="-5" y1="11" x2="5" y2="11" stroke="#004628" stroke-width="1.8" stroke-linecap="round"/>
+    </g>
+    <path d="M892 114 C896 111, 904 111, 908 114" stroke="#004628" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+    <path d="M888 108 C894 104, 906 104, 912 108" stroke="#006E87" stroke-width="2" stroke-linecap="round" fill="none"/>
+    <path d="M884 102 C892 97, 908 97, 916 102" stroke="#CF8300" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+
+    <!-- Static Status Badge Pill -->
+    <rect x="834" y="188" width="132" height="22" rx="11" fill="#004628" stroke="#00AA46" stroke-width="1.5"/>
+    <circle cx="847" cy="199" r="4" fill="#00EB5A"/>
+    <text x="906" y="202" font-family="'Inter', -apple-system, sans-serif" font-size="9px" font-weight="700" fill="#FFFFFF" letter-spacing="0.6px" text-anchor="middle">3 BASKETS • ACTIVE</text>
+
+    <!-- State Tag -->
+    <rect x="834" y="220" width="132" height="18" rx="9" fill="#F5F5F5"/>
+    <text x="900" y="232" class="mono-text">prefers-reduced-motion</text>
+  </g>
+</svg>
+
+    </section>
+
+  </main>
+
+  <!-- Spec Strip Footer -->
+  <footer class="spec-strip">
+    <div>
+      <div class="spec-section-title">Motion Specification (--sds-motion-*)</div>
+      <div class="spec-motion-grid">
+        <div class="spec-code-line"><b>--sds-motion-easing-spring-gentle:</b> damping 40, mass 1, stiffness 700</div>
+        <div class="spec-code-line"><b>--sds-motion-duration-*:</b> 100ms, 150ms, 200ms, 250ms, 300ms, 500ms</div>
+        <div class="spec-code-line"><b>a11y:</b> @media (prefers-reduced-motion) -> 0ms transition, static high-contrast badge</div>
+      </div>
+    </div>
+    <div>
+      <div class="spec-section-title">Color Tokens &amp; Radii (docs/design-tokens.json)</div>
+      <div class="spec-tokens-grid">
+        <div class="token-chip"><span class="token-swatch" style="background:#00AA46;"></span><span class="token-name">greenPrimary</span><span class="token-hex">#00AA46</span></div>
+        <div class="token-chip"><span class="token-swatch" style="background:#007841;"></span><span class="token-name">greenStrong</span><span class="token-hex">#007841</span></div>
+        <div class="token-chip"><span class="token-swatch" style="background:#004628;"></span><span class="token-name">greenDeepest</span><span class="token-hex">#004628</span></div>
+        <div class="token-chip"><span class="token-swatch" style="background:#00EB5A;"></span><span class="token-name">greenBright</span><span class="token-hex">#00EB5A</span></div>
+        <div class="token-chip"><span class="token-swatch" style="background:#91FA9B;"></span><span class="token-name">greenMint</span><span class="token-hex">#91FA9B</span></div>
+        <div class="token-chip"><span class="token-swatch" style="background:#EBF7EC;"></span><span class="token-name">greenTint</span><span class="token-hex">#EBF7EC</span></div>
+        <div class="token-chip"><span class="token-swatch" style="background:#004628;"></span><span class="token-name">Basket: Regular</span><span class="token-hex">#004628</span></div>
+        <div class="token-chip"><span class="token-swatch" style="background:#006E87;"></span><span class="token-name">Basket: Irregular</span><span class="token-hex">#006E87</span></div>
+        <div class="token-chip"><span class="token-swatch" style="background:#CF8300;"></span><span class="token-name">Basket: Slipping</span><span class="token-hex">#CF8300</span></div>
+        <div class="token-chip"><span class="token-name" style="font-weight:700;">Radii:</span><span class="token-hex">card: 16px • pill: 9999px</span></div>
+        <div class="token-chip"><span class="token-name" style="font-weight:700;">Numbers:</span><span class="token-hex" style="font-variant-numeric: tabular-nums;">tabular-nums (60,00 €)</span></div>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

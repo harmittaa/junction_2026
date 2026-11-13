@@ -1,0 +1,174 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 260" width="1000" height="260">
+  <defs>
+    <style>
+      .title { font-family: 'Inter', -apple-system, sans-serif; font-size: 13px; font-weight: 700; fill: #004628; letter-spacing: 0.8px; text-anchor: middle; }
+      .subtitle { font-family: 'Inter', -apple-system, sans-serif; font-size: 11px; font-weight: 500; fill: #666666; text-anchor: middle; }
+      .badge-text { font-family: 'Inter', -apple-system, sans-serif; font-size: 10px; font-weight: 600; text-anchor: middle; }
+      .mono-text { font-family: 'SF Mono', 'Roboto Mono', Menlo, monospace; font-size: 9.5px; fill: #666666; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <!-- Background surface -->
+  <rect width="1000" height="260" rx="16" fill="#FFFFFF" stroke="#E6E6E6" stroke-width="1"/>
+
+  <!-- Column Dividers -->
+  <line x1="200" y1="16" x2="200" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="400" y1="16" x2="400" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="600" y1="16" x2="600" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="800" y1="16" x2="800" y2="244" stroke="#F0F0F0" stroke-width="1" stroke-dasharray="4 4"/>
+
+  <!-- 1. STATE IDLE -->
+  <g id="state-idle">
+    <text x="100" y="36" class="title">IDLE</text>
+    <text x="100" y="52" class="subtitle">Calm soft smile</text>
+
+    <!-- Capsule Head Group -->
+    <g transform="translate(100, 134) scale(3.0) translate(-12, -12)">
+      <!-- Capsule Inner Fill -->
+      <rect x="5.5" y="2.5" width="13" height="19" rx="6.5" fill="#EBF7EC"/>
+      <!-- Capsule Outline -->
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M17.5 15V9C17.5 5.96243 15.0376 3.5 12 3.5C8.96243 3.5 6.5 5.96243 6.5 9V15C6.5 18.0376 8.96243 20.5 12 20.5C15.0376 20.5 17.5 18.0376 17.5 15ZM12 2C8.13401 2 5 5.13401 5 9V15C5 18.866 8.13401 22 12 22C15.866 22 19 18.866 19 15V9C19 5.13401 15.866 2 12 2Z" fill="#004628"/>
+      <!-- Resting Eyebrows -->
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M13.3499 7.31964C13.2682 7.32385 13.1892 7.32793 13.1092 7.3279C12.833 7.32779 12.6093 7.10385 12.6094 6.82771C12.6095 6.55156 12.8334 6.32779 13.1096 6.3279C13.1532 6.32792 13.2065 6.32483 13.2694 6.32119C13.582 6.30307 14.1326 6.27115 14.9221 6.53829C15.3596 6.68634 15.8342 6.89728 16.1601 7.13022C16.3847 7.29082 16.4367 7.60312 16.2761 7.82776C16.1155 8.0524 15.8032 8.10432 15.5785 7.94373C15.3666 7.79224 14.9962 7.61906 14.6016 7.48553C14.0105 7.28552 13.661 7.30357 13.3499 7.31964Z" fill="#004628"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M10.5643 7.39375C10.5782 7.39375 10.5919 7.39376 10.6055 7.39376C10.8816 7.39376 11.1055 7.1699 11.1055 6.89375C11.1055 6.61761 10.8816 6.39376 10.6055 6.39376C10.591 6.39376 10.5761 6.39375 10.5606 6.39373C10.3814 6.39358 10.1394 6.39338 9.89301 6.41249C9.63018 6.43287 9.32144 6.47757 9.0487 6.58983C8.3212 6.88926 7.90564 7.39614 7.68545 7.66471C7.66151 7.69391 7.63987 7.7203 7.6204 7.7433C7.44195 7.95403 7.46812 8.26953 7.67885 8.44798C7.88959 8.62644 8.20509 8.60027 8.38354 8.38953C8.40786 8.36081 8.43252 8.33111 8.45777 8.3007C8.67864 8.03467 8.94491 7.71394 9.42932 7.51456C9.55817 7.46152 9.74443 7.42701 9.97031 7.4095C10.1759 7.39355 10.3807 7.39366 10.5643 7.39375Z" fill="#004628"/>
+      <!-- Eyes -->
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M15.5 9.5C15.5 10.3284 14.8284 11 14 11C13.1716 11 12.5 10.3284 12.5 9.5C12.5 8.67157 13.1716 8 14 8C14.8284 8 15.5 8.67157 15.5 9.5Z" fill="#004628"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M11.75 9.5C11.75 10.3284 11.0784 11 10.25 11C9.42157 11 8.75 10.3284 8.75 9.5C8.75 8.67157 9.42157 8 10.25 8C11.0784 8 11.75 8.67157 11.75 9.5Z" fill="#004628"/>
+      <!-- Soft Smile -->
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M10.252 12.4584C10.4114 12.2329 10.7234 12.1793 10.9489 12.3387C11.1532 12.483 11.4956 12.6838 12.0901 12.6838C12.8479 12.6838 13.1545 12.5034 13.3578 12.3489C13.5777 12.1818 13.8914 12.2246 14.0584 12.4445C14.2255 12.6643 14.1827 12.978 13.9629 13.1451C13.5759 13.4391 13.0541 13.6838 12.0901 13.6838C11.2301 13.6838 10.6895 13.3798 10.3718 13.1553C10.1463 12.9959 10.0926 12.6839 10.252 12.4584Z" fill="#004628"/>
+    </g>
+
+    <!-- State Tag -->
+    <rect x="54" y="214" width="92" height="20" rx="10" fill="#F5F5F5"/>
+    <text x="100" y="228" class="mono-text">scale: 1.0 • standby</text>
+  </g>
+
+  <!-- 2. STATE LISTENING -->
+  <g id="state-listening">
+    <text x="300" y="36" class="title">LISTENING</text>
+    <text x="300" y="52" class="subtitle">Raised brows &amp; mint aura</text>
+
+    <!-- Outer Aura Pills -->
+    <rect x="266" y="92" width="68" height="86" rx="34" fill="none" stroke="#91FA9B" stroke-width="2" stroke-opacity="0.5" stroke-dasharray="6 4"/>
+    <rect x="272" y="98" width="56" height="74" rx="28" fill="none" stroke="#00EB5A" stroke-width="2.5" stroke-opacity="0.75"/>
+
+    <!-- Capsule Head Active -->
+    <g transform="translate(300, 134) scale(3.15) translate(-12, -12)">
+      <rect x="5.5" y="2.5" width="13" height="19" rx="6.5" fill="#91FA9B"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M17.5 15V9C17.5 5.96243 15.0376 3.5 12 3.5C8.96243 3.5 6.5 5.96243 6.5 9V15C6.5 18.0376 8.96243 20.5 12 20.5C15.0376 20.5 17.5 18.0376 17.5 15ZM12 2C8.13401 2 5 5.13401 5 9V15C5 18.866 8.13401 22 12 22C15.866 22 19 18.866 19 15V9C19 5.13401 15.866 2 12 2Z" fill="#004628"/>
+      <!-- Raised Attentive Eyebrows (-1.2px) -->
+      <g transform="translate(0, -1.2)">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M13.3499 7.31964C13.2682 7.32385 13.1892 7.32793 13.1092 7.3279C12.833 7.32779 12.6093 7.10385 12.6094 6.82771C12.6095 6.55156 12.8334 6.32779 13.1096 6.3279C13.1532 6.32792 13.2065 6.32483 13.2694 6.32119C13.582 6.30307 14.1326 6.27115 14.9221 6.53829C15.3596 6.68634 15.8342 6.89728 16.1601 7.13022C16.3847 7.29082 16.4367 7.60312 16.2761 7.82776C16.1155 8.0524 15.8032 8.10432 15.5785 7.94373C15.3666 7.79224 14.9962 7.61906 14.6016 7.48553C14.0105 7.28552 13.661 7.30357 13.3499 7.31964Z" fill="#004628"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M10.5643 7.39375C10.5782 7.39375 10.5919 7.39376 10.6055 7.39376C10.8816 7.39376 11.1055 7.1699 11.1055 6.89375C11.1055 6.61761 10.8816 6.39376 10.6055 6.39376C10.591 6.39376 10.5761 6.39375 10.5606 6.39373C10.3814 6.39358 10.1394 6.39338 9.89301 6.41249C9.63018 6.43287 9.32144 6.47757 9.0487 6.58983C8.3212 6.88926 7.90564 7.39614 7.68545 7.66471C7.66151 7.69391 7.63987 7.7203 7.6204 7.7433C7.44195 7.95403 7.46812 8.26953 7.67885 8.44798C7.88959 8.62644 8.20509 8.60027 8.38354 8.38953C8.40786 8.36081 8.43252 8.33111 8.45777 8.3007C8.67864 8.03467 8.94491 7.71394 9.42932 7.51456C9.55817 7.46152 9.74443 7.42701 9.97031 7.4095C10.1759 7.39355 10.3807 7.39366 10.5643 7.39375Z" fill="#004628"/>
+      </g>
+      <!-- Attentive Eyes -->
+      <circle cx="14" cy="9.5" r="1.4" fill="#004628"/>
+      <circle cx="10.25" cy="9.5" r="1.4" fill="#004628"/>
+      <circle cx="14.4" cy="9.0" r="0.4" fill="#FFFFFF"/>
+      <circle cx="10.65" cy="9.0" r="0.4" fill="#FFFFFF"/>
+      <!-- Gentle Smile -->
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M10.252 12.4584C10.4114 12.2329 10.7234 12.1793 10.9489 12.3387C11.1532 12.483 11.4956 12.6838 12.0901 12.6838C12.8479 12.6838 13.1545 12.5034 13.3578 12.3489C13.5777 12.1818 13.8914 12.2246 14.0584 12.4445C14.2255 12.6643 14.1827 12.978 13.9629 13.1451C13.5759 13.4391 13.0541 13.6838 12.0901 13.6838C11.2301 13.6838 10.6895 13.3798 10.3718 13.1553C10.1463 12.9959 10.0926 12.6839 10.252 12.4584Z" fill="#004628"/>
+    </g>
+
+    <!-- State Tag -->
+    <rect x="246" y="214" width="108" height="20" rx="10" fill="#EBF7EC" stroke="#99D59F" stroke-width="1"/>
+    <text x="300" y="228" class="badge-text" fill="#007841">Attentive • Scale 1.05</text>
+  </g>
+
+  <!-- 3. STATE THINKING -->
+  <g id="state-thinking">
+    <text x="500" y="36" class="title">THINKING</text>
+    <text x="500" y="52" class="subtitle">Tilted brows &amp; cadence dots</text>
+
+    <!-- Thought sparkle beads -->
+    <circle cx="524" cy="96" r="3.5" fill="#00EB5A"/>
+    <circle cx="534" cy="86" r="2.5" fill="#00AA46"/>
+    <circle cx="476" cy="98" r="2" fill="#91FA9B"/>
+
+    <g transform="translate(500, 134) scale(3.0) translate(-12, -12)">
+      <rect x="5.5" y="2.5" width="13" height="19" rx="6.5" fill="#EBF7EC"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M17.5 15V9C17.5 5.96243 15.0376 3.5 12 3.5C8.96243 3.5 6.5 5.96243 6.5 9V15C6.5 18.0376 8.96243 20.5 12 20.5C15.0376 20.5 17.5 18.0376 17.5 15ZM12 2C8.13401 2 5 5.13401 5 9V15C5 18.866 8.13401 22 12 22C15.866 22 19 18.866 19 15V9C19 5.13401 15.866 2 12 2Z" fill="#004628"/>
+      <!-- Tilted Pondering Eyebrows (Left lower, Right raised) -->
+      <g transform="translate(-0.2, 0.4) rotate(-8 10.25 7)">
+        <path d="M8.2 7.4 Q 10.2 6.8, 11.2 7.3" stroke="#004628" stroke-width="0.85" stroke-linecap="round" fill="none"/>
+      </g>
+      <g transform="translate(0.2, -1.2) rotate(8 14 7)">
+        <path d="M12.8 7.3 Q 13.8 6.5, 15.8 7.2" stroke="#004628" stroke-width="0.85" stroke-linecap="round" fill="none"/>
+      </g>
+      <!-- Eyes Looking Up-Right -->
+      <circle cx="14.3" cy="9.2" r="1.3" fill="#004628"/>
+      <circle cx="10.55" cy="9.2" r="1.3" fill="#004628"/>
+      <!-- 3 Processing Cadence Dots in mouth area -->
+      <circle cx="10.6" cy="13.0" r="0.75" fill="#007841"/>
+      <circle cx="12.0" cy="13.0" r="0.75" fill="#007841"/>
+      <circle cx="13.4" cy="13.0" r="0.75" fill="#007841"/>
+    </g>
+
+    <!-- State Tag -->
+    <rect x="448" y="214" width="104" height="20" rx="10" fill="#EBF7EC" stroke="#99D59F" stroke-width="1"/>
+    <text x="500" y="228" class="badge-text" fill="#007841">Pondering • 3 Dots</text>
+  </g>
+
+  <!-- 4. STATE SPEAKING -->
+  <g id="state-speaking">
+    <text x="700" y="36" class="title">SPEAKING</text>
+    <text x="700" y="52" class="subtitle">Wave smile &amp; sound ripples</text>
+
+    <!-- Sound Ripple Brackets Beside Capsule -->
+    <!-- Left ripples -->
+    <path d="M666 124 C660 130 660 140 666 146" stroke="#00AA46" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+    <path d="M658 116 C648 126 648 144 658 154" stroke="#00EB5A" stroke-width="2.0" stroke-linecap="round" fill="none" opacity="0.8"/>
+    <path d="M650 110 C636 122 636 148 650 160" stroke="#91FA9B" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.55"/>
+    <!-- Right ripples -->
+    <path d="M734 124 C740 130 740 140 734 146" stroke="#00AA46" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+    <path d="M742 116 C752 126 752 144 742 154" stroke="#00EB5A" stroke-width="2.0" stroke-linecap="round" fill="none" opacity="0.8"/>
+    <path d="M750 110 C764 122 764 148 750 160" stroke="#91FA9B" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.55"/>
+
+    <g transform="translate(700, 134) scale(3.1) translate(-12, -12)">
+      <rect x="5.5" y="2.5" width="13" height="19" rx="6.5" fill="#91FA9B"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M17.5 15V9C17.5 5.96243 15.0376 3.5 12 3.5C8.96243 3.5 6.5 5.96243 6.5 9V15C6.5 18.0376 8.96243 20.5 12 20.5C15.0376 20.5 17.5 18.0376 17.5 15ZM12 2C8.13401 2 5 5.13401 5 9V15C5 18.866 8.13401 22 12 22C15.866 22 19 18.866 19 15V9C19 5.13401 15.866 2 12 2Z" fill="#004628"/>
+      <!-- Expressive Brows -->
+      <g transform="translate(0, -0.6)">
+        <path d="M8.2 7.0 Q 10.2 6.0, 11.2 7.0" stroke="#004628" stroke-width="0.85" stroke-linecap="round" fill="none"/>
+        <path d="M12.8 7.0 Q 13.8 6.0, 15.8 7.0" stroke="#004628" stroke-width="0.85" stroke-linecap="round" fill="none"/>
+      </g>
+      <!-- Happy Smiling Eyes (Cheek crease arcs) -->
+      <path d="M8.8 10.0 C9.2 8.6, 11.2 8.6, 11.6 10.0" stroke="#004628" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+      <path d="M12.4 10.0 C12.8 8.6, 14.8 8.6, 15.2 10.0" stroke="#004628" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+      <!-- Dynamic Wave Smile Mouth (Dual-arc speaking cavity) -->
+      <path d="M9.8 12.2 Q 11.0 11.5, 12.0 12.2 Q 13.0 11.5, 14.2 12.2 C 14.0 14.2, 10.0 14.2, 9.8 12.2 Z" fill="#004628"/>
+      <!-- Soft Tongue Highlight inside mouth -->
+      <path d="M11.0 13.3 Q 12.0 12.7, 13.0 13.3" stroke="#FFCA6B" stroke-width="0.6" stroke-linecap="round" fill="none"/>
+    </g>
+
+    <!-- State Tag -->
+    <rect x="636" y="214" width="128" height="20" rx="10" fill="#004628"/>
+    <text x="700" y="228" class="badge-text" fill="#91FA9B">Speaking • Wave</text>
+  </g>
+
+  <!-- 5. STATE REDUCED MOTION -->
+  <g id="state-reduced-motion">
+    <text x="900" y="36" class="title">REDUCED MOTION</text>
+    <text x="900" y="52" class="subtitle">Static capsule badge</text>
+
+    <!-- Static High-Contrast Ring -->
+    <rect x="872" y="98" width="56" height="74" rx="28" fill="none" stroke="#00AA46" stroke-width="3"/>
+
+    <g transform="translate(900, 135) scale(3.0) translate(-12, -12)">
+      <rect x="5.5" y="2.5" width="13" height="19" rx="6.5" fill="#FFFFFF" stroke="#004628" stroke-width="0.5"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M17.5 15V9C17.5 5.96243 15.0376 3.5 12 3.5C8.96243 3.5 6.5 5.96243 6.5 9V15C6.5 18.0376 8.96243 20.5 12 20.5C15.0376 20.5 17.5 18.0376 17.5 15ZM12 2C8.13401 2 5 5.13401 5 9V15C5 18.866 8.13401 22 12 22C15.866 22 19 18.866 19 15V9C19 5.13401 15.866 2 12 2Z" fill="#004628"/>
+      <circle cx="14" cy="9.5" r="1.4" fill="#004628"/>
+      <circle cx="10.25" cy="9.5" r="1.4" fill="#004628"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M10.252 12.4584C10.4114 12.2329 10.7234 12.1793 10.9489 12.3387C11.1532 12.483 11.4956 12.6838 12.0901 12.6838C12.8479 12.6838 13.1545 12.5034 13.3578 12.3489C13.5777 12.1818 13.8914 12.2246 14.0584 12.4445C14.2255 12.6643 14.1827 12.978 13.9629 13.1451C13.5759 13.4391 13.0541 13.6838 12.0901 13.6838C11.2301 13.6838 10.6895 13.3798 10.3718 13.1553C10.1463 12.9959 10.0926 12.6839 10.252 12.4584Z" fill="#004628"/>
+    </g>
+
+    <!-- Static Status Badge Pill -->
+    <rect x="838" y="188" width="124" height="22" rx="11" fill="#004628" stroke="#00AA46" stroke-width="1.5"/>
+    <circle cx="851" cy="199" r="4" fill="#00EB5A"/>
+    <text x="904" y="202" font-family="'Inter', -apple-system, sans-serif" font-size="9px" font-weight="700" fill="#FFFFFF" letter-spacing="0.6px" text-anchor="middle">SPONKY • READY</text>
+
+    <!-- State Tag -->
+    <rect x="834" y="220" width="132" height="18" rx="9" fill="#F5F5F5"/>
+    <text x="900" y="232" class="mono-text">prefers-reduced-motion</text>
+  </g>
+</svg>
