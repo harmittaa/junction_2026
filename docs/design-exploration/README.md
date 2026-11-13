@@ -14,59 +14,55 @@ Open `http://localhost:8000/design-exploration/`.
 
 Why a server: the page loads `docs/design-tokens.json` with `fetch`. This does not work from `file://`.
 
-URL parameters:
+Optional: a private Claude Artifact copy exists for review. It loads `design-tokens.json` from its own folder.
 
-- `beat=1..12` starts at that beat.
-- `flags=direct|left|declined` sets route flags (comma separated).
-- `theme=dark` uses the dark theme.
-- `w=360` sets the phone width (default 390).
-- `only=phone` shows only the phone. `only=overview` shows everything except the prototype section.
+URL parameters: `scene=0..8`, `direct=1` (skip the guess), `theme=dark`, `w=360`, `only=phone|overview`.
 
-Optional: a private Claude Artifact copy of this page exists. It is for review only. The page also loads `design-tokens.json` from its own folder there.
+## 2. What this is
 
-Print the page from the browser for a paper overview. The prototype section is hidden in print.
+A simulated design prototype. It uses scripted dialogue and invented data. It uses no microphone, no audio, no AI and no bank data. Coach states are simulated. It does not choose a production stack.
 
-## 2. What this is / is not
+Revision note: this version follows the owner's decisions in issue #9 "Design revision" and issue #8 "Scope update". The first eight-state thread version is in git history (commit 66d1b8d).
 
-- It is a design prototype with scripted dialogue and invented fixtures.
-- It is not AI. It does not read bank data. Free text is not interpreted.
-- It does not choose a production stack.
+## 3. Screens
 
-## 3. Recommended direction
+- 9 live scenes: S-mobiili entry mock, ready, listening, thinking, speaking (guess invitation), guess, reveal, daily check-in, check-in complete.
+- 7 variants: muted while speaking, "Speak instead", typing, microphone not available, talk about my day, coach unavailable, already completed today.
+- 4 on-request parts: explore this, basket correction, what-if, keep an eye on it.
+- The "All screens" overview is generated from the live phone.
 
-**A · Conversation-led, with one borrowed accent.** It uses one card pattern for all eight states. It needs fewer taps, so the demo fits about 90 seconds. Evidence and corrections stay in the thread. It stays calm for all ages and fits a banking app. Borrowed from B: the large actual amount and the playful green highlight on key numbers. Not borrowed: tap-through story steps.
+## 4. Voice behavior shown
 
-## 4. Flow and timing
+- Tap the coach to start. Tap again to stop and send. No press-and-hold. No always-on listening.
+- Spoken replies always keep readable text on screen.
+- Mute silences output only. It never opens the microphone.
+- "Speak instead" is a proposed interruption control: playback stops first, then capture starts.
+- Typing is an equal path in every coach screen.
+- If the microphone is not available, the coach falls back to typing.
 
-Seconds are planning estimates. They are not measured.
+## 5. Motion rules
 
-| Beat | State | Content | Seconds |
+| State | Label | Motion | Static cue |
 | --- | --- | --- | --- |
-| 1 | 1 | Conversation entry | 6 |
-| 2 | 2 | Optional guessing invitation | 4 |
-| 3 | 3 | Guess | 8 |
-| 4 | 4 | Reveal and evidence | 13 |
-| 5 | 5 | Understand: three baskets | 9 |
-| 6 | 5 | Correct one purchase | 8 |
-| 7 | 5 | Effect of the correction | 6 |
-| 8 | 6 | What-if | 11 |
-| 9 | 7 | Choose a daily habit | 9 |
-| 10 | 7 | Habit outcome | 3 |
-| 11 | 8 | Return: daily check-in | 8 |
-| 12 | 8 | Check-in complete | 5 |
-| | | Total | 90 |
+| Ready | Ready / Tap to talk | none | no ring |
+| Listening | Listening… / Stop and send | ring pulses, ribbons change height irregularly (simulated level) | solid ring |
+| Thinking | Thinking… | highlight travels along the ribbons | dashed ring |
+| Speaking | Speaking… / Speak instead | ribbons sway sideways | double ring |
+| Celebrate | Check-in complete | one turn, about 600 ms | accent ring |
 
-Routes: direct answer ("Show the amount"), leave the game, decline the habit.
+- No animation hints at an unrevealed answer, at money saved, or at microphone activity when capture is off.
+- With reduced motion, all animation stops. Rings and labels stay.
+- The ribbon is an original abstract motif. It is not the bank logo.
 
-## 5. Token and accessibility exceptions
+## 6. Token and accessibility exceptions
 
 `docs/style-guide.md` and `docs/design-tokens.json` were not edited. The page builds its CSS variables from the JSON at load.
 
-Three derived variables, defined in CSS from tokens only:
+Derived variables, defined in CSS from tokens only:
 
-1. `--fill-action`: light uses `primaryPressed` (white text 5.58). Dark uses `primary` with `onPrimary` (7.07). Reason: light `onPrimary` on `primary` is 3.07, too low for 16 px text. Used for primary buttons and the user bubble.
-2. `--basket-everyday-text`: light uses `status.warningText`. Reason: the everyday basket color on its background is 2.73 in light mode. Amber is kept for non-text marks (bar segment) next to a text label.
-3. `primary` is used only for non-text marks in light mode (slider accent, progress, logo dot): 3.07 on `surface`.
+1. `--fill-action`: light uses `primaryPressed` (white text 5.58). Dark uses `primary` with `onPrimary` (7.07). Reason: light `onPrimary` on `primary` is 3.07, too low for 16 px text. Used for primary buttons, the user bubble, and now also the coach ribbon and rings. Reason for the ribbon: light `primary` on `greenMintSoft` is 2.72, below 3:1.
+2. `--basket-everyday-text`: light uses `status.warningText`. The everyday basket color on its background is 2.73 in light mode.
+3. `primary` is used only for non-text marks in light mode (slider accent, bar fill, logo dot): 3.07 on `surface`.
 
 Measured WCAG ratios:
 
@@ -74,48 +70,56 @@ Measured WCAG ratios:
 - Light basket labels: regular 9.99, unexpected 5.18, everyday 2.73 (replaced by warningText: 5.57).
 - Dark basket labels: 9.82, 9.09, 10.30.
 - textMuted on surfaces: 5.21–5.74 light, 5.96–7.47 dark.
-- Light non-text marks: primary 3.07, everyday amber 3.04 on `surface`.
 - Dark `borderStrong` on `surface` is 2.51. Input borders are below 3:1 in dark mode. Open issue, not changed.
 
-Other notes:
+New pairings in this revision:
 
-- The story card uses the CSS keyword `white` for text. No token is white in both themes.
-- Focus ring uses `borderFocus`. Touch targets are 48 px.
-- Every color has a text label. Reduced motion is respected.
-- Sliders are native range inputs with `accent-color`. Production should style a larger thumb.
-- The font is a system fallback stack.
+- Light: `textBrand` on `greenTintSubtle` (screen) 5.37; on `surface` 5.58; on `greenMintSoft` 4.95. `textMuted` on `greenTintSubtle` 5.53. `greenDeepest` on `greenMintSoft` 9.77. `infoText` on `infoBg` 5.18.
+- Dark: `textBrand` on `background` 11.55; on `surface` 10.45. `primary` on `surfaceAccent` 6.74. `textMuted` on `background` 7.47. `infoText` on `infoBg` 9.09.
+- Celebrate ring (`accentPlayful`) is 1.55 on the light screen. It is a decoration. The text label "Check-in complete" carries the meaning.
+- The mint card border (`greenBorderWeak`, 1.63) is decoration only.
 
-## 6. Reusable components
+Other notes: focus ring uses `borderFocus`. Touch targets are 48 px. Every color has a text label. Sliders are native range inputs with `accent-color`. The font is a system fallback stack.
 
-Conversation shell (app bar, thread, composer), coach and user bubbles, chips, card, source chip, basket chip, breakdown bar and legend, guess card, reveal card, correction card, what-if card, habit card, check-in card, completion card, status and record lines.
+## 7. Not validated
 
-## 7. Decisions for the owner
+Issue #10 measured speech-to-text only: first partial about 711–782 ms, tail about 172–242 ms, on two short samples. These are open implementation checks, not claims:
 
-1. Confirm direction A.
-2. Guess range and start value rule.
-3. Streak start (proposal: first completed check-in = day 1) and missed-day behaviour (undecided; no points are shown).
-4. What "Daily check-in" does when no habit is tracked (after a decline).
-5. Goal: is a target amount needed, and is progress self-reported only?
+- full spoken-reply latency
+- output voice quality
+- interruption behavior
+- noisy-venue use
+
+No provider is selected.
+
+## 8. Decisions for the owner
+
+1. Ribbon shape and motion are a proposal, not final, and not the bank logo.
+2. Confirm "Speak instead" as the interruption control.
+3. Where History opens.
+4. Streak start and missed-day rule.
+5. Guess range and start value.
 6. Should the shared style guide adopt `primaryPressed` for text-bearing green fills in light mode?
 
-## 8. Known limits
+## 9. Known limits
 
-- Not wired: "Keep as it is", "Keep my plan", "Change my action". The variant frames are static.
-- Free text is not interpreted.
-- The "Daily check-in" starter jumps to beat 11 and shows earlier messages too.
+- Not wired: History, tab bar and S-mobiili cards (except Sponky), typing Send, "Keep as it is".
+- The thinking scene has no tap control. Use Next in the review panel.
+- Variants and on-request frames are static.
+- Free text is not interpreted. Sound toggle changes only the label.
 - Exports were made with headless Chrome.
 
-## 9. Exports
+## 10. Exports
 
-Files in `exports/`: `storyboard-overview.png`, `reveal-light-390.png`, `correction-dark-390.png`, `checkin-light-360.png`.
+Files in `exports/`: `screens-overview.png`, `ready-light-390.png`, `reveal-dark-390.png`, `checkin-complete-light-360.png`.
 
-Commands (server running on port 8000; replace `W,H` and `NAME`):
+Command (server running on port 8000):
 
 ```
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=2 --virtual-time-budget=4000 --window-size=W,H --screenshot=docs/design-exploration/exports/NAME.png "http://localhost:8000/design-exploration/?QUERY"
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=2 --virtual-time-budget=8000 --window-size=W,H --screenshot=docs/design-exploration/exports/NAME.png "http://localhost:8000/design-exploration/?QUERY"
 ```
 
-- `storyboard-overview`: 1680,6530, `only=overview`
-- `reveal-light-390`: 500,900, `only=phone&beat=4`
-- `correction-dark-390`: 500,900, `only=phone&beat=6&theme=dark`
-- `checkin-light-360`: 500,900, `only=phone&beat=11&w=360`
+- `screens-overview`: 1680,5700, `only=overview`
+- `ready-light-390`: 500,900, `only=phone&scene=1`
+- `reveal-dark-390`: 500,900, `only=phone&scene=6&theme=dark`
+- `checkin-complete-light-360`: 500,900, `only=phone&scene=8&w=360`

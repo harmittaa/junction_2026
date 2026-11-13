@@ -1,10 +1,16 @@
-// Design prototype. Scripted dialogue, invented data. No AI, no bank connection.
+// Design prototype. Simulated coach states, scripted dialogue, invented data. No microphone, no audio, no AI, no bank connection.
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const eur = n => new Intl.NumberFormat('fi-FI', { style: 'currency', currency: 'EUR' }).format(n);
 const qs = new URLSearchParams(location.search), root = document.documentElement;
-const APPBAR = '<header class="app-bar"><span class="dot"></span><span class="hs">Sponky</span><span class="sm muted">Money coach</span></header>';
-const COMPOSER = '<div class="composer"><label><span class="visually-hidden">Message</span><input class="in" type="text" placeholder="Message Sponky"></label><button class="btn primary" type="button" aria-label="Send">Send</button></div>';
 const flat = (o, p, out = []) => { for (const k in o) if (k !== 'description') typeof o[k] === 'object' ? flat(o[k], p + k + '-', out) : out.push(`${p}${k}:${o[k]}`); return out; };
+const ICON = { chev: 'm9 6 6 6-6 6', back: 'm15 6-6 6 6 6', speaker: 'M4 9v6h4l5 4V5L8 9H4zM16.5 9a4 4 0 0 1 0 6', muted: 'M4 9v6h4l5 4V5L8 9H4zM17 9l5 6M22 9l-5 6',
+  history: 'M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2', home: 'M4 11l8-7 8 7v9H4zM10 20v-6h4v6', card: 'M3 6h18v12H3zM3 10h18', bank: 'M3 10l9-6 9 6M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18',
+  user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0', send: 'M4 12h14M13 6l6 6-6 6', wave: 'M8 3c7 4-5 14 2 18M15 3c7 4-5 14 2 18' };
+const D = 'M66 10C104 34 36 80 74 110';
+const RIB = `<svg viewBox="0 0 120 120" aria-hidden="true"><g class="w1" transform="translate(3 0)"><path class="r" pathLength="100" d="${D}"/><path class="h" pathLength="100" d="${D}"/></g><g class="w2" transform="translate(-23 0)"><path class="r" pathLength="100" d="${D}"/><path class="h" pathLength="100" d="${D}"/></g></svg>`;
+const ST = { ready: ['Ready', 'Tap to talk'], listening: ['Listening…', 'Stop and send'], thinking: ['Thinking…', ''], speaking: ['Speaking…', 'Speak instead'], celebrate: ['Check-in complete', ''] };
+const icons = r => $$('[data-i]', r).forEach(e => e.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[e.dataset.i]}"/></svg>`);
+const mute = (b, on) => { b.setAttribute('aria-pressed', on); $('i', b).dataset.i = on ? 'muted' : 'speaker'; $('span', b).textContent = on ? 'Muted' : 'Sound on'; icons(b); };
 
 const load = u => fetch(u).then(r => { if (!r.ok) throw 0; return r.json(); });
 load('../design-tokens.json').catch(() => load('design-tokens.json')).then(T => {
@@ -19,78 +25,59 @@ load('../design-tokens.json').catch(() => load('design-tokens.json')).then(T => 
 }).catch(() => { $('#tokerr').hidden = false; });
 
 function init() {
-  const P = $('#proto'), form = $('.thread', P), beats = $$('.beats li'), total = beats.reduce((s, l) => s + +l.dataset.secs, 0);
-  let beat = 1;
+  const P = $('#proto'), beats = $$('.beats li'), v = n => $(`[name=${n}]`, P);
+  let cur = 0;
   const say = t => $('#status').textContent = t;
-  const v = n => $(`[name=${n}]`, P), set = (k, t) => $$(`[data-bind=${k}]`, P).forEach(e => e.textContent = t);
+  const show = (ph, n) => $$('.scene[data-scene]', ph).forEach(s => s.hidden = +s.dataset.scene !== n);
 
-  // Show or hide every beat-dependent element. delta = storyboard view (only what starts at beat b).
-  const apply = (ph, b, delta) => $$('[data-at],[data-only],[data-not]', ph).forEach(el => {
-    const a = (el.dataset.at || '1').split('-'), lo = +a[0], hi = a[1] ? +a[1] : 99;
-    const fl = x => ph.classList.contains('f-' + x), o = el.dataset.only, n = el.dataset.not;
-    const inRange = delta && el.parentElement.classList.contains('thread') ? lo === b : b >= lo && b <= hi;
-    el.hidden = !(inRange && (!o || fl(o)) && (!n || !fl(n)));
+  // Coach screens get the same top bar and typing row; stages get the coach.
+  $$('.scene[data-coach]').forEach(s => {
+    s.innerHTML = `<header class="cbar"><button class="ib" type="button" data-go="0" aria-label="Back to S-mobiili"><i class="ic" data-i="back"></i></button><p class="hs title">Sponky</p>` +
+      `<span class="rt"><button class="ib" type="button" data-mute aria-pressed="false"><i class="ic" data-i="speaker"></i><span>Sound on</span></button><button class="ib" type="button" data-static><i class="ic" data-i="history"></i><span>History</span></button></span></header>` +
+      `<div class="cbody">${s.innerHTML}</div><div class="typing"><label><span class="visually-hidden">Message</span><input class="in${s.dataset.typed ? ' focus' : ''}" type="text" placeholder="Or type here" value="${s.dataset.typed || ''}"></label><button class="btn primary" type="button" data-static>Send</button></div>`;
+    if (s.dataset.muted !== undefined) mute($('[data-mute]', s), true);
   });
-
-  // Static phones get the same app bar and composer.
-  $$('.phone').forEach(p => {
-    if (!$('.app-bar', p)) p.insertAdjacentHTML('afterbegin', APPBAR);
-    if (!$('.composer', p)) p.insertAdjacentHTML('beforeend', COMPOSER);
+  $$('.stage').forEach(st => {
+    const [a, b] = ST[st.dataset.state];
+    st.insertAdjacentHTML('afterbegin', `<button class="coach" type="button" data-state="${st.dataset.state}" data-size="${st.dataset.size}"${st.dataset.tap ? ` data-go="${st.dataset.tap}"` : ''} aria-label="Sponky coach. ${b || a}">${RIB}</button><p class="st">${a}</p><p class="act">${b}</p>`);
   });
-  // Direction A and variant 2 reuse the real cards.
-  const checkin = $('[data-card=checkin]', P).cloneNode(true);
-  $('[data-new]', checkin).innerHTML = '<p>No taxi rides.</p>';
-  $('[data-help]', checkin).textContent = 'A day without taxi rides still counts. Your reflection completes the check-in.';
-  $('[data-clone=reveal]').replaceWith($('[data-card=reveal]', P).cloneNode(true));
-  $('[data-clone=checkin]').replaceWith(checkin);
+  icons(document);
 
-  // Storyboard: clone the pristine phone per beat.
-  function frame(li, b, flag, title) {
+  // Overview: one inert clone per scene, plus the direct route.
+  function frame(n, direct, title, note) {
     const c = P.cloneNode(true);
-    c.removeAttribute('id'); c.classList.remove('live'); c.classList.add('static', 'frame'); c.inert = true;
-    if (flag) c.classList.add(flag);
-    $$('details', c).forEach(x => x.open = true);
-    apply(c, b, true);
-    $('.composer input', c).value = li.dataset.compose || '';
+    c.removeAttribute('id'); c.classList.remove('live'); c.classList.add('static', 'frame'); c.classList.toggle('direct', direct); c.inert = true;
+    $$('details', c).forEach(x => x.open = true); show(c, n);
     const f = document.createElement('figure');
-    f.innerHTML = `<figcaption><b></b><p>${$('p', li).innerHTML}</p>≈ ${li.dataset.secs} s</figcaption><div class="zw"></div>`;
+    f.innerHTML = `<figcaption><b></b><p>${note}</p></figcaption><div class="zw"></div>`;
     $('b', f).textContent = title; $('.zw', f).append(c); $('#sb').append(f);
   }
-  beats.forEach(li => frame(li, +li.dataset.beat, '', `State ${li.dataset.state} · ${$('.bt', li).textContent}`));
-  frame(beats[3], 4, 'f-direct', 'Route: direct answer, no guess');
-  frame(beats[9], 10, 'f-declined', 'Route: habit declined');
+  beats.forEach(li => frame(+li.dataset.scene, false, `${li.dataset.scene} · ${$('.bt', li).textContent}`, $('p', li).innerHTML));
+  frame(6, true, 'Route: Show me, no guess', 'A direct request skips the guess. The reveal shows only the actual amount.');
 
   function bind() {
-    const g = Math.max(0, +v('guessNum').value || 0), gap = Math.abs(60 - g), m = Math.max(g, 60);
-    set('guess', eur(g)); v('guessRange').setAttribute('aria-valuetext', g + ' euros');
-    set('feedback', g === 60 ? 'Your guess matches the actual amount.' : `You guessed ${eur(gap)} ${g < 60 ? 'less' : 'more'} than the actual amount. Thanks for guessing first. Now you have the real number.`);
+    const g = Math.max(0, +v('guessNum').value || 0), m = Math.max(g, 60);
+    $$('[data-bind=guess]', P).forEach(e => e.textContent = eur(g));
+    v('guessRange').setAttribute('aria-valuetext', g + ' euros');
+    $('[data-bind=feedback]', P).textContent = g === 60 ? 'Your guess matches the actual amount.' :
+      `You guessed ${eur(Math.abs(60 - g))} ${g < 60 ? 'less' : 'more'} than the actual amount. Thanks for guessing first. Now you have the real number.`;
     $('[data-bar=guess]', P).style.width = g / m * 100 + '%'; $('[data-bar=actual]', P).style.width = 60 / m * 100 + '%';
-    const p = +v('wi').value / 100;
-    set('pct', v('wi').value + ' %'); set('after', eur(45 - 45 * p)); set('saved', eur(45 * p));
-    set('action', v('action').value);
-    const gn = v('goalName').value.trim(), ga = v('goalAmt').value;
-    set('goal', gn + (ga ? ' · ' + eur(+ga) : '')); $$('[data-goal-row]', P).forEach(e => e.hidden = !gn);
-    const r = $('[name=refl]:checked', P);
-    set('reflection', r ? r.nextElementSibling.textContent : 'I did it'); $('[data-complete]', P).disabled = !r;
+    $('[data-complete]', P).disabled = !$('[name=refl]:checked', P);
   }
 
   function go(n) {
-    beat = Math.max(1, Math.min(12, n));
-    const was = document.activeElement, li = beats[beat - 1], inp = $('.composer input', P), dec = P.classList.contains('f-declined');
-    apply(P, beat);
-    beats.forEach(l => l === li ? l.setAttribute('aria-current', 'step') : l.removeAttribute('aria-current'));
-    inp.value = li.dataset.compose || ''; inp.readOnly = !!li.dataset.compose;
-    const cum = beats.slice(0, beat).reduce((s, l) => s + +l.dataset.secs, 0);
-    $('#prog').textContent = `State ${li.dataset.state} of 8 · beat ${beat} of 12 · ≈ ${li.dataset.secs} s this beat · ≈ ${cum} s of ≈ ${total} s`;
-    $('#simdate').textContent = 'SIMULATED DATE: ' + (beat < 11 ? 'Mon 4 Nov 2024' : 'Tue 5 Nov 2024');
-    $('#back').disabled = beat === 1; $('#next').disabled = beat === 12 || (beat === 10 && dec);
-    $('#advance').hidden = !(beat === 10 && !dec); $('#declmsg').hidden = !(beat === 10 && dec);
+    cur = Math.max(0, Math.min(8, n));
+    const was = document.activeElement;
+    show(P, cur);
+    beats.forEach((l, i) => i === cur ? l.setAttribute('aria-current', 'step') : l.removeAttribute('aria-current'));
+    $('#simdate').textContent = 'SIMULATED DATE: ' + (cur < 7 ? 'Mon 4 Nov 2024' : 'Tue 5 Nov 2024');
+    $('#back').disabled = !cur; $('#next').disabled = cur === 8;
     say('');
-    form.scrollTop = form.scrollHeight;
-    if (was && was.closest('[hidden]')) $$('.msg:not([hidden])', P).pop()?.focus();
+    const s = $('.scene:not([hidden])', P); $('.cbody', s).scrollTop = 0;
+    if (was && was.closest('[hidden]')) s.focus();
   }
 
-  form.addEventListener('input', e => {
+  P.addEventListener('input', e => {
     if (e.target.name === 'guessRange') v('guessNum').value = e.target.value;
     if (e.target.name === 'guessNum') v('guessRange').value = e.target.value;
     bind();
@@ -98,18 +85,18 @@ function init() {
   P.addEventListener('click', e => {
     const t = e.target.closest('button'); if (!t) return;
     const d = t.dataset;
-    if (t.closest('.composer')) return $('.composer input', P).readOnly ? go(beat + 1) : say('Scripted prototype: free text is not interpreted.');
+    if (d.mute !== undefined) { const on = t.getAttribute('aria-pressed') !== 'true'; return $$('[data-mute]', P).forEach(b => mute(b, on)); }
     if (d.static !== undefined) return say('Shown for review. Not wired in this prototype.');
     if (d.jump) return $(d.jump).scrollIntoView();
-    if (d.set) P.classList.add('f-' + d.set);
-    if (d.clear) P.classList.remove('f-' + d.clear);
-    go(d.go === 'next' ? beat + 1 : d.go ? +d.go : beat);
+    if (d.set) P.classList.add(d.set);
+    if (d.clear) P.classList.remove(d.clear);
+    if (d.go) go(+d.go);
   });
-  P.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('.composer input')) $('.composer .btn', P).click(); });
-  $('#back').onclick = () => go(beat - 1);
-  $('#next').onclick = $('#advance').onclick = () => go(beat + 1);
-  $('#restart').onclick = () => { P.classList.remove('f-direct', 'f-left', 'f-declined'); form.reset(); bind(); go(1); };
-  $('.beats').onclick = e => { const l = e.target.closest('li'); if (l) go(+l.dataset.beat); };
+  $$('.scene', P).forEach(s => s.tabIndex = -1);
+  $('#back').onclick = () => go(cur - 1);
+  $('#next').onclick = () => go(cur + 1);
+  $('#restart').onclick = () => { P.classList.remove('direct'); $$('form', P).forEach(f => f.reset()); $$('[data-mute]', P).forEach(b => mute(b, false)); bind(); go(0); };
+  $('.beats').onclick = e => { const l = e.target.closest('li'); if (l) go(+l.dataset.scene); };
 
   // Review controls and URL parameters.
   const ctl = () => {
@@ -125,6 +112,6 @@ function init() {
   root.dataset.theme = qs.get('theme') === 'dark' ? 'dark' : 'light';
   document.body.dataset.only = qs.get('only') || '';
   if (+qs.get('w')) root.style.setProperty('--phone-w', +qs.get('w') + 'px');
-  (qs.get('flags') || '').split(',').filter(Boolean).forEach(f => P.classList.add('f-' + f));
-  ctl(); bind(); go(+qs.get('beat') || 1);
+  P.classList.toggle('direct', qs.get('direct') === '1');
+  ctl(); bind(); go(+qs.get('scene') || 0);
 }
