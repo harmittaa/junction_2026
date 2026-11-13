@@ -12,7 +12,7 @@ The owner selected an Amp cloud Orb so implementation can continue with the lapt
 | App Hosting backend | `sponky`, `europe-west4`, Node.js 22 |
 | Hosting bounds | Zero minimum instances, one maximum instance; see `apphosting.yaml` |
 | Billing | Owner approved the existing billing account and a €10 project budget alert at 50%, 90%, 100%. Alerts do not cap spend. |
-| Coding model | Active ChatGPT subscription connected to Amp; select an OpenAI model served by this connection. Provider quotas still apply. |
+| Coding models | ChatGPT and Claude subscriptions connected. GPT-6 Astra coordinator; lighter Sonnet 5.5 / GPT-6.1 Sol workers, subject to the quota policy below. |
 
 App Hosting has been provisioned; application deployment awaits implementation and its checks. Do not change unrelated projects, accounts, billing, or IAM. Use `--project sponky-junction-2026` on cloud commands.
 
@@ -28,9 +28,9 @@ Use a `demo-*` project and `FIRESTORE_EMULATOR_HOST` for deterministic persisten
 
 ## Startup and permissions
 
-`.agents/setup` installs Java 21 if needed and downloads the Firestore emulator. Once the app has a lockfile it also installs dependencies and Chromium. `.agents/resume` configures Google credentials after the Orb identity is available. These scripts must be on the Amp project's base branch before starting a new Orb. See [Amp lifecycle](https://ampcode.com/docs/orbs/customizing) and [secret handling](https://ampcode.com/docs/orbs/handling-secrets).
+`.agents/setup` selects Node 22 to match App Hosting, installs Java 21 if needed and downloads the Firestore emulator. Once the app has a lockfile it also installs dependencies and Chromium. `.agents/resume` configures Google credentials after the Orb identity is available. These scripts must be on the Amp project's base branch before starting a new Orb. See [Amp lifecycle](https://ampcode.com/docs/orbs/customizing) and [secret handling](https://ampcode.com/docs/orbs/handling-secrets).
 
-The checked-in `.amp/settings.json` permits commits, pushing to **only the named overnight branch**, and the exact demo deploy command below. The installed local CLI only applied these rules when passed `--settings-file .amp/settings.json`; do not assume its permission-test command loads workspace settings automatically. Cloud tool approval behavior must be checked in the Orb. Do not enable global `dangerouslyAllowAll`.
+The checked-in `.amp/settings.json` permits commits, pushing to **only the named overnight branch**, and the exact demo deploy command below. The installed local CLI only applied these rules when passed `--settings-file .amp/settings.json`; do not assume its permission-test command loads workspace settings automatically. The cloud preflight ran without approval prompts; exact remote push/deploy permissions still need exercising during implementation. Do not enable global `dangerouslyAllowAll`.
 
 Approved overnight work: install project dependencies, implement and test the bounded product, make commits, push `amp/sponky-overnight`, and deploy this demo after the combined checks pass. Leave `main` for review. Do not modify billing/IAM or start extra paid infrastructure. Provider calls are for short explicit smoke checks and the demo; default tests use deterministic transports.
 
@@ -40,6 +40,18 @@ npx -y firebase-tools@latest deploy --only firestore:rules,apphosting:sponky --p
 ```
 
 No application exists at the initial audited `main` commit `062a4e0`. It contains the design prototype, style guide/tokens and agent guidance. Issues #1–#12 are briefs/references; at that audit there were no dependency-ordered implementation tickets. Re-read current `main` and issues before creating any missing tickets so concurrent planning work is not duplicated.
+
+## Coding quota and delegation policy
+
+The owner confirmed both subscriptions and asked to preserve **at least 50% of the Claude weekly allowance**, favor Claude when safe, and use the larger OpenAI allowance for overflow. Observed at approximately 01:27 Helsinki on 14 November: Claude session 64% used, resets 03:59; weekly all-model usage 17%, resets 17 November 22:59; Fable weekly usage 13%. These are snapshots, not live limits.
+
+Use `openai/gpt-6-astra` at high effort for the integration coordinator and focused reviews. Delegate bounded implementation to `anthropic/claude-sonnet-5-5` at medium effort when current subscription usage can be verified; otherwise use `openai/gpt-6.1-sol` at medium effort. At most two implementation workers at once, each owning a separate worktree. Keep lockfile/shared-contract edits under one owner. Use the strong model for unclear architecture, financial rules and security decisions rather than asking a weak worker to guess.
+
+Amp Task subagents inherit the parent model/effort. To get a different model, use a separate Amp thread with an explicit model and an agreed base/contract, then retrieve its commits/files. Do not assume calling Task creates a cheaper worker. See [Amp models and subagents](https://ampcode.com/docs/models-and-subagents).
+
+The CLI's `amp usage` does not report Claude subscription utilization. `model-providers check-access` confirmed Sonnet routes through the Claude subscription but returned no quota headers. Provider priority does not implement cross-model fallback. Do not deactivate subscriptions: that can route the same model to paid Amp credits.
+
+If a live, authorized quota source is available, check both session and weekly headroom before each Claude task. Switch workers to OpenAI before 40% weekly usage or 85% session usage to leave a buffer. A short-session reset does not reset the week. If live usage is unavailable, use OpenAI for unattended implementation; never run Claude indefinitely from the stale snapshot or claim a prompt is a hard quota cap. Do not copy personal Claude login credentials into the Orb or build a quota-monitoring service. No Fable, Fast/Plaid mode, paid API coding fallback, or unbounded review loops. Switch back to Claude only with fresh verified headroom.
 
 ## Implementation order if no newer plan exists
 
@@ -67,6 +79,8 @@ A bounded source sample was readable. It contains `Restaurants` and `Transportat
 - ElevenLabs `eleven_flash_v2_5`, George: generated a short PCM audio clip. Scribe `scribe_v3_live` transcribed it as “How much did I spend on groceries last month?” using a single-use token.
 - ElevenLabs voice listing works. Subscription/model-list endpoints return `missing_permissions`; remaining provider credit was not visible to this key. Real speech endpoints did work.
 - Credential helper tests exercise token normalization, failure redaction and repeatable restricted credential configuration. They make no cloud calls.
+- [Cloud preflight](https://ampcode.com/threads/T-01a1d738-a38b-7105-bdea-dc3ae52fb35d): all ten skills and three secrets found; external-account ADC successfully listed the live database/backend; both credential tests passed; emulator get/list/create/update/delete were all denied with 403. No cloud data was written. The Orb initially had Node 26; setup now selects Node 22 before implementation checks.
+- Firestore rules compiled and were deployed successfully. The application itself is not yet deployed.
 - These checks do not establish browser microphone behavior, perceived voice quality, interruption, application correctness, or a deployed application. Those are implementation acceptance checks.
 
 The Mac has Node 22 and authenticated GitHub, Firebase, gcloud and Amp CLIs. It has no Java runtime or local Google Application Default Credentials. That does not block the cloud Orb; install Java 21 before running local Firestore emulator tests on this Mac later.

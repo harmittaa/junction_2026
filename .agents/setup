@@ -2,6 +2,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Keep local checks on the App Hosting runtime; the Orb base currently has Node 26.
+if [[ "$(node -p "process.versions.node.split('.')[0]")" != "22" ]]; then
+  sudo env "PATH=$PATH" npx -y n@10.2.0 22.23.4
+  hash -r
+fi
+
 # Firebase's Firestore emulator requires Java 21 with current CLI releases.
 java_major="$(java -version 2>&1 | sed -n 's/.*version "\([0-9]*\).*/\1/p' | head -1 || true)"
 if [[ ! "$java_major" =~ ^[0-9]+$ ]] || (( java_major < 21 )); then
