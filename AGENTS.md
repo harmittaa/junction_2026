@@ -79,6 +79,12 @@ Skill sources and pinned revisions are recorded in `.agents/skills/SOURCES.md`. 
 
 ## Working together
 
+- **Always use a separate Git worktree and task branch for writing work, including documentation.** One active worker owns each worktree; never run concurrent writers in the same checkout. Reuse your assigned worktree when continuing the same task. Reserve the primary checkout for coordination and integration.
+- Before editing, check `git status --short`, `git branch --show-current` and `git worktree list`. If no worktree is assigned, create a sibling worktree on a uniquely named branch from the agreed base. Use current `origin/main` for independent work, or the agreed parent branch for dependent work. Never switch, reset, stash, clean or overwrite another worker's checkout.
+- Start Amp inside the assigned worktree, or use its runner's **New Worktree** option. Check the base commit: Amp's runner creates from the selected checkout's current HEAD. Run all edits, installs, tests and commits with the assigned worktree as the working directory. See [Amp's worktree support](https://ampcode.com/news/one-runner-many-worktrees).
+- A worktree includes committed `AGENTS.md` and `.agents/skills/`; it does not inherit uncommitted plans, ignored credentials or installed dependencies. Start from a base containing the required guidance and arrange local configuration without committing secrets or sharing mutable build/dependency directories.
+- Worktrees isolate files, not ports or remote services. Use distinct dev-server/emulator ports and isolated test data for concurrent work. Coordinate changes to shared Firebase resources and deployments through one owner.
+- Hand off the worktree path, branch and commit/PR. Integrate through reviewed commits and run the combined checks; worktrees do not prevent merge conflicts. Do not remove another worker's worktree or force removal of uncommitted/unmerged work.
 - Read connected callers before changing a shared contract. Update callers and fixtures together; tell other active workers when the interface changes.
 - Keep changes scoped to the assigned work. Preserve unrelated edits and existing worktrees. Coordinate shared config and lockfile changes through one owner when work is split.
 - Prefer existing helpers and platform features. Add a dependency only when it removes meaningful work. Avoid unrelated refactors and speculative optimizations.
