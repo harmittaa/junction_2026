@@ -1,0 +1,184 @@
+{
+  "$schema": "https://tr.designtokens.org/format/",
+  "meta": {
+    "name": "Sponky (S-Pankki Personal Economic Trainer) Design Tokens",
+    "version": "1.0.0",
+    "source": "Derived from s-pankki.fi (--sds-* design system) and Junction 2026 challenge issues #1, #3, #4",
+    "modes": ["light", "dark"],
+    "platforms": ["flutter", "react-native", "web"]
+  },
+  "color": {
+    "brand": {
+      "greenPrimary": { "value": "#00AA46", "description": "S-Vihreä primary brand green (--sds-brand-color-background-medium-primary)" },
+      "greenStrong": { "value": "#007841", "description": "Accessible dark green for text, links, and active states (--sds-brand-color-text-strong-primary)" },
+      "greenDeepest": { "value": "#004628", "description": "Deepest forest green for high-emphasis headers and dark banners (--sds-brand-color-background-strongest-primary)" },
+      "greenBright": { "value": "#00EB5A", "description": "Playful accent green for gamification, progress bars, and highlights (--sds-brand-color-background-medium-secondary)" },
+      "greenMint": { "value": "#91FA9B", "description": "Soft mint accent (--sds-brand-color-background-weak-secondary)" },
+      "greenMintSoft": { "value": "#D2FCD5", "description": "Softer mint surface (--sds-brand-color-background-weaker-secondary)" },
+      "greenTint": { "value": "#EBF7EC", "description": "Light green surface tint (--sds-brand-color-background-weak-primary)" },
+      "greenTintSubtle": { "value": "#F7FCF7", "description": "Subtle green page/card tint (--sds-brand-color-background-weakest-primary)" },
+      "greenBorderWeak": { "value": "#99D59F", "description": "Soft green border (--sds-brand-color-border-weak-primary)" }
+    },
+    "light": {
+      "background": "#FAFAFA",
+      "surface": "#FFFFFF",
+      "surfaceSubtle": "#F5F5F5",
+      "surfaceAccent": "#EBF7EC",
+      "surfacePlayful": "#EAFEEC",
+      "textPrimary": "#1F1F1F",
+      "textSecondary": "#363636",
+      "textMuted": "#666666",
+      "textInverse": "#FFFFFF",
+      "textBrand": "#007841",
+      "border": "#E6E6E6",
+      "borderStrong": "#949494",
+      "borderFocus": "#1F1F1F",
+      "primary": "#00AA46",
+      "primaryPressed": "#007841",
+      "onPrimary": "#FFFFFF",
+      "accentPlayful": "#00EB5A",
+      "onAccentPlayful": "#004628",
+      "status": {
+        "successText": "#007841",
+        "successBorder": "#00AA46",
+        "successBg": "#EBF7EC",
+        "infoText": "#006E87",
+        "infoBorder": "#00A1C5",
+        "infoBg": "#E0F4FF",
+        "warningText": "#885600",
+        "warningBorder": "#CF8300",
+        "warningBg": "#FFF1D8",
+        "errorText": "#B70000",
+        "errorBorder": "#B70000",
+        "errorBg": "#FFEDED"
+      },
+      "baskets": {
+        "mandatoryRegular": {
+          "color": "#004628",
+          "bg": "#EBF7EC",
+          "description": "Fixed recurring bills (rent, utilities, subscriptions)"
+        },
+        "mandatoryIrregular": {
+          "color": "#006E87",
+          "bg": "#E0F4FF",
+          "description": "Unplanned or periodic necessities (appliances, healthcare)"
+        },
+        "everydaySlipping": {
+          "color": "#CF8300",
+          "bg": "#FFF1D8",
+          "description": "Discretionary everyday spending (coffee, dining out, taxis)"
+        }
+      }
+    },
+    "dark": {
+      "background": "#0F1411",
+      "surface": "#171F1A",
+      "surfaceSubtle": "#1F2A23",
+      "surfaceAccent": "#142B1D",
+      "surfacePlayful": "#12331E",
+      "textPrimary": "#F4F7F5",
+      "textSecondary": "#D0DBD4",
+      "textMuted": "#98A89E",
+      "textInverse": "#1F1F1F",
+      "textBrand": "#00EB5A",
+      "border": "#2B3A31",
+      "borderStrong": "#4A6153",
+      "borderFocus": "#00EB5A",
+      "primary": "#00C853",
+      "primaryPressed": "#00AA46",
+      "onPrimary": "#002914",
+      "accentPlayful": "#00EB5A",
+      "onAccentPlayful": "#002914",
+      "status": {
+        "successText": "#6EE7A0",
+        "successBorder": "#00AA46",
+        "successBg": "#102B1C",
+        "infoText": "#67D5EB",
+        "infoBorder": "#00A1C5",
+        "infoBg": "#0F2730",
+        "warningText": "#FFCA6B",
+        "warningBorder": "#CF8300",
+        "warningBg": "#2E220D",
+        "errorText": "#FF8A8A",
+        "errorBorder": "#E54848",
+        "errorBg": "#331212"
+      },
+      "baskets": {
+        "mandatoryRegular": {
+          "color": "#6EE7A0",
+          "bg": "#102B1C",
+          "description": "Fixed recurring bills (rent, utilities, subscriptions)"
+        },
+        "mandatoryIrregular": {
+          "color": "#67D5EB",
+          "bg": "#0F2730",
+          "description": "Unplanned or periodic necessities (appliances, healthcare)"
+        },
+        "everydaySlipping": {
+          "color": "#FFCA6B",
+          "bg": "#2E220D",
+          "description": "Discretionary everyday spending (coffee, dining out, taxis)"
+        }
+      }
+    }
+  },
+  "typography": {
+    "fontFamily": {
+      "display": {
+        "primary": "S Bonus Display",
+        "fallback": ["Inter", "SF Pro Display", "Roboto", "sans-serif"]
+      },
+      "body": {
+        "primary": "S Bonus UX",
+        "fallback": ["Inter", "SF Pro Text", "Roboto", "sans-serif"]
+      }
+    },
+    "fontWeight": {
+      "light": 300,
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "scale": {
+      "displaySmall": { "size": 34, "lineHeight": 40, "weight": 700, "letterSpacing": -0.5 },
+      "headingLarge": { "size": 27, "lineHeight": 34, "weight": 700, "letterSpacing": -0.3 },
+      "headingMedium": { "size": 22, "lineHeight": 28, "weight": 600, "letterSpacing": -0.2 },
+      "headingSmall": { "size": 18, "lineHeight": 24, "weight": 600, "letterSpacing": 0 },
+      "bodyLarge": { "size": 18, "lineHeight": 26, "weight": 400, "letterSpacing": 0 },
+      "bodyMedium": { "size": 16, "lineHeight": 24, "weight": 400, "letterSpacing": 0 },
+      "bodySmall": { "size": 14, "lineHeight": 20, "weight": 400, "letterSpacing": 0 },
+      "caption": { "size": 11, "lineHeight": 16, "weight": 500, "letterSpacing": 0.2 }
+    }
+  },
+  "spacing": {
+    "0": 0,
+    "2": 2,
+    "4": 4,
+    "8": 8,
+    "12": 12,
+    "16": 16,
+    "20": 20,
+    "24": 24,
+    "28": 28,
+    "32": 32,
+    "40": 40,
+    "48": 48,
+    "64": 64
+  },
+  "radius": {
+    "none": 0,
+    "xs": 8,
+    "sm": 10,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "pill": 9999
+  },
+  "layout": {
+    "screenPaddingHorizontal": 16,
+    "cardPadding": 16,
+    "sectionGap": 24,
+    "minTouchTarget": 48
+  }
+}
