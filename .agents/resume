@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+"""Create refreshable Google credentials after Amp activates its Orb identity."""
+import json
+import os
+from pathlib import Path
+
+destination = Path(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
+destination.parent.mkdir(parents=True, exist_ok=True)
+config = {
+    "type": "external_account",
+    "audience": "//iam.googleapis.com/projects/967386564020/locations/global/workloadIdentityPools/amp-orbs/providers/amp-oidc",
+    "subject_token_type": "urn:ietf:params:oauth:token-type:id_token",
+    "token_url": "https://sts.googleapis.com/v1/token",
+    "service_account_impersonation_url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/amp-sponky@sponky-junction-2026.iam.gserviceaccount.com:generateAccessToken",
+    "quota_project_id": "sponky-junction-2026",
+    "credential_source": {
+        "executable": {"command": str(Path(__file__).resolve().with_name("gcp-token")), "timeout_millis": 30000}
+    },
+}
+destination.write_text(json.dumps(config, indent=2) + "\n")
+destination.chmod(0o600)
+print("Sponky Google credential configuration ready (no stored private key).")

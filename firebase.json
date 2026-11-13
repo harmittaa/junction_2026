@@ -1,0 +1,17 @@
+{
+  "firestore": {
+    "database": "(default)",
+    "location": "europe-west4",
+    "rules": "firestore.rules"
+  },
+  "emulators": {
+    "firestore": { "host": "127.0.0.1", "port": 8080 },
+    "ui": { "enabled": false },
+    "singleProjectMode": true
+  },
+  "apphosting": [{
+    "backendId": "sponky",
+    "rootDir": ".",
+    "ignore": ["node_modules", ".git", ".next", ".env", ".env.*", ".agents", ".amp", "firebase-debug*.log", "test-results", "playwright-report"]
+  }]
+}

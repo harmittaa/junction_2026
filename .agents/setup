@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+# Firebase's Firestore emulator requires Java 21 with current CLI releases.
+java_major="$(java -version 2>&1 | sed -n 's/.*version "\([0-9]*\).*/\1/p' | head -1 || true)"
+if [[ ! "$java_major" =~ ^[0-9]+$ ]] || (( java_major < 21 )); then
+  sudo apt-get update
+  sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-21-jre-headless
+fi
+node --version
+java -version
+npx -y firebase-tools@latest setup:emulators:firestore
+
+# The setup work lands before the application scaffold.
+if [[ -f package-lock.json ]]; then
+  npm ci
+  if [[ -x node_modules/.bin/playwright ]]; then
+    node_modules/.bin/playwright install --with-deps chromium
+  fi
+fi

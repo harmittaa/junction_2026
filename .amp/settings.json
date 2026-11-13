@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ampcode.com/cli-settings.schema.json",
+  "amp.permissions": [
+    {
+      "tool": "Bash",
+      "action": "allow",
+      "matches": {
+        "cmd": [
+          "git commit -m *",
+          "git push -u origin HEAD:amp/sponky-overnight",
+          "git push origin HEAD:amp/sponky-overnight",
+          "npx -y firebase-tools@latest deploy --only firestore:rules,apphosting:sponky --project sponky-junction-2026 --non-interactive"
+        ]
+      }
+    }
+  ]
+}
