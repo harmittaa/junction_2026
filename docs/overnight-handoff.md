@@ -11,10 +11,18 @@ The owner selected an Amp cloud Orb so implementation can continue with the lapt
 | Firestore | `(default)`, Standard, Native mode, `europe-west4` |
 | App Hosting backend | `sponky`, `europe-west4`, Node.js 22 |
 | Hosting bounds | Zero minimum instances, one maximum instance; see `apphosting.yaml` |
-| Billing | Owner approved the existing billing account and a €10 project budget alert at 50%, 90%, 100%. Alerts do not cap spend. |
+| Billing | Owner set a €30 monthly project target: project alerts at €15/€27/€30, plus a configured €25 monthly Cloud Run spend cap to leave headroom. This is not a guaranteed €30 project ceiling; see below. |
 | Coding models | ChatGPT and Claude subscriptions connected. GPT-6 Astra coordinator; lighter Sonnet 5.5 / GPT-6.1 Sol workers, subject to the quota policy below. |
 
 App Hosting has been provisioned; application deployment awaits implementation and its checks. Do not change unrelated projects, accounts, billing, or IAM. Use `--project sponky-junction-2026` on cloud commands.
+
+## Spending safeguards
+
+On 14 November the owner requested a €30 ceiling. The project-wide monthly alert budget was updated to €30 (`80ca235a-bbd9-4ecd-b558-3adea77d43d7`). A separate native Cloud Billing spend cap was created and read back as `CONFIGURED`: €25/month for Cloud Run in this project (`e1fb878c-625e-4077-ae35-ad0cd29965f8`, service `152E-C115-5142`). Cloud Run is the underlying App Hosting runtime. The lower threshold leaves nominal headroom toward the owner's €30 target; it does not reserve or cap the remaining €5.
+
+[Google documents](https://firebase.google.com/docs/projects/billing/spend-caps) that spend caps pause new service usage after estimated spending reaches the threshold, with reporting/enforcement delay and billable overages. The service resumes next month. This cap does not cover Firestore, builds, artifact/storage charges or external Gemini/ElevenLabs accounts. Do not describe it as a hard project-wide ceiling. Alerts alone never stop usage.
+
+Keep runtime at zero minimum and one maximum instance, use emulators for repeated tests, bound provider inputs/outputs and retries, and avoid repeated deployments. Do not lift/increase spend caps or modify billing. If a spend cap pauses the demo, report that clearly and stop paid retries; the owner can decide whether to resume it.
 
 ## Credentials and configuration
 
