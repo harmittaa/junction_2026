@@ -9,7 +9,9 @@
           "git commit -m *",
           "git push -u origin HEAD:amp/sponky-overnight",
           "git push origin HEAD:amp/sponky-overnight",
-          "npx -y firebase-tools@latest deploy --only firestore:rules,apphosting:sponky --project sponky-junction-2026 --non-interactive"
+          "npx -y firebase-tools@latest deploy --only firestore:rules,apphosting:sponky --project sponky-junction-2026 --non-interactive",
+          "git push origin HEAD:main",
+          "gh pr merge * --repo harmittaa/junction_2026 --merge --match-head-commit *"
         ]
       }
     }

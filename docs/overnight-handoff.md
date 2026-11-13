@@ -38,12 +38,14 @@ Use a `demo-*` project and `FIRESTORE_EMULATOR_HOST` for deterministic persisten
 
 `.agents/setup` selects Node 22 to match App Hosting, installs Java 21 if needed and downloads the Firestore emulator. Once the app has a lockfile it also installs dependencies and Chromium. `.agents/resume` configures Google credentials after the Orb identity is available. These scripts must be on the Amp project's base branch before starting a new Orb. See [Amp lifecycle](https://ampcode.com/docs/orbs/customizing) and [secret handling](https://ampcode.com/docs/orbs/handling-secrets).
 
-The checked-in `.amp/settings.json` permits commits, pushing to **only the named overnight branch**, and the exact demo deploy command below. The installed local CLI only applied these rules when passed `--settings-file .amp/settings.json`; do not assume its permission-test command loads workspace settings automatically. The cloud preflight ran without approval prompts; exact remote push/deploy permissions still need exercising during implementation. Do not enable global `dangerouslyAllowAll`.
+The checked-in `.amp/settings.json` permits commits, pushing to the overnight branch and **main after passing acceptance**, and the exact demo deploy command below. The installed local CLI only applied these rules when passed `--settings-file .amp/settings.json`; do not assume its permission-test command loads workspace settings automatically. The cloud preflight ran without approval prompts; exact remote push/deploy permissions still need exercising during implementation. Do not enable global `dangerouslyAllowAll`.
 
-Approved overnight work: install project dependencies, implement and test the bounded product, make commits, push `amp/sponky-overnight`, and deploy this demo after the combined checks pass. Leave `main` for review. Do not modify billing/IAM or start extra paid infrastructure. Provider calls are for short explicit smoke checks and the demo; default tests use deterministic transports.
+Approved overnight work: install project dependencies, implement and test the bounded product, make commits, push `amp/sponky-overnight`, integrate the tested result into `main`, and deploy this demo after the combined checks pass. The owner explicitly authorized merging without waiting for human PR approval; this supersedes earlier instructions to leave main for review. Do not modify billing/IAM or start extra paid infrastructure. Provider calls are for short explicit smoke checks and the demo; default tests use deterministic transports.
 
 ```sh
 git push -u origin HEAD:amp/sponky-overnight
+# After fetching/integrating current main and passing combined acceptance:
+git push origin HEAD:main
 npx -y firebase-tools@latest deploy --only firestore:rules,apphosting:sponky --project sponky-junction-2026 --non-interactive
 ```
 
@@ -73,6 +75,16 @@ Read `AGENTS.md`, #1, #2, #8 and #9 with their latest comments. The voice update
 6. **Integrate, verify and deploy:** reusable coach/cards, phone layout, light/dark and reduced motion; animation follows actual recording/playback. Add the memorable reveal after the flow works. Run combined quick checks, emulator tests, production build and essential browser smoke journeys. Deploy and repeat a small live smoke; record the URL and exact commit.
 
 When complete, stop. Leave the branch/commit, demo URL, reproducible morning test steps, checks run, provider checks, and remaining limitations. If one external service blocks progress, preserve the working typed path, finish independent work and report the blocker. Do not describe a fake fallback as a live integration.
+
+## Grounded data and autonomous delivery
+
+Use the supplied challenge's **synthetic historical records**, never pretend they are live banking data. The data worker pinned and checksum-verified the full source, recorded source rows and documented transaction inclusion rules in `data/README.md`. An independent setup-side check also matched all 39 exported records/fields directly against the pinned CSV: October groceries 75,275 cents and total gross spending 216,735 cents. That check verifies imported rows; the worker's full-source scan supplies completeness evidence.
+
+All factual financial claims, personalized suggestions and spoken numbers must follow validated application calculations and selected-customer evidence. A JSON schema and a prompt saying “do not invent” do not validate the truth of arbitrary model reply text. Review the chat/clarify path as well as evidence cards and TTS: unsupported transaction facts or savings claims must not pass through unchecked. Use application-owned factual wording/validated results; suggestions need an explicit observed basis, and hypothetical reductions remain hypothetical. Missing data means unavailable or no matching records in the selected slice, not proof of no spending elsewhere. Keep future rows hidden until the simulated date permits them. Cover these boundaries with focused regression cases, including a deliberately hallucinated provider reply.
+
+The owner prioritizes delivery and authorizes integrating worker commits, resolving ordinary conflicts, merging into main and deploying without a human approval pause. Fetch current main before integration, preserve others' work, and run required checks on the combined result. Use a normal PR merge if convenient or a non-force fast-forward push of the integrated result; no bypassing actual repository protections or weakening tests. If GitHub prevents main integration, publish/deploy the checked branch and report that limitation instead of waiting with no usable demo. Do not wait for a CI event if no applicable workflow exists; run the required commands directly. Infrastructure/billing changes outside the existing authorization still remain out of scope.
+
+Before stopping, reconcile current issue #1/#8/#9 requirements and later owner updates against the actual app. Give each requirement concrete evidence or an explicit limitation. Routine implementation failures require diagnosis and a bounded fix/recheck, not a request for permission or another plan. An external outage, exhausted quota, enforced spending cap or missing account privilege can still block delivery; never promise these cannot happen or conceal them behind fake results.
 
 ## Pivotability and final review
 
