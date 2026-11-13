@@ -1,0 +1,397 @@
+<meta charset="utf-8">
+<title>Sponky Design Preview</title>
+<link rel="stylesheet" href="prototype.css">
+<script src="prototype.js" defer></script>
+<header class="topbar">
+  <div class="label"><b>DESIGN PREVIEW</b><span>Sponky · issue #9 · Illustrative data · Scripted dialogue · No AI or bank connection</span></div>
+  <div class="controls">
+    <span class="grp">Theme
+      <button type="button" data-theme-set="light" aria-pressed="true">Light</button><button type="button" data-theme-set="dark" aria-pressed="false">Dark</button></span>
+    <span class="grp">Phone width
+      <button type="button" data-w-set="390" aria-pressed="true">390</button><button type="button" data-w-set="360" aria-pressed="false">360</button></span>
+    <span id="tokver">Tokens: loading…</span>
+    <nav><a href="#directions">Directions</a> · <a href="#prototype">Prototype</a> · <a href="#storyboard">Storyboard</a> · <a href="#variants">Variants</a> · <a href="#stretch">Stretch</a> · <a href="#fixtures">Fixtures</a></nav>
+  </div>
+</header>
+<div id="tokerr" class="tokerr" hidden>Design tokens did not load. Start the local server: <code>python3 -m http.server 8000 --directory docs</code> (run from the repo root), then open <code>http://localhost:8000/design-exploration/</code></div>
+
+<main>
+<!-- 1 DIRECTIONS -->
+<section id="directions">
+  <h2>1 · Two direction sketches</h2>
+  <p class="lead">Same moment in both: the user locked in a guess of 20,00 € and sees the reveal.</p>
+  <div class="dirs">
+    <figure>
+      <figcaption><b>A · Conversation-led</b> — calm banking surface</figcaption>
+      <div class="phone static" inert><form class="thread" onsubmit="return false">
+        <div class="msg user">My guess: 20,00&nbsp;€</div>
+        <div class="msg coach">Thanks for committing to a guess. Here is the answer.</div>
+        <div data-clone="reveal"></div>
+      </form></div>
+      <ul class="annot"><li>One card pattern for every state</li><li>Evidence stays in the thread</li><li>One tap to continue</li></ul>
+    </figure>
+    <figure>
+      <figcaption><b>B · Story-led</b> — expressive reveal</figcaption>
+      <div class="phone static" inert><form class="thread" onsubmit="return false">
+        <div class="msg user">My guess: 20,00&nbsp;€</div>
+        <div class="story">
+          <div class="segs"><i class="on"></i><i class="on"></i><i></i></div>
+          <p class="cap">Taxis · October 2024 · 2 of 3</p>
+          <p>You guessed 20,00&nbsp;€</p>
+          <p class="ds big">60,00&nbsp;€</p>
+          <p>6 rides</p>
+          <span class="pilltag">40,00&nbsp;€ more than your guess</span>
+          <button class="btn go" type="button">Next: see the rides</button>
+        </div>
+      </form></div>
+      <ul class="annot"><li>Stronger reveal moment</li><li>One tap per step: more taps and more animation work</li><li>Evidence is hidden behind later steps</li></ul>
+    </figure>
+  </div>
+  <div class="box rec"><b>Recommendation: A · Conversation-led, with one borrowed accent</b>
+    <p>Develop A. It uses one card pattern for all eight states, so one developer can build it. It needs fewer taps, so the demo fits about 90 seconds. Evidence and corrections stay visible in the thread, which supports free exploration. It stays calm for all ages and fits inside a banking app. Borrowed from B: the large actual amount and the playful green highlight on key numbers. Not borrowed: tap-through story steps.</p></div>
+</section>
+
+<!-- 2 PROTOTYPE -->
+<section id="prototype">
+  <h2>2 · Prototype (step through)</h2>
+  <div class="proto">
+    <div class="phone live" id="proto">
+      <header class="app-bar">
+        <span class="dot"></span><span class="hs">Sponky</span><span class="sm muted">Money coach</span><span class="spacer"></span>
+        <span class="streak" data-at="10-11" data-not="declined">Streak · 0 days</span>
+        <span class="streak on" data-at="12">Streak · 1 day</span>
+      </header>
+      <form class="thread" role="log" aria-live="polite" aria-label="Conversation" onsubmit="return false">
+
+        <!-- beat 1 -->
+        <div class="msg coach" tabindex="-1" data-at="1">Hi, I'm Sponky. Ask me about your spending, tell me about your day, or do your daily check-in.</div>
+        <div class="chips" data-at="1-1">
+          <button class="btn secondary" type="button" data-go="next">Ask about my spending</button>
+          <button class="btn secondary" type="button" data-jump="#variant-day">Talk about my day</button>
+          <button class="btn secondary" type="button" data-go="11">Daily check-in</button>
+        </div>
+
+        <!-- beat 2 -->
+        <div class="msg user" tabindex="-1" data-at="2">How much did I spend on taxis last month?</div>
+        <div class="msg coach" tabindex="-1" data-at="2">I found your taxi rides for October 2024. Want to guess before I show you?</div>
+        <div class="actions" data-at="2-2">
+          <button class="btn primary" type="button" data-go="next">Let me guess</button>
+          <button class="btn secondary" type="button" data-set="direct" data-go="4">Show the amount</button>
+        </div>
+
+        <!-- beat 3 -->
+        <div class="msg user" tabindex="-1" data-at="3" data-not="direct">Let me guess</div>
+        <div class="card" data-at="3-3" data-not="left">
+          <p class="cap">Taxis · 1–31 Oct 2024</p>
+          <h3 class="hm">How much do you think you spent?</h3>
+          <p class="ds" data-bind="guess">20,00&nbsp;€</p>
+          <div class="stack">
+            <label class="field"><span>Your guess</span><input type="range" name="guessRange" min="0" max="200" step="5" value="20" aria-valuetext="20 euros"></label>
+            <div class="ends" aria-hidden="true"><span>0&nbsp;€</span><span>200&nbsp;€</span></div>
+          </div>
+          <label class="field"><span>Or type an amount in euros</span><input class="in" type="number" name="guessNum" min="0" step="1" value="20" inputmode="numeric"></label>
+          <button class="btn primary block" type="button" data-go="next">Lock in my guess</button>
+          <button class="btn secondary block" type="button" data-set="direct" data-go="4">Show the amount instead</button>
+          <button class="btn quiet block" type="button" data-set="left">Leave the game</button>
+        </div>
+        <div class="msg user" tabindex="-1" data-at="3-3" data-only="left">Leave the game</div>
+        <div class="msg coach" tabindex="-1" data-at="3-3" data-only="left">No problem. The game is closed and I did not show the amount. You can ask for it anytime.</div>
+        <div class="chips" data-at="3-3" data-only="left"><button class="btn secondary" type="button" data-clear="left" data-set="direct" data-go="4">Show the amount</button></div>
+
+        <!-- beat 4 -->
+        <div class="msg user" tabindex="-1" data-at="4" data-not="direct">My guess: <span data-bind="guess">20,00&nbsp;€</span></div>
+        <div class="msg user" tabindex="-1" data-at="4" data-only="direct">Show the amount</div>
+        <div class="msg coach" tabindex="-1" data-at="4" data-not="direct">Thanks for committing to a guess. Here is the answer.</div>
+        <div class="msg coach" tabindex="-1" data-at="4" data-only="direct">Here it is.</div>
+        <div class="card" data-at="4" data-card="reveal">
+          <p class="cap">Taxis · 1–31 Oct 2024</p>
+          <div class="stack">
+            <p class="sm muted">Actual</p>
+            <p class="ds">60,00&nbsp;€</p>
+            <p class="sm">6 rides</p>
+          </div>
+          <div class="stack" data-not="direct">
+            <div><div class="row"><span>Your guess</span><span data-bind="guess">20,00&nbsp;€</span></div><div class="track"><i class="fill guess" data-bar="guess" style="width:33.33%"></i></div></div>
+            <div><div class="row"><span>Actual</span><span>60,00&nbsp;€</span></div><div class="track"><i class="fill actual" data-bar="actual" style="width:100%"></i></div></div>
+          </div>
+          <p data-not="direct" data-bind="feedback">You guessed 40,00&nbsp;€ less than the actual amount. Thanks for guessing first. Now you have the real number.</p>
+          <details>
+            <summary>Show the 6 rides</summary>
+            <ul class="rides">
+              <li><span>Fri 4 Oct</span><span>Taxi · MRC-TAX-0012</span><span>10,00&nbsp;€</span></li>
+              <li><span>Sat 12 Oct</span><span>Taxi · MRC-TAX-0007</span><span>8,00&nbsp;€</span></li>
+              <li><span>Sat 19 Oct</span><span>Taxi · MRC-TAX-0012</span><span>12,00&nbsp;€</span></li>
+              <li><span>Fri 25 Oct</span><span>Taxi · MRC-TAX-0031</span><span>9,00&nbsp;€</span></li>
+              <li><span>Mon 28 Oct</span><span>Taxi · MRC-TAX-0007</span><span>6,00&nbsp;€</span></li>
+              <li><span>Thu 31 Oct</span><span>Taxi · MRC-TAX-0041</span><span>15,00&nbsp;€</span></li>
+            </ul>
+            <div class="row total"><span>Total</span><span>60,00&nbsp;€</span></div>
+          </details>
+          <p class="source">Based on 6 transactions · 1–31 Oct 2024</p>
+        </div>
+        <div class="chips" data-at="4-4"><button class="btn secondary" type="button" data-go="next">What kind of spending is this?</button></div>
+
+        <!-- beat 5 -->
+        <div class="msg user" tabindex="-1" data-at="5">What kind of spending is this?</div>
+        <div class="msg coach" tabindex="-1" data-at="5">I sort spending into three baskets. Here is how I read your taxi rides. You can correct me.</div>
+        <div class="card" data-at="5">
+          <div class="brow"><span class="basket regular">Regular essentials</span><span class="sm">Comes back every month. Rent, electricity, a phone bill.</span></div>
+          <div class="brow"><span class="basket unexpected">Unexpected necessities</span><span class="sm">Needed, but not planned. A repair, a dentist visit.</span></div>
+          <div class="brow"><span class="basket everyday">Everyday spending</span><span class="sm">Small, flexible purchases. Coffee, eating out, taxis.</span></div>
+          <h3 class="hs">Your taxi rides, October 2024</h3>
+          <div class="bar" role="img" aria-label="All 6 taxi rides, 60,00 €, are read as Everyday spending"><i class="seg everyday" style="width:100%"></i></div>
+          <div class="row"><span class="basket everyday">Everyday spending</span><span>6 rides · 60,00&nbsp;€</span></div>
+          <p>This is my reading, not a fact. A category does not tell me why you took a ride.</p>
+          <p class="source">Based on 6 transactions · Interpretation by Sponky</p>
+        </div>
+
+        <!-- beat 6 -->
+        <div class="msg user" tabindex="-1" data-at="6">The 15&nbsp;€ ride was to a doctor's appointment.</div>
+        <div class="msg coach" tabindex="-1" data-at="6">Thank you for telling me. Should I read that ride differently?</div>
+        <div class="card" data-at="6-6">
+          <div class="row"><span>Thu 31 Oct 2024 · Taxi · <span class="nw">MRC-TAX-0041</span></span><span>15,00&nbsp;€</span></div>
+          <fieldset>
+            <legend class="hs">Which basket fits this ride?</legend>
+            <label class="opt"><input type="radio" name="basket"><span>Regular essentials</span></label>
+            <label class="opt"><input type="radio" name="basket" checked><span>Unexpected necessities</span><span class="tag">Suggested from your message</span></label>
+            <label class="opt"><input type="radio" name="basket"><span>Everyday spending</span><span class="tag">Current</span></label>
+          </fieldset>
+          <p class="help">This changes how I read the ride. The transaction and its amount stay the same.</p>
+          <div class="actions">
+            <button class="btn primary" type="button" data-go="next">Confirm change</button>
+            <button class="btn secondary" type="button" data-static>Keep as it is</button>
+          </div>
+        </div>
+
+        <!-- beat 7 -->
+        <div class="record" data-at="7">You changed 1 ride to Unexpected necessities</div>
+        <div class="card" data-at="7">
+          <h3 class="hs">Your taxi rides, October 2024</h3>
+          <div class="bar gap" role="img" aria-label="1 ride, 15,00 €, Unexpected necessities. 5 rides, 45,00 €, Everyday spending."><i class="seg unexpected" style="width:25%"></i><i class="seg everyday" style="width:75%"></i></div>
+          <div class="row"><span class="basket unexpected">Unexpected necessities</span><span>1 ride · 15,00&nbsp;€</span></div>
+          <div class="row"><span class="basket everyday">Everyday spending</span><span>5 rides · 45,00&nbsp;€</span></div>
+          <div class="row total"><span>Total taxi spending</span><span>60,00&nbsp;€ <span class="help">unchanged</span></span></div>
+        </div>
+        <div class="msg coach" tabindex="-1" data-at="7">Done. Your total is still 60,00&nbsp;€. I now read 45,00&nbsp;€ as flexible: spending you can choose to change. That does not mean those rides were unnecessary.</div>
+
+        <!-- beat 8 -->
+        <div class="msg user" tabindex="-1" data-at="8">What if I reduced my taxi spending by 20%?</div>
+        <div class="msg coach" tabindex="-1" data-at="8">Let's try it. This is a what-if, not a plan.</div>
+        <div class="card" data-at="8">
+          <div class="stack"><span class="tag info">Hypothetical</span><span class="cap">Flexible taxi spending · Oct 2024</span></div>
+          <label class="field"><span class="row"><span>Reduce by</span><span class="ds" data-bind="pct">20&nbsp;%</span></span><input type="range" name="wi" min="0" max="50" step="5" value="20"></label>
+          <div class="row"><span>Flexible spending in October</span><span>45,00&nbsp;€</span></div>
+          <div class="row"><span>With this change</span><span data-bind="after">36,00&nbsp;€</span></div>
+          <div class="row hl"><span>Projected savings in a similar month</span><span class="hm" data-bind="saved">9,00&nbsp;€</span></div>
+          <div class="row"><span>Money actually saved</span><span>None yet</span></div>
+          <p><b>What is included.</b> Included: the 5 rides I read as Everyday spending (45,00&nbsp;€). Not included: the 15,00&nbsp;€ ride to your doctor's appointment.</p>
+          <p class="help">A projection only. Nothing is saved or moved.</p>
+          <p class="source">Calculated from 5 transactions · Assumes a month like October 2024</p>
+        </div>
+        <div class="chips" data-at="8-8"><button class="btn secondary" type="button" data-go="next">Help me keep an eye on this</button></div>
+
+        <!-- beat 9 -->
+        <div class="msg user" tabindex="-1" data-at="9">Help me keep an eye on this</div>
+        <div class="msg coach" tabindex="-1" data-at="9">Here is one small daily habit. Change it or skip it.</div>
+        <div class="card" data-at="9-9">
+          <p class="cap">Daily habit · Proposal</p>
+          <div class="row"><span>Track</span><span class="pilltag">Taxis</span></div>
+          <div class="kv"><span class="sm muted">Daily action</span><span data-bind="action">Before I book a taxi, I check my other options.</span></div>
+          <div class="kv" data-goal-row hidden><span class="sm muted">Personal goal</span><span data-bind="goal"></span></div>
+          <details class="edit">
+            <summary class="btn secondary">Edit</summary>
+            <div class="stack">
+              <label class="field"><span>Daily action</span><input class="in" type="text" name="action" value="Before I book a taxi, I check my other options."></label>
+              <label class="field"><span>Goal name (optional)</span><input class="in" type="text" name="goalName" placeholder="For example: weekend trip"></label>
+              <label class="field"><span>Target amount in euros (optional)</span><input class="in" type="number" name="goalAmt" min="0" step="1" inputmode="numeric"></label>
+            </div>
+          </details>
+          <p class="help">One short check-in a day. Sponky does not move money.</p>
+          <div class="actions">
+            <button class="btn primary" type="button" data-clear="declined" data-go="next">Start this habit</button>
+            <button class="btn quiet" type="button" data-set="declined" data-go="next">Not now</button>
+          </div>
+        </div>
+
+        <!-- beat 10 -->
+        <div class="record" data-at="10" data-not="declined">Habit saved: daily taxi check-in</div>
+        <div class="msg coach" tabindex="-1" data-at="10" data-not="declined">Saved. Your first check-in is tomorrow. To change or stop it, just tell me.</div>
+        <div class="msg user" tabindex="-1" data-at="10" data-only="declined">Not now</div>
+        <div class="msg coach" tabindex="-1" data-at="10" data-only="declined">No problem. Nothing is saved. You can ask about your spending anytime.</div>
+        <div class="chips" data-at="10-10" data-only="declined"><button class="btn secondary" type="button" data-clear="declined">Start the habit after all</button></div>
+
+        <!-- beat 11 -->
+        <div class="day" data-at="11">Tuesday 5 November 2024</div>
+        <div class="msg coach" tabindex="-1" data-at="11">Welcome back. Here is your daily check-in.</div>
+        <div class="card" data-at="11-11" data-card="checkin">
+          <p class="cap">Daily check-in · Tue 5 Nov 2024</p>
+          <h3 class="hs">New since yesterday</h3>
+          <div class="stack" data-new>
+            <div class="row"><span>Mon 4 Nov, 21:40 · Taxi · <span class="nw">MRC-TAX-0012</span></span><span>7,00&nbsp;€</span></div>
+            <span class="basket everyday">Everyday spending</span>
+            <p class="source">Based on 1 transaction · 4 Nov 2024</p>
+          </div>
+          <h3 class="hs">Your action</h3>
+          <p data-bind="action">Before I book a taxi, I check my other options.</p>
+          <div class="kv" data-goal-row hidden><span class="sm muted">Personal goal</span><span data-bind="goal"></span><span class="help">You report progress yourself.</span></div>
+          <fieldset>
+            <legend class="hs">How did it go?</legend>
+            <div class="opts">
+              <label class="opt pill"><input type="radio" name="refl"><span>I did it</span></label>
+              <label class="opt pill"><input type="radio" name="refl"><span>Not this time</span></label>
+              <label class="opt pill"><input type="radio" name="refl"><span>Something changed</span></label>
+            </div>
+          </fieldset>
+          <button class="btn primary block" type="button" data-complete data-go="next" disabled>Complete check-in</button>
+          <p class="help" data-help>Self-reported, not verified by the bank. Chatting alone does not complete a check-in.</p>
+        </div>
+
+        <!-- beat 12 -->
+        <div class="card" data-at="12">
+          <p class="status ok">Check-in complete · Tue 5 Nov 2024</p>
+          <p class="badge hs">Daily streak · 1 day</p>
+          <div class="kv"><span class="sm muted">Your reflection</span><span data-bind="reflection">I did it</span><span class="help">self-reported</span></div>
+          <p class="help">The streak counts completed check-ins. It does not depend on how much you spend.</p>
+        </div>
+        <div class="msg coach" tabindex="-1" data-at="12">Thanks for checking in. Same plan for tomorrow?</div>
+        <div class="chips" data-at="12">
+          <button class="btn secondary" type="button" data-static>Keep my plan</button>
+          <button class="btn secondary" type="button" data-static>Change my action</button>
+        </div>
+      </form>
+    </div>
+
+    <aside class="panel" aria-label="Review panel">
+      <p class="simdate" id="simdate"></p>
+      <p class="prog" id="prog"></p>
+      <div class="navbtns"><button type="button" id="back">Back</button><button type="button" id="next">Next</button><button type="button" id="restart">Restart</button></div>
+      <button type="button" id="advance" hidden>Advance simulated date to Tue 5 Nov 2024</button>
+      <p id="declmsg" hidden>Declined route ends here. A daily check-in needs a confirmed habit. Use 'Start the habit after all' in the phone to continue.</p>
+      <p id="status" role="status"></p>
+      <ol class="beats">
+        <li data-beat="1" data-state="1" data-secs="6" data-compose="How much did I spend on taxis last month?"><button class="bt" type="button">Conversation entry</button><p>No dashboard and no onboarding. Starters are shortcuts into the same conversation, not separate modes. Free text is the main input. The prototype prefills the scripted question; it does not interpret free text. 'Daily check-in' jumps ahead to state 8.</p></li>
+        <li data-beat="2" data-state="2" data-secs="4"><button class="bt" type="button">Optional guessing invitation</button><p>The game is optional. 'Show the amount' and a typed 'just show me' go straight to the answer. A declined game is not offered again in this conversation. Nothing about the answer is shown yet.</p></li>
+        <li data-beat="3" data-state="3" data-secs="8"><button class="bt" type="button">Guess</button><p>The guess is committed before the reveal. Slider and number field show the same value. The fixed 0–200 € range is a design proposal: the range must not leak the answer. The prototype presets 20,00 € for the scenario; production should start with no preset value. The composer stays active, so the user can change topic.</p></li>
+        <li data-beat="4" data-state="4" data-secs="13"><button class="bt" type="button">Reveal and evidence</button><p>Amounts come from application code, not from model text. Feedback thanks the user for taking part. It makes no improvement claim: one guess is not a trend. The reveal is readable without animation. The ride list is the evidence.</p></li>
+        <li data-beat="5" data-state="5" data-secs="9" data-compose="The 15 € ride was to a doctor's appointment."><button class="bt" type="button">Understand: three baskets</button><p>The three baskets are taught in context, with the user's own data. Basket assignment is an interpretation that the user can correct. Scripted free-text example: the user adds context in their own words.</p></li>
+        <li data-beat="6" data-state="5" data-secs="8"><button class="bt" type="button">Correct one purchase</button><p>Sponky proposes; only the user's confirmation changes the reading. One purchase at a time. 'Keep as it is' is shown but not wired.</p></li>
+        <li data-beat="7" data-state="5" data-secs="6" data-compose="What if I reduced my taxi spending by 20%?"><button class="bt" type="button">Effect of the correction</button><p>The correction changes the coaching interpretation only. The historical total stays 60,00 €. 45,00 € is 'potentially flexible', not 'unnecessary'.</p></li>
+        <li data-beat="8" data-state="6" data-secs="11"><button class="bt" type="button">What-if</button><p>The result updates immediately when the slider moves. Three things stay separate: historical spending, projected savings, and money actually saved. The card states which rides are included.</p></li>
+        <li data-beat="9" data-state="7" data-secs="9"><button class="bt" type="button">Choose a daily habit</button><p>Only this confirmation saves the habit. One tracked category or action and one optional goal. No reminder-time picker. Goal amounts, points, and the missed-day rule are open proposals (see README). Add a goal under Edit to see the goal row in state 8.</p></li>
+        <li data-beat="10" data-state="7" data-secs="3"><button class="bt" type="button">Habit outcome</button><p>Accept and decline are both valid endings of this state. Declining saves nothing and is not offered again in this conversation.</p></li>
+        <li data-beat="11" data-state="8" data-secs="8"><button class="bt" type="button">Return: daily check-in</button><p>Clearly simulated next day: the date control is outside the phone. The 7,00 € ride is a separate return-day fixture. Any reflection answer completes the check-in. The streak rewards the reflection, not lower spending.</p></li>
+        <li data-beat="12" data-state="8" data-secs="5"><button class="bt" type="button">Check-in complete</button><p>The streak advances once per completed check-in date. Reopening, replaying a game, or ordinary chat does not add credit (see the 'Already completed today' variant). Streak start and missed-day behaviour are open proposals.</p></li>
+      </ol>
+    </aside>
+  </div>
+</section>
+
+<!-- 3 STORYBOARD -->
+<section id="storyboard">
+  <h2>3 · Storyboard overview</h2>
+  <p class="lead">Each frame shows what is new at that beat. Generated from the prototype phone. Frames are not interactive.</p>
+  <div class="sb" id="sb"></div>
+</section>
+
+<!-- 4 VARIANTS -->
+<section id="variants">
+  <h2>4 · Variant frames (static)</h2>
+  <div class="dirs">
+    <figure id="variant-day">
+      <figcaption><b>1 · Discuss my day</b></figcaption>
+      <div class="phone static" inert><form class="thread" onsubmit="return false">
+        <div class="msg user">Long day; ordered takeaway again.</div>
+        <div class="msg coach">That sounds like a long day. Thanks for telling me. Do you want to just talk, or look at your takeaway spending together?</div>
+        <div class="chips"><button class="btn secondary" type="button">Just talk</button><button class="btn secondary" type="button">Look at takeaway spending</button></div>
+      </form></div>
+      <p class="annot">No quiz, no judgment of the purchase, no automatic goal change. The spending look is optional. Sponky does not infer feelings from transactions; it responds to what the user says.</p>
+    </figure>
+    <figure id="variant-empty">
+      <figcaption><b>2 · No relevant new spending</b></figcaption>
+      <div class="phone static" inert><form class="thread" onsubmit="return false">
+        <div class="day">Tuesday 5 November 2024</div>
+        <div class="msg coach">Welcome back. No new taxi rides since yesterday.</div>
+        <div data-clone="checkin"></div>
+      </form></div>
+      <p class="annot">Reflection stays possible. No guessing game is offered when there is nothing meaningful to guess.</p>
+    </figure>
+    <figure id="variant-loading">
+      <figcaption><b>3 · Loading</b></figcaption>
+      <div class="phone static" inert><form class="thread" onsubmit="return false">
+        <div class="msg user">How much did I spend on taxis last month?</div>
+        <div class="working" role="status"><span class="dots"><i></i><i></i><i></i></span><span>Sponky is working…</span></div>
+      </form></div>
+      <p class="annot">Status is text, not only animation. The composer stays usable. Earlier messages stay in place.</p>
+    </figure>
+    <figure id="variant-error">
+      <figcaption><b>4 · Provider unavailable</b></figcaption>
+      <div class="phone static" inert><form class="thread" onsubmit="return false">
+        <div class="msg user">How much did I spend on taxis last month?</div>
+        <div class="notice">
+          <p>I can't reach the assistant right now. Your conversation and check-ins are saved.</p>
+          <button class="btn secondary" type="button">Try again</button>
+        </div>
+      </form></div>
+      <p class="annot">System error colors are used only here. Retry keeps the conversation and saved state.</p>
+    </figure>
+    <figure id="variant-done">
+      <figcaption><b>5 · Already completed today</b></figcaption>
+      <div class="phone static" inert><form class="thread" onsubmit="return false">
+        <div class="card">
+          <p class="status ok">Check-in already complete · Tue 5 Nov 2024</p>
+          <p class="badge hs">Daily streak · 1 day</p>
+          <p class="help">No change. One check-in counts per day.</p>
+        </div>
+        <div class="msg coach">You're done for today. We can still talk.</div>
+      </form></div>
+      <p class="annot">No second streak increment on the same date.</p>
+    </figure>
+  </div>
+</section>
+
+<!-- 5 STRETCH -->
+<section id="stretch">
+  <h2>5 · Optional stretch concept — not part of the core flow</h2>
+  <figure class="one">
+    <figcaption><b>Optional stretch concept — weekly Wrapped.</b> Reuses fixtures already shown. No separate recap flow.</figcaption>
+    <div class="phone static" inert><form class="thread" onsubmit="return false">
+      <div class="story">
+        <p class="cap">Your week · 4–10 Nov 2024</p>
+        <p>1 guess: 20,00&nbsp;€ guessed, 60,00&nbsp;€ actual</p>
+        <p>1 check-in completed</p>
+        <p>Not enough history to show a trend yet.</p>
+        <div class="actions"><button class="btn go" type="button">Keep my plan</button><button class="btn secondary" type="button">Change my plan</button></div>
+      </div>
+    </form></div>
+  </figure>
+</section>
+
+<!-- 6 FIXTURES -->
+<section id="fixtures">
+  <h2>6 · Fixtures</h2>
+  <p class="lead"><b>Illustrative fixtures — invented for this design. Not dataset results.</b> Reference period 1–31 Oct 2024. Demo today: Mon 4 Nov 2024. Return day (simulated): Tue 5 Nov 2024.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Date</th><th>Merchant id</th><th class="n">Amount</th><th>Basket after correction</th></tr></thead>
+    <tbody>
+      <tr><td>Fri 4 Oct</td><td>MRC-TAX-0012</td><td class="n">10,00 €</td><td>Everyday spending</td></tr>
+      <tr><td>Sat 12 Oct</td><td>MRC-TAX-0007</td><td class="n">8,00 €</td><td>Everyday spending</td></tr>
+      <tr><td>Sat 19 Oct</td><td>MRC-TAX-0012</td><td class="n">12,00 €</td><td>Everyday spending</td></tr>
+      <tr><td>Fri 25 Oct</td><td>MRC-TAX-0031</td><td class="n">9,00 €</td><td>Everyday spending</td></tr>
+      <tr><td>Mon 28 Oct</td><td>MRC-TAX-0007</td><td class="n">6,00 €</td><td>Everyday spending</td></tr>
+      <tr><td>Thu 31 Oct</td><td>MRC-TAX-0041 (medical ride)</td><td class="n">15,00 €</td><td>Unexpected necessities</td></tr>
+      <tr class="sum"><td colspan="2">Total, 6 rides</td><td class="n">60,00 €</td><td>10 + 8 + 12 + 9 + 6 + 15 = 60</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <thead><tr><th>Item</th><th class="n">Value</th><th>Arithmetic</th></tr></thead>
+    <tbody>
+      <tr><td>Guess</td><td class="n">20,00 €</td><td>Preset in the prototype</td></tr>
+      <tr><td>Gap (actual minus guess)</td><td class="n">40,00 €</td><td>60 − 20 = 40</td></tr>
+      <tr><td>Unexpected necessities (1 ride)</td><td class="n">15,00 €</td><td>Ride MRC-TAX-0041</td></tr>
+      <tr><td>Everyday spending (5 rides)</td><td class="n">45,00 €</td><td>10 + 8 + 12 + 9 + 6 = 45; 15 + 45 = 60</td></tr>
+      <tr><td>What-if: reduce by 20 %</td><td class="n">9,00 €</td><td>20 % × 45,00 = 9,00; with this change 45 − 9 = 36,00 €</td></tr>
+      <tr><td>Return-day ride</td><td class="n">7,00 €</td><td>Mon 4 Nov 2024, 21:40, MRC-TAX-0012 (separate fixture)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+</main>
