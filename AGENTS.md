@@ -3,7 +3,7 @@
 ## Priorities and sources
 
 1. Meet the [S-Pankki challenge brief](https://github.com/harmittaa/junction_2026/issues/1): conversational exploration of the user's synthetic transaction data, financial literacy through the three baskets, personalized insights, clear mobile UX, and a feasible S-mobiili entry point.
-2. Keep speech and reasoning providers replaceable so we can prototype quickly.
+2. Keep components and product logic reusable, and speech/reasoning providers replaceable, so we can prototype and pivot without rebuilding the foundations.
 3. Deliver small working changes with focused checks. Protect time for the demo and submission.
 
 Read the issue being implemented and its latest comments. [Product scope #8](https://github.com/harmittaa/junction_2026/issues/8) and [design #9](https://github.com/harmittaa/junction_2026/issues/9) define our current slice; their later voice updates supersede the earlier voice exclusion and mandatory eight-step journey. [Interview #3](https://github.com/harmittaa/junction_2026/issues/3) supplies context; research #4 is inspiration, not a backlog. Raise conflicts with the challenge brief instead of silently changing the product.
@@ -18,12 +18,13 @@ Use `docs/style-guide.md` and `docs/design-tokens.json`. Preserve documented acc
 - Define shared request/result/event contracts before splitting work across callers. Keep each boundary's runtime validation and TypeScript types together, deriving types from schemas where supported; do not maintain separate frontend/backend copies or use type assertions as validation. UI and domain code must not consume provider response objects or import provider SDKs.
 - Keep domain functions independent of React, Next.js, Firebase and provider SDKs. Pass records, assumptions and the reference date explicitly; calculations must not perform network calls or read the clock implicitly. UI previews and server results reuse the same calculation rules, with the server validating inputs and authoritative results.
 - Give state a clear owner: saved habits, corrections and check-ins belong to the server; drafts and playback belong to the client. Derive totals and display values instead of maintaining competing copies. Persisted-shape changes need a migration or an explicit demo reset, never silent reinterpretation of existing records.
+- Build reusable UI components around data and callbacks. Keep provider calls, persistence and journey sequencing outside presentational components. Compose the same spending, evidence, basket, scenario and habit components into different flows; do not tie them to one demo script or screen order. Reuse the existing design tokens and shared interaction patterns.
 - Represent voice and activity lifecycles with explicit typed states and transitions, separately where they are independent. Prefer a small union/reducer over overlapping boolean flags or chains of effects. No state-machine library is required; keep audio/session cleanup in the module that owns those resources.
 - Browser audio transport may live in a browser-safe provider module. Permanent credentials and privileged data access stay server-side; browser connections use appropriately scoped temporary tokens.
 - Select reasoning, transcription and speech separately. A combined live voice provider can have its own session integration emitting the same application events; do not force it into artificial sequential calls. Financial operations still go through application validation, and speech must respect guess/reveal state.
 - Normalize provider errors, cancellation and completion. Ignore late events from canceled turns; stop playback before recording an interruption. Failure must preserve saved state and leave typing/retry usable.
 - Add an integration when we try that provider. Avoid a generic plugin framework, dependency-injection container, speculative wrappers, or multiple runtime backends.
-- Split a module when it mixes product rules, provider transport, storage and rendering; do not split by arbitrary line counts or create a generic `utils` dumping ground. Prefer a little local duplication over a premature shared abstraction, but keep financial rules and boundary contracts single-sourced.
+- Split a module when it mixes product rules, provider transport, storage and rendering; do not split by arbitrary line counts or create a generic `utils` dumping ground. Extract repeated behavior into focused components, hooks or functions. Design reuse around actual product needs, without speculative configuration or a universal component framework; keep financial rules and boundary contracts single-sourced.
 
 ## Rules that prototypes must preserve
 
@@ -92,6 +93,7 @@ Skill sources and pinned revisions are recorded in `.agents/skills/SOURCES.md`. 
 - Hand off the worktree path, branch and commit/PR. Integrate through reviewed commits and run the combined checks; worktrees do not prevent merge conflicts. Do not remove another worker's worktree or force removal of uncommitted/unmerged work.
 - Read connected callers before changing a shared contract. Update callers and fixtures together; tell other active workers when the interface changes.
 - Keep changes scoped to the assigned work. Preserve unrelated edits and existing worktrees. Coordinate shared config and lockfile changes through one owner when work is split.
-- Prefer existing helpers and platform features. Add a dependency only when it removes meaningful work. Avoid unrelated refactors and speculative optimizations.
+- Before adding a component, hook, calculation or integration helper, look for an existing reusable implementation and extend or compose it where appropriate. Add a dependency only when it removes meaningful work. Avoid unrelated refactors and speculative optimizations.
+- At handoff, check reusability: can this component or rule support a changed journey or provider without copying it? Move accidental screen/provider coupling to the owning coordinator or integration, and note any intentional coupling that remains. Keep this check in implementation issue acceptance criteria as work is split.
 - Mark a deliberate limitation with `shortcut: <limit>, <when to revisit>` near the affected code. Never use a shortcut to excuse incorrect money, exposed data or silently lost state.
 - Finish with a short handoff: behavior changed, checks run, remaining limitation. Do not claim a scripted prototype, fake provider or simulated date is live behavior.
