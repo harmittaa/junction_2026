@@ -1,7 +1,10 @@
-# Sponky Voice-Reactive Indicator Concepts
+# Sponky Voice-Reactive Indicator — S-Ribbon Reference
 
 This folder contains the brand reference designs for the Sponky voice indicator.
 All assets follow the S-Pankki Design System tokens and the Sponky UI Style Guide.
+
+The Sponky voice UI exclusively uses the official **S-Ribbon** indicator.
+It uses the S-Pankki dual-ribbon curve from `s-logo.svg`.
 
 ---
 
@@ -9,41 +12,43 @@ All assets follow the S-Pankki Design System tokens and the Sponky UI Style Guid
 
 | Path | Format | Dimensions | Description |
 | :--- | :--- | :--- | :--- |
-| `svgs/s-ribbon-states.svg` | SVG | 1000 × 260 | Concept A: S-Ribbon Wave states strip |
-| `svgs/capsule-buddy-states.svg` | SVG | 1000 × 260 | Concept B: Capsule Face (Aulis) states strip |
-| `svgs/signal-arcs-states.svg` | SVG | 1000 × 260 | Concept C: Basket Signal Arcs states strip |
-| `renders/concept-comparison-sheet.png` | PNG (2x) | 2800 × 2240 | Complete concept comparison reference sheet |
+| `svgs/s-ribbon-states.svg` | SVG | 1000 × 260 | S-Ribbon Wave vector states strip |
+| `renders/s-ribbon-spec-sheet.png` | PNG (2x) | 2800 × 1440 | Brand reference specification sheet |
 | `renders/mobile-in-context-light-dark.png` | PNG (2x) | 2880 × 2000 | Four 390px mobile frames in Light and Dark mode |
-| `sheet-concepts.html` | HTML | 1400 × 1120 | Standalone source page for concept comparison |
+| `sheet-concepts.html` | HTML | 1400 × 720 | Standalone source page for S-Ribbon reference |
 | `sheet-mobile.html` | HTML | 1440 × 1000 | Standalone source page for mobile viewports |
 
 ---
 
-## 2. Concept Overview
+## 2. S-Ribbon State Specifications
 
-### Concept A: S-Ribbon Wave (Primary Brand Recommendation)
-- **Geometry:** Uses the official S-Pankki two-band S-mark from `s-logo.svg`.
-- **Idle:** Crisp static S-mark inside `#EBF7EC` circular dock.
-- **Listening:** Expanded mint halo (`#91FA9B`) and widened green ribbons.
-- **Thinking:** Staggered opacity phase across the two ribbon bands with orbiting pulse beads.
-- **Speaking:** Dual ribbon bands undulate into harmonic S-wave crests with concentric echo rings.
-- **Reduced Motion:** High-contrast static border (`#00AA46`) with static badge `LISTENING`.
+The S-Ribbon indicator represents all voice interactions across five distinct states:
 
-### Concept B: Capsule Face (Aulis-Inspired Buddy)
-- **Geometry:** Uses the rounded capsule head geometry from `aulis.svg` (`#004628` strokes on `#91FA9B` fill).
-- **Idle:** Calm capsule face with soft resting smile.
-- **Listening:** Raised eyebrows showing attentive curiosity and soft mint aura.
-- **Thinking:** Tilted pondering eyebrows and three cadence dots inside mouth area.
-- **Speaking:** Mouth opens into a dual-arc smile wave (`Speaking • Wave`) with speech ripple brackets.
-- **Reduced Motion:** Static capsule face with high-contrast badge `SPONKY • READY`.
+### 1. IDLE (Standby)
+- Crisp static S-Pankki S-ribbon mark (`fill="#004628"`).
+- Circular dock with soft mint surface (`fill="#EBF7EC"`, `stroke="#00AA46"`).
+- Zero audio input (0 dB).
 
-### Concept C: Basket Signal Arcs + Open Speech Frame
-- **Geometry:** Three concentric signal arcs mapped to the Three Spending Baskets.
-- **Idle:** Compact mic dock with resting three-arc motif.
-- **Listening:** Arcs expand outward inside S-Pankki's Per Tieeri open-top speech frame.
-- **Thinking:** Arcs rotate in a tri-color cadence ring.
-- **Speaking:** Stereo wave pulses emit in the three basket colors (`#004628`, `#006E87`, `#CF8300`).
-- **Reduced Motion:** Static three-basket arcs with status pill `3 BASKETS • ACTIVE`.
+### 2. LISTENING (Mic Active)
+- Gentle expanded mint halo ring (`#91FA9B` with outer `#00EB5A` aura).
+- Active dock surface (`fill="#91FA9B"`).
+- Widened parallel green ribbon bands showing microphone engagement.
+
+### 3. THINKING (Processing)
+- Staggered opacity phase across the two parallel ribbon bands.
+- Traveling cadence beads orbit the ribbon at a gentle velocity.
+- Surface transitions to calm `#EBF7EC` with `#007841` border.
+
+### 4. SPEAKING (Audio Active)
+- Dual ribbon bands undulate into harmonic symmetric S-wave crests.
+- Concentric mint audio echo ripples radiate outward from the dock.
+- Surface transitions to active green with deep forest green stroke.
+
+### 5. REDUCED MOTION (Accessibility)
+- Conforms to `@media (prefers-reduced-motion: reduce)`.
+- Zero animation or movement.
+- High-contrast static border (`#00AA46` 3px).
+- Clear text pill badge: `LISTENING` / `SPEAKING`.
 
 ---
 
@@ -59,10 +64,11 @@ All colors and measurements match `docs/design-tokens.json` and `docs/style-guid
 - `brand.greenMint`: `#91FA9B` (Active voice halo and speaking dock)
 - `brand.greenTint`: `#EBF7EC` (Light mode coach surface)
 
-### The Three Spending Baskets
-- **Mandatory Regular:** `#004628` (light) / `#6EE7A0` (dark)
-- **Mandatory Irregular:** `#006E87` (light) / `#67D5EB` (dark)
-- **Everyday Slipping:** `#CF8300` (light) / `#FFCA6B` (dark)
+### Semantic Dark Mode Surfaces
+- `dark.background`: `#0F1411`
+- `dark.surface`: `#171F1A`
+- `dark.surfaceAccent`: `#142B1D`
+- `dark.primary`: `#00C853`
 
 ### Radii and Typography
 - **Card Radius:** `16px` (`radius.lg`)
@@ -103,7 +109,7 @@ stiffness: 700;
 ```
 
 ### SVG Group Targets
-Each SVG file defines clean group identifiers:
+`svgs/s-ribbon-states.svg` defines clean group identifiers:
 - `<g id="state-idle">`
 - `<g id="state-listening">`
 - `<g id="state-thinking">`
