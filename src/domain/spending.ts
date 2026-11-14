@@ -1,4 +1,5 @@
-import { querySchema, scenarioSchema, type Basket, type Spending, type SpendingQuery, type Transaction } from "@/shared/contracts";
+import { basketLabels, dateSchema, querySchema, scenarioSchema, type Basket, type Spending, type SpendingQuery, type Transaction } from "@/shared/contracts";
+import { merchantTypes } from "@/domain/merchant-types";
 
 // Gross recorded spending: negative purchases and explicit bills, not transfers,
 // savings, withdrawals, income or refunds. Refunds are not matched to purchases.
@@ -12,20 +13,41 @@ export function defaultBasket(row: Transaction): Basket {
   return "everyday";
 }
 
+export function queryLabel(query: SpendingQuery): string {
+  return [query.categories.length ? query.categories.join(", ") : "All spending",
+    ...query.baskets.map(basket => basketLabels[basket]),
+    ...(query.merchantType ? [merchantTypes[query.merchantType].label] : [])].join(" · ");
+}
+
 export function calculateSpending(
   rows: readonly Transaction[], customerId: string, query: SpendingQuery,
   corrections: Record<string, Basket>, referenceDate: string,
 ): Spending {
   querySchema.parse(query);
+  dateSchema.parse(referenceDate);
   if (query.start > query.end || query.end > referenceDate) throw new Error("Choose a completed historical period, up to the simulated date.");
-  const evidence = rows.filter(row => row.customerId === customerId && isSpending(row)
-    && row.category === query.category && row.date >= query.start && row.date <= query.end)
+  const candidates = rows.filter(row => row.customerId === customerId && isSpending(row)
+    && (!query.categories.length || query.categories.includes(row.category))
+    && (!query.baskets.length || query.baskets.includes(corrections[row.id] ?? defaultBasket(row)))
+    && row.date >= query.start && row.date <= query.end);
+  const missingMccCount = candidates.filter(row => row.transactionType === "purchase" && row.mcc === null).length;
+  const evidence = candidates.filter(row => !query.merchantType || (row.transactionType === "purchase"
+    && row.mcc !== null && merchantTypes[query.merchantType].codes.includes(row.mcc)))
     .map(row => ({ id: row.id, sourceRow: row.sourceRow, date: row.date, category: row.category,
       merchant: row.merchantId ?? row.transactionType.replaceAll("_", " "),
       amountCents: -row.amountCents, basket: corrections[row.id] ?? defaultBasket(row) }));
   const baskets = { regular: 0, unexpected: 0, everyday: 0 };
   for (const row of evidence) baskets[row.basket] += row.amountCents;
-  return { query, totalCents: baskets.regular + baskets.unexpected + baskets.everyday, evidence, baskets };
+  const assumptions = ["Gross recorded spending counts negative purchases, housing and utilities payments; excludes income, transfers and refunds.",
+    `Historical records from ${query.start} through ${query.end}, inclusive; simulated reference date ${referenceDate}.`,
+    "Basket assignments are correctable interpretations, not changes to historical amounts."];
+  if (!evidence.length) assumptions.push("No matching spending records in this period; this is not evidence of unavailable data or future activity.");
+  if (query.merchantType) {
+    assumptions.push("Merchant types are classified by MCC, not purchased items or motives; fuel-merchant purchases do not prove fuel was bought.");
+    if (missingMccCount) assumptions.push(`${missingMccCount} candidate purchase rows have no MCC; the merchant subtotal may be incomplete. Missing MCCs are not assigned a merchant type.`);
+  }
+  return { query, totalCents: baskets.regular + baskets.unexpected + baskets.everyday, evidence,
+    evidenceCount: evidence.length, missingMccCount, assumptions, baskets };
 }
 
 export function percentageScenario(baseCents: number, percent: number) {

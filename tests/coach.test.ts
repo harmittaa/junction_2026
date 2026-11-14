@@ -6,8 +6,8 @@ import { initialState } from "@/server/storage/state";
 import { type Interpretation, interpret } from "@/server/providers/gemini";
 import { signSession, verifySession } from "@/server/session";
 
-const query = { category: "Groceries", start: "2026-08-01", end: "2026-08-31" };
-const operation: Interpretation = { kind: "spending", query, direct: false, percent: null, reply: "none" };
+const query = { categories: ["Groceries"], baskets: [], merchantType: null, start: "2026-08-01", end: "2026-08-31" };
+const operation: Interpretation = { kind: "spending", query, direct: false, percent: null, reply: "none", comparePeriod: null, by: null, top: null, concept: null };
 const ask = { action: "ask", text: "Groceries last month?", revision: 0 } as const;
 describe("coordinator boundaries", () => {
   it("withholds amount, evidence and model text until a reveal, including serialized payload and speech text", () => {
@@ -20,7 +20,7 @@ describe("coordinator boundaries", () => {
     if (revealed.activity.kind === "reveal") expect(revealed.activity.spending.totalCents).toBe(111106);
     expect(revealed.message).toMatch(/911,06\s€ more than your guess of 200,00\s€/);
     const empty = toView(transition(initialState(), ask, { ...operation, direct: true,
-      query: { category: "Health", start: "2026-08-01", end: "2026-08-09" } }));
+      query: { ...query, categories: ["Health"], start: "2026-08-01", end: "2026-08-09" } }));
     expect(empty.message).toContain("no health spending in your records from 1 August 2026 to 9 August 2026");
     expect(empty.message).toContain("outside this dataset wouldn't show up");
   });
@@ -30,7 +30,7 @@ describe("coordinator boundaries", () => {
     const pending = transition(initialState(), ask, operation);
     const skipped = transition(pending, { action: "reveal", revision: 0, guessCents: null });
     expect(toView(transition(skipped, ask, operation)).activity.kind).toBe("reveal");
-    const chat = transition(pending, ask, { kind: "chat", query: null, direct: false, percent: null, reply: "tired" });
+    const chat = transition(pending, ask, { ...operation, kind: "chat", query: null, reply: "tired" });
     expect(toView(chat).activity.kind).toBe("none");
     expect(chat.completedDates).toEqual([]);
     expect(chat.habit).toBeNull();
@@ -54,7 +54,7 @@ describe("coordinator boundaries", () => {
   });
   it("does not save a model-proposed habit or complete reflection through ordinary text", () => {
     const current = initialState();
-    const proposed = transition(current, ask, { kind: "habit", query: null, direct: false, percent: null, reply: "none" });
+    const proposed = transition(current, ask, { ...operation, kind: "habit", query: null });
     expect(proposed.habit).toBeNull();
     expect(proposed.completedDates).toEqual([]);
     expect(proposed.message).not.toContain("100");

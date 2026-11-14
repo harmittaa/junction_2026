@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useId, useState, useSyncExternalStore, type ReactNode } from "react";
-import { basketLabels, type Basket, type CoachRequest, type CoachView, type Habit, type Spending, type SpendingQuery } from "@/shared/contracts";
-import { euros, percentageScenario } from "@/domain/spending";
+import { basketLabels, type Analysis, type Basket, type CoachRequest, type CoachView, type Habit, type Spending, type SpendingQuery } from "@/shared/contracts";
+import { euros, percentageScenario, queryLabel } from "@/domain/spending";
 import "./activities.css";
 
 type Actions = { busy: boolean; onAction: (request: CoachRequest) => void; revision: number };
@@ -20,8 +20,14 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function Period({ query, count }: { query: SpendingQuery; count?: number }) {
-  return <p className="sp-meta">Historical · {query.start} – {query.end}
+  return <p className="sp-meta">Historical · {query.start} – {query.end} (inclusive)
     {count !== undefined && <> · {count} {count === 1 ? "transaction" : "transactions"}</>}</p>;
+}
+
+function Assumptions({ assumptions }: { assumptions: string[] }) {
+  return assumptions.length > 0 ? <div className="sp-assumptions"><p className="sp-meta">Calculation assumptions</p>
+    <ul className="sp-meta">{assumptions.map((assumption, index) => <li key={index}>{assumption}</li>)}</ul>
+  </div> : null;
 }
 
 export function GuessCard({ query, busy, revision, onAction }: Actions & { query: SpendingQuery }) {
@@ -33,7 +39,8 @@ export function GuessCard({ query, busy, revision, onAction }: Actions & { query
   const [whole, fraction = ""] = guess.split(".");
   const cents = valid ? Number(whole) * 100 + Number(fraction.padEnd(2, "0")) : NaN;
   const canSubmit = Number.isSafeInteger(cents) && cents >= 0 && cents <= 10000000;
-  return <Card title={guessing ? `Your guess for ${query.category.toLowerCase()}?` : "Curious what it adds up to?"}>
+  return <Card title={guessing ? `Your guess for ${queryLabel(query).toLowerCase()}?` : "Curious what it adds up to?"}>
+    {!guessing && <p>{queryLabel(query)}</p>}
     <Period query={query} />
     <fieldset disabled={busy}>
       {!guessing ? <><p>Try an estimate, or go straight to the real number.</p>
@@ -78,9 +85,10 @@ export function RevealCard({ spending, guessCents, children }: {
   spending: Spending; guessCents: number | null; children?: ReactNode;
 }) {
   const maximum = Math.max(spending.totalCents, guessCents ?? 0, 1);
-  return <Card title={spending.query.category}>
-    <Period query={spending.query} count={spending.evidence.length} />
+  return <Card title={queryLabel(spending.query)}>
+    <Period query={spending.query} count={spending.evidenceCount} />
     <p className="sp-amount"><CountAmount key={spending.totalCents} cents={spending.totalCents} /></p>
+    <Assumptions assumptions={spending.assumptions} />
     {guessCents !== null && <div className="sp-comparison">
       <div className="sp-bar-label"><span>Your guess</span><strong>{euros(guessCents)}</strong></div>
       <div className="sp-track"><div className="sp-bar sp-bar-guess" style={{ width: `${guessCents / maximum * 100}%` }} /></div>
@@ -92,20 +100,57 @@ export function RevealCard({ spending, guessCents, children }: {
   </Card>;
 }
 
-function CorrectionRow({ row, busy, revision, onAction }: Actions & { row: Spending["evidence"][number] }) {
+function CorrectionRow({ row, correctable, busy, revision, onAction }: Actions & { row: Spending["evidence"][number]; correctable: boolean }) {
   const [basket, setBasket] = useState<Basket>(row.basket);
   const id = useId();
   return <li className="sp-evidence-row">
     <div className="sp-bar-label"><strong>{row.merchant}</strong><strong>{euros(row.amountCents)}</strong></div>
-    <p className="sp-meta">{row.date} · Source row {row.sourceRow}</p>
-    <label htmlFor={id}>Basket interpretation</label>
+    <p className="sp-meta">{row.date} · {row.category} · Source row {row.sourceRow}</p>
+    {correctable && <><label htmlFor={id}>Basket interpretation</label>
     <select id={id} value={basket} disabled={busy} onChange={e => {
       const selected = baskets.find(b => b === e.target.value);
       if (selected) setBasket(selected);
     }}>{baskets.map(b => <option key={b} value={b}>{basketLabels[b]}</option>)}</select>
     {basket !== row.basket && <button type="button" disabled={busy}
-      onClick={() => onAction({ action: "correct", revision, transactionId: row.id, basket, confirmed: true })}>Confirm correction</button>}
+      onClick={() => onAction({ action: "correct", revision, transactionId: row.id, basket, confirmed: true })}>Confirm correction</button>}</>}
   </li>;
+}
+
+function Evidence({ evidence, evidenceCount, correctable, ...actions }: Actions & {
+  evidence: Spending["evidence"]; evidenceCount: number; correctable: boolean;
+}) {
+  const limited = evidence.length < evidenceCount;
+  return <details><summary>Evidence{correctable ? " & basket corrections" : ""} ({evidenceCount})</summary>
+    <p className="sp-meta">Showing {evidence.length} of {evidenceCount} source transactions{limited ? "; this list is limited. Calculated results use all matching records." : "."}</p>
+    {correctable && <p className="sp-meta">A correction changes the interpretation, never the historical amount.</p>}
+    <ul className="sp-evidence">{evidence.map(row => <CorrectionRow key={`${row.id}:${row.basket}`} row={row} correctable={correctable} {...actions} />)}</ul>
+    {evidenceCount === 0 && <p>No matching source transactions in this period.</p>}
+  </details>;
+}
+
+export function AnalysisCard({ analysis, ...actions }: Actions & { analysis: Analysis }) {
+  return <Card title={analysis.title}>
+    <p className="sp-meta">{queryLabel(analysis.query)}</p>
+    <Period query={analysis.query} count={analysis.kind === "comparison" || analysis.kind === "whatif" ? undefined : analysis.evidenceCount} />
+    {analysis.kind === "whatif" && <p className="sp-meta">Hypothetical calculation · no money has been saved or moved.</p>}
+    {analysis.sections.map((section, sectionIndex) => <section className="sp-analysis-section" key={sectionIndex} aria-label={section.label}>
+      <h3>{section.label}</h3>
+      <ul className="sp-analysis-rows">{section.rows.map((row, rowIndex) => {
+        const countUnit = row.label === "Monthly average (complete months)" || section.label === "Most variable category (monthly range)" ? "month" : "transaction";
+        return <li key={rowIndex}>
+        <div className="sp-bar-label"><span>{row.label}</span><strong>{analysis.kind === "comparison" && row.label === "Difference (selected period minus comparison period)" && row.amountCents > 0 ? "+" : ""}{euros(row.amountCents)}</strong></div>
+        {(row.count !== null || row.sharePercent !== null) && <p className="sp-meta">
+          {row.count !== null && <>{row.count} {countUnit}{row.count === 1 ? "" : "s"}</>}
+          {row.count !== null && row.sharePercent !== null && " · "}
+          {row.sharePercent !== null && <>{new Intl.NumberFormat("fi-FI", { maximumFractionDigits: 2 }).format(row.sharePercent)}% of selected spending</>}
+        </p>}
+        {row.sharePercent !== null && <div className="sp-track" aria-hidden="true"><div className="sp-bar" style={{ width: `${row.sharePercent}%` }} /></div>}
+      </li>; })}</ul>
+      {section.rows.length === 0 && <p className="sp-meta">No matching results for this section.</p>}
+    </section>)}
+    <Assumptions assumptions={analysis.assumptions} />
+    <Evidence evidence={analysis.evidence} evidenceCount={analysis.evidenceCount} correctable={analysis.kind !== "cashflow"} {...actions} />
+  </Card>;
 }
 
 export function EvidenceCard({ spending, ...actions }: Actions & { spending: Spending }) {
@@ -114,11 +159,7 @@ export function EvidenceCard({ spending, ...actions }: Actions & { spending: Spe
     <ul className="sp-basket-list">{baskets.map(basket => <li key={basket} className="sp-basket" data-basket={basket}>
       <span>{basketLabels[basket]}</span><strong>{euros(spending.baskets[basket])}</strong>
     </li>)}</ul>
-    <details><summary>Evidence & basket corrections ({spending.evidence.length})</summary>
-      <p className="sp-meta">A correction changes the interpretation, never the historical amount.</p>
-      <ul className="sp-evidence">{spending.evidence.map(row => <CorrectionRow key={`${row.id}:${row.basket}`} row={row} {...actions} />)}</ul>
-      {spending.evidence.length === 0 && <p>No recorded spending in this period.</p>}
-    </details>
+    <Evidence evidence={spending.evidence} evidenceCount={spending.evidenceCount} correctable {...actions} />
   </Card>;
 }
 
@@ -175,8 +216,9 @@ export function CheckinCard({ spending, completed, habit, completedDates, demoDa
   const id = useId();
   return <Card title={completed ? "A moment well spent" : "A moment for your day"}>
     <p className="sp-meta">Simulated historical date · {demoDate}</p>
-    <p>{spending.query.category} · daily spending</p><p className="sp-amount">{euros(spending.totalCents)}</p>
-    <Period query={spending.query} count={spending.evidence.length} />
+    <p>{queryLabel(spending.query)} · daily spending</p><p className="sp-amount">{euros(spending.totalCents)}</p>
+    <Period query={spending.query} count={spending.evidenceCount} />
+    <Assumptions assumptions={spending.assumptions} />
     {spending.totalCents === 0 && <p>No recorded spending today. There is still room to reflect.</p>}
     {habit && <div className="sp-habit-context"><strong>Your daily action</strong><p>{habit.action}</p>{habit.goal && <p className="sp-meta">For: {habit.goal}</p>}</div>}
     {completed ? <><p className="sp-complete" role="status">✓ Check-in complete</p>
@@ -206,7 +248,7 @@ function RevealedActivity({ view, activity, ...actions }: Actions & {
     </RevealCard>
     {branch === "explore" && <><EvidenceCard spending={activity.spending} {...actions} />
       <ScenarioCard spending={activity.spending} confirmed={activity.scenario} {...actions} /></>}
-    {branch === "habit" && <HabitCard key={JSON.stringify(view.habit)} habit={view.habit} category={activity.spending.query.category}
+    {branch === "habit" && <HabitCard key={JSON.stringify(view.habit)} habit={view.habit} category={activity.spending.query.categories.length === 1 ? activity.spending.query.categories[0] : view.categories[0] ?? ""}
       onCancel={() => setBranch("summary")} {...actions} />}
   </>;
 }
@@ -216,7 +258,7 @@ export function Activities({ view, busy, onAction }: { view: CoachView; busy: bo
   const editingHabit = editingRevision === view.revision;
   const { activity } = view;
   const actions = { busy, onAction, revision: view.revision };
-  const activityKey = activity.kind === "none" ? "none" : JSON.stringify(activity.kind === "invitation" ? activity.query : activity.spending.query);
+  const activityKey = activity.kind === "none" ? "none" : JSON.stringify(activity.kind === "invitation" ? activity.query : activity.kind === "analysis" ? [activity.analysis.kind, activity.analysis.query] : activity.spending.query);
   return <div className="sp-activities" aria-busy={busy}>
     {view.habit && <aside className="sp-saved-habit"><div><strong>My daily habit · {view.habit.category}</strong><p>{view.habit.action}</p>
       {view.habit.goal && <span className="sp-meta">For: {view.habit.goal}</span>}</div>
@@ -224,6 +266,7 @@ export function Activities({ view, busy, onAction }: { view: CoachView; busy: bo
     {editingHabit && view.habit && <HabitCard key={JSON.stringify(view.habit)} habit={view.habit} category={view.habit.category} onCancel={() => setEditingRevision(null)} {...actions} />}
     {activity.kind === "invitation" && <GuessCard key={activityKey} query={activity.query} {...actions} />}
     {activity.kind === "reveal" && <RevealedActivity key={`${activityKey}:${JSON.stringify(view.habit)}`} view={view} activity={activity} {...actions} />}
+    {activity.kind === "analysis" && <AnalysisCard key={activityKey} analysis={activity.analysis} {...actions} />}
     {activity.kind === "checkin" && <CheckinCard key={view.demoDate} spending={activity.spending} completed={activity.completed}
       habit={view.habit} completedDates={view.completedDates} demoDate={view.demoDate} {...actions} />}
   </div>;

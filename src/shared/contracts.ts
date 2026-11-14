@@ -8,12 +8,32 @@ export const basketLabels: Record<Basket, string> = {
   unexpected: "Unexpected necessities",
   everyday: "Everyday spending",
 };
-export const querySchema = z.object({
-  category: z.string().min(1).max(60),
-  start: dateSchema,
-  end: dateSchema,
+export const merchantTypeSchema = z.enum(["taxi", "fuel", "parking", "transit", "fast_food", "bars", "restaurants", "pharmacies"]);
+export type MerchantType = z.infer<typeof merchantTypeSchema>;
+export const periodSchema = z.object({ start: dateSchema, end: dateSchema }).strict();
+export const querySchema = periodSchema.extend({
+  categories: z.array(z.string().min(1).max(60)).max(15),
+  baskets: z.array(basketSchema).max(3),
+  merchantType: merchantTypeSchema.nullable(),
 }).strict();
 export type SpendingQuery = z.infer<typeof querySchema>;
+export const analysisKindSchema = z.enum(["breakdown", "comparison", "trend", "cashflow", "whatif", "profile"]);
+export const analysisOperationSchema = z.object({
+  kind: analysisKindSchema, query: querySchema,
+  comparePeriod: periodSchema.nullable(),
+  by: z.enum(["category", "basket", "merchantType", "month"]).nullable(),
+  top: z.number().int().min(1).max(24).nullable(),
+  percent: z.number().int().min(0).max(100).nullable(),
+}).strict();
+export type AnalysisOperation = z.infer<typeof analysisOperationSchema>;
+// The planner has no customer, amount, evidence or mutation fields.
+export const planSchema = analysisOperationSchema.extend({
+  kind: z.enum(["spending", "breakdown", "comparison", "trend", "cashflow", "whatif", "profile", "scenario", "reveal", "chat", "clarify", "explain", "checkin", "habit"]),
+  query: querySchema.nullable(), direct: z.boolean(),
+  reply: z.enum(["none", "listen", "tired", "positive", "scope", "question", "items"]),
+  concept: z.enum(["baskets", "budget", "interest", "inflation", "saving", "investing", "gross_net", "compound_interest"]).nullable(),
+}).strict();
+export type Plan = z.infer<typeof planSchema>;
 export const transactionSchema = z.object({
   id: z.string(), sourceRow: z.number().int().positive(), customerId: z.string(),
   accountId: z.string(), date: dateSchema, timestamp: z.string(), category: z.string(),
@@ -34,6 +54,9 @@ export const evidenceSchema = z.object({
 export const spendingSchema = z.object({
   query: querySchema, totalCents: money,
   evidence: z.array(evidenceSchema),
+  evidenceCount: z.number().int().nonnegative(),
+  missingMccCount: z.number().int().nonnegative(),
+  assumptions: z.array(z.string()),
   baskets: z.object({ regular: money, unexpected: money, everyday: money }),
 });
 export type Spending = z.infer<typeof spendingSchema>;
@@ -42,11 +65,23 @@ export const scenarioSchema = z.object({
   reductionCents: money, remainingCents: money,
 });
 export type Scenario = z.infer<typeof scenarioSchema>;
+export const analysisSchema = z.object({
+  kind: analysisKindSchema, query: querySchema, title: z.string(),
+  sections: z.array(z.object({ label: z.string(), rows: z.array(z.object({
+    label: z.string(), amountCents: z.number().int().safe(),
+    count: z.number().int().nonnegative().nullable(),
+    sharePercent: z.number().min(0).max(100).nullable(),
+  })) })),
+  evidence: z.array(evidenceSchema), evidenceCount: z.number().int().nonnegative(),
+  assumptions: z.array(z.string()),
+});
+export type Analysis = z.infer<typeof analysisSchema>;
 export const activitySchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("none") }),
   z.object({ kind: z.literal("invitation"), query: querySchema }),
   z.object({ kind: z.literal("reveal"), spending: spendingSchema, guessCents: money.nullable(), scenario: scenarioSchema.nullable() }),
   z.object({ kind: z.literal("checkin"), spending: spendingSchema, completed: z.boolean() }),
+  z.object({ kind: z.literal("analysis"), analysis: analysisSchema }),
 ]);
 export type Activity = z.infer<typeof activitySchema>;
 export const viewSchema = z.object({

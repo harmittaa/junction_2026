@@ -68,6 +68,16 @@
 .sp-evidence-row{border-top:1px solid var(--border);padding:16px 0}
 .sp-evidence-row .sp-bar-label strong:first-child{min-width:0;overflow-wrap:anywhere}
 .sp-evidence-row .sp-bar-label strong:last-child{flex-shrink:0}
+.sp-analysis-section{margin:20px 0}
+.sp-analysis-rows{list-style:none;margin:0;padding:0}
+.sp-analysis-rows>li{border-top:1px solid var(--border);padding:12px 0}
+.sp-analysis-rows .sp-bar-label{flex-wrap:wrap;gap:4px 12px}
+.sp-analysis-rows .sp-bar-label>span{flex:1 1 128px;min-width:0}
+.sp-analysis-rows .sp-bar-label>strong{flex-shrink:0}
+.sp-analysis-rows p.sp-meta{margin:4px 0}
+.sp-analysis-rows .sp-track{margin-bottom:0}
+.sp-assumptions ul{padding-left:20px}
+.sp-assumptions li+li{margin-top:4px}
 .sp-scenario,.sp-habit-context{padding:16px;background:var(--surfaceAccent);border-radius:12px;margin:16px 0}
 .sp-scenario span{display:flex;justify-content:space-between;gap:12px;font-size:14px;margin:8px 0}
 .sp-scenario strong{flex-shrink:0}
