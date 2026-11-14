@@ -2,7 +2,7 @@ import { speechRequestSchema, voiceTokenSchema } from "../../shared/contracts";
 import { ScribeSession } from "./scribe";
 import { toBands } from "./bands";
 
-type Capture = "ready" | "connecting" | "listening" | "transcribing";
+type Capture = "ready" | "starting" | "listening" | "transcribing";
 type Playback = "ready" | "loading" | "speaking";
 export type VoiceSnapshot = { state: Capture | Playback; muted: boolean };
 export type VoiceCallbacks = { onTranscript: (text: string) => void; onError: (message: string) => void };
@@ -16,8 +16,9 @@ const failures = {
   speech: "Could not load the spoken reply. Read the reply or try Play reply.",
   playback: "Could not play the spoken reply. Try Play reply or continue typing.",
 };
+type Phase = keyof typeof failures;
 type Turn = {
-  phase: keyof typeof failures;
+  phase: Phase;
   abort: AbortController;
   context: AudioContext;
   stream?: MediaStream;
@@ -29,8 +30,13 @@ type Turn = {
   timer?: ReturnType<typeof setTimeout>;
   flush?: () => void;
   flushCapture?: () => Promise<void>;
+  // Audio captured before the socket is ready; undefined once chunks stream directly.
+  pending?: Uint8Array[];
+  connected?: Promise<void>;
 };
 const failure = "Voice is unavailable. Please try again or type your question.";
+// Single-use tokens expire after 15 minutes; refetch well before that.
+const tokenLifetime = 10 * 60_000;
 
 async function post(path: string, body: unknown, limit: number, signal: AbortSignal) {
   const response = await fetch(path, {
@@ -66,6 +72,7 @@ export class VoiceController {
   private playback: Playback = "ready";
   private current?: Turn;
   private snapshot: VoiceSnapshot = { state: "ready", muted: false };
+  private token?: { value: Promise<{ token: string; modelId: string }>; expires: number };
 
   constructor(private callbacks: VoiceCallbacks, private changed: (snapshot: VoiceSnapshot) => void) {}
 
@@ -97,9 +104,20 @@ export class VoiceController {
     this.update();
   };
 
-  private failed(turn: Turn | undefined, fallback: "microphone" | "playback" = "microphone") {
+  // Prefetch the next transcription token so a hold does not wait for it.
+  prepare = () => {
+    if (this.token && this.token.expires > Date.now()) return;
+    const entry = {
+      value: post("/api/voice/token", {}, 8192, new AbortController().signal)
+        .then(bytes => voiceTokenSchema.parse(JSON.parse(new TextDecoder().decode(bytes)))),
+      expires: Date.now() + tokenLifetime,
+    };
+    this.token = entry;
+    entry.value.catch(() => { if (this.token === entry) this.token = undefined; });
+  };
+
+  private failed(turn: Turn | undefined, phase: Phase = turn?.phase ?? "microphone") {
     if (turn && this.current !== turn) return;
-    const phase = turn?.phase ?? fallback;
     this.cancel();
     // Deliberately log only an application-owned phase, never provider/browser errors or user data.
     console.warn("Voice failed", { phase });
@@ -131,16 +149,40 @@ export class VoiceController {
     return true;
   };
 
+  // Opens transcription alongside capture; audio buffers locally until the session is ready.
+  private async connect(turn: Turn) {
+    let phase: Phase = "token";
+    try {
+      this.prepare();
+      const pending = this.token!.value;
+      this.token = undefined;
+      const token = await pending;
+      if (this.current !== turn) return;
+      const query = new URLSearchParams({ token: token.token, model_id: token.modelId, audio_format: "pcm_16000", commit_strategy: "manual" });
+      phase = "transcription";
+      const session = new ScribeSession(new WebSocket(`wss://api.elevenlabs.io/v1/speech-to-text/realtime?${query}`), () => this.failed(turn));
+      turn.session = session;
+      await session.ready;
+      if (this.current !== turn) return;
+      for (const chunk of turn.pending ?? []) session.send(chunk);
+      turn.pending = undefined;
+    } catch {
+      this.failed(turn, phase);
+    }
+  }
+
   start = async () => {
     this.cancel(); // Explicit interruption: playback is released before microphone access.
     let turn: Turn | undefined;
     try {
-      turn = { phase: "microphone", abort: new AbortController(), context: new AudioContext({ sampleRate: 16000 }), nodes: [] };
+      turn = { phase: "microphone", abort: new AbortController(), context: new AudioContext({ sampleRate: 16000 }), nodes: [], pending: [] };
       const active = turn;
       this.current = active;
-      this.capture = "connecting";
+      this.capture = "starting";
       this.update();
       active.timer = setTimeout(() => this.failed(active), 20_000);
+      const loaded = active.context.audioWorklet.addModule("/pcm-capture.js");
+      loaded.catch(() => {}); // Awaited after the microphone opens.
       await active.context.resume();
       if (this.current !== active) return;
       if (active.context.state !== "running" || active.context.sampleRate !== 16000) throw new Error(failure);
@@ -158,17 +200,8 @@ export class VoiceController {
       });
       if (this.current !== active) { stream.getTracks().forEach(track => track.stop()); return; }
       active.stream = stream;
-      active.phase = "token";
-      const bytes = await post("/api/voice/token", {}, 8192, active.abort.signal);
-      if (this.current !== active) return;
-      const token = voiceTokenSchema.parse(JSON.parse(new TextDecoder().decode(bytes)));
-      const query = new URLSearchParams({ token: token.token, model_id: token.modelId, audio_format: "pcm_16000", commit_strategy: "manual" });
-      active.phase = "transcription";
-      active.session = new ScribeSession(new WebSocket(`wss://api.elevenlabs.io/v1/speech-to-text/realtime?${query}`), () => this.failed(active));
-      await active.session.ready;
-      if (this.current !== active) return;
       active.phase = "capture";
-      await active.context.audioWorklet.addModule("/pcm-capture.js");
+      await loaded;
       if (this.current !== active) return;
       const source = active.context.createMediaStreamSource(stream);
       const worklet = new AudioWorkletNode(active.context, "pcm-capture");
@@ -178,7 +211,9 @@ export class VoiceController {
       worklet.port.onmessage = event => {
         if (this.current !== active) return;
         if (event.data instanceof ArrayBuffer) {
-          try { active.session?.send(new Uint8Array(event.data)); } catch { this.failed(active); }
+          const chunk = new Uint8Array(event.data);
+          if (active.pending) active.pending.push(chunk);
+          else try { active.session?.send(chunk); } catch { this.failed(active); }
         } else if (event.data?.stopped) flushed?.();
       };
       active.flush = () => flushed?.();
@@ -187,6 +222,7 @@ export class VoiceController {
       worklet.connect(active.context.destination);
       this.meter(active, source);
       active.phase = "transcription";
+      active.connected = this.connect(active);
       this.capture = "listening";
       this.update();
       clearTimeout(active.timer);
@@ -209,7 +245,7 @@ export class VoiceController {
   stop = async () => {
     const turn = this.current;
     if (!turn || this.capture === "ready" || this.capture === "transcribing") return;
-    if (this.capture === "connecting") { this.cancel(); return; }
+    if (this.capture === "starting") { this.cancel(); return; }
     this.capture = "transcribing";
     clearTimeout(turn.timer);
     this.update();
@@ -219,10 +255,13 @@ export class VoiceController {
       if (this.current !== turn) return;
       turn.stream?.getTracks().forEach(track => track.stop());
       turn.nodes.forEach(node => node.disconnect());
+      await turn.connected; // Failure here has already canceled the turn and reported its phase.
+      if (this.current !== turn) return;
       turn.phase = "transcript";
       const text = await turn.session!.commit();
       if (this.current !== turn) return;
       this.cancel();
+      this.prepare();
       if (text) this.callbacks.onTranscript(text);
       else this.callbacks.onError("No speech was detected. Please try again or type your question.");
     } catch { this.failed(turn); }
@@ -262,7 +301,7 @@ export class VoiceController {
       active.timer = setTimeout(() => { if (this.current === active) this.cancel(); }, 30_000);
       this.update();
     } catch {
-      this.failed(turn, "playback");
+      this.failed(turn, turn?.phase ?? "playback");
     }
   };
 
