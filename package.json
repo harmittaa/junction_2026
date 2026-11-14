@@ -10,7 +10,7 @@
     "check": "next typegen && tsc --noEmit && eslint src tests && vitest run && python3 -m unittest discover -s scripts -p 'test_import_transactions.py'",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:emulator": "firebase emulators:exec --only firestore --project demo-sponky 'vitest run --config vitest.emulator.config.ts'"
+    "test:emulator": "firebase emulators:exec --config firebase.test.json --only firestore --project demo-sponky-tests 'GOOGLE_CLOUD_PROJECT=demo-sponky-tests vitest run --config vitest.emulator.config.ts'"
   },
   "dependencies": {
     "@google/genai": "3.3.0",

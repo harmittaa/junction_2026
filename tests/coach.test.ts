@@ -1,11 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { createServer } from "node:http";
+import { once } from "node:events";
 import { transition, toView } from "@/server/coach";
 import { initialState } from "@/server/storage/state";
 import { type Interpretation, interpret } from "@/server/providers/gemini";
 import { signSession, verifySession } from "@/server/session";
 
 const query = { category: "Groceries", start: "2024-10-01", end: "2024-10-31" };
-const operation: Interpretation = { kind: "spending", query, direct: false, percent: null, reply: "Untrusted model text: 752.75" };
+const operation: Interpretation = { kind: "spending", query, direct: false, percent: null, reply: "none" };
 const ask = { action: "ask", text: "Groceries last month?", revision: 0 } as const;
 describe("coordinator boundaries", () => {
   it("withholds amount, evidence and model text until a reveal, including serialized payload and speech text", () => {
@@ -16,6 +18,10 @@ describe("coordinator boundaries", () => {
     const revealed = toView(transition(pending, { action: "reveal", revision: 0, guessCents: 20000 }));
     expect(revealed.activity.kind).toBe("reveal");
     if (revealed.activity.kind === "reveal") expect(revealed.activity.spending.totalCents).toBe(75275);
+    const empty = toView(transition(initialState(), ask, { ...operation, direct: true,
+      query: { category: "Health", start: "2024-10-01", end: "2024-10-31" } }));
+    expect(empty.message).toContain("No matching health spending records");
+    expect(empty.message).toContain("isn't proof of no spending");
   });
   it("honors direct answers, remembers a declined game, and leaves a game when the topic changes", () => {
     const direct = transition(initialState(), ask, { ...operation, direct: true });
@@ -23,11 +29,44 @@ describe("coordinator boundaries", () => {
     const pending = transition(initialState(), ask, operation);
     const skipped = transition(pending, { action: "reveal", revision: 0, guessCents: null });
     expect(toView(transition(skipped, ask, operation)).activity.kind).toBe("reveal");
-    const chat = transition(pending, ask, { kind: "chat", query: null, direct: false, percent: null, reply: "That sounds like a long day. Want to talk about it?" });
+    const chat = transition(pending, ask, { kind: "chat", query: null, direct: false, percent: null, reply: "tired" });
     expect(toView(chat).activity.kind).toBe("none");
     expect(chat.completedDates).toEqual([]);
     expect(chat.habit).toBeNull();
     expect(() => transition(chat, { action: "reveal", revision: 0, guessCents: null })).toThrow();
+  });
+  it("only corrects revealed evidence and recalculates the everyday scenario without changing history", () => {
+    const hidden = transition(initialState(), ask, operation);
+    const correct = { action: "correct", revision: 0, transactionId: "row-3", basket: "regular", confirmed: true } as const;
+    expect(() => transition(hidden, correct)).toThrow("revealed evidence");
+    expect(() => transition(hidden, { action: "scenario", revision: 0, percent: 20 })).toThrow("Reveal");
+    const revealed = transition(hidden, { action: "reveal", revision: 0, guessCents: null });
+    expect(() => transition(revealed, { ...correct, transactionId: "row-40" })).toThrow("revealed evidence");
+    const changed = transition(revealed, correct);
+    const result = toView(transition(changed, { action: "scenario", revision: 0, percent: 20 }));
+    if (result.activity.kind !== "reveal") throw new Error("Expected reveal");
+    expect(result.activity.spending.totalCents).toBe(75275);
+    expect(result.activity.scenario).toEqual({ percent: 20, baseCents: 72024, reductionCents: 14405, remainingCents: 57619 });
+    expect(result.message).toContain("hypothetical");
+    expect(changed.habit).toBeNull();
+    expect(changed.completedDates).toEqual([]);
+  });
+  it("does not save a model-proposed habit or complete reflection through ordinary text", () => {
+    const current = initialState();
+    const proposed = transition(current, ask, { kind: "habit", query: null, direct: false, percent: null, reply: "none" });
+    expect(proposed.habit).toBeNull();
+    expect(proposed.completedDates).toEqual([]);
+    expect(proposed.message).not.toContain("100");
+    expect(() => transition(current, { action: "complete", revision: 0, reflection: "done", confirmed: true })).toThrow();
+  });
+  it.each(["chat", "clarify", "spending"])("rejects fabricated %s prose before it can become display or speech text", async kind => {
+    const context = { categories: ["Groceries"], start: "2024-10-01", end: "2024-11-30", referenceDate: "2024-11-04", previousQuery: null };
+    const fabricated = { ...operation, kind, reply: "You spent 900 euros on taxis and saved 200 euros. Cut taxis to grow your balance." };
+    await expect(interpret("Tell me about spending", context, undefined, async () => JSON.stringify(fabricated))).rejects.toThrow("couldn't interpret");
+    const valid = await interpret("A long day", context, undefined, async () => JSON.stringify({ ...operation, kind: "chat", query: null, reply: "tired" }));
+    const view = toView(transition(initialState(), ask, valid));
+    expect(view.message).toContain("long day");
+    expect(JSON.stringify(view)).not.toMatch(/900|200|taxi|balance|saved/);
   });
   it("normalizes malformed, out-of-scope and failed reasoning without trusting model output", async () => {
     const context = { categories: ["Groceries"], start: "2024-10-01", end: "2024-11-30", referenceDate: "2024-11-04", previousQuery: null };
@@ -43,4 +82,37 @@ describe("coordinator boundaries", () => {
     expect(verifySession(token, "test-only-secret", 1800000001)).toBeNull();
     expect(verifySession(token.replace("12345678", "12345679"), "test-only-secret", 1800000000)).toBeNull();
   });
+  it("cancels a stalled real SDK transport at the deadline or caller interruption without retrying", async () => {
+    const context = { categories: ["Groceries"], start: "2024-10-01", end: "2024-11-30", referenceDate: "2024-11-04", previousQuery: null };
+    let requests = 0, disconnected = 0;
+    const caller = new AbortController();
+    const server = createServer((request, response) => {
+      requests++;
+      request.resume();
+      response.on("close", () => disconnected++);
+      if (requests === 2) caller.abort();
+      // No response: exercise the actual SDK and socket, not an SDK mock.
+    }).listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Missing fixture port");
+    vi.stubEnv("SPONKY_TEST_GEMINI_URL", `http://127.0.0.1:${address.port}`);
+    vi.stubEnv("FIRESTORE_EMULATOR_HOST", "127.0.0.1:8180");
+    vi.stubEnv("GOOGLE_CLOUD_PROJECT", "demo-sponky-tests");
+    vi.stubEnv("GEMINI_API_KEY", "fixture-only");
+    vi.stubEnv("ELEVENLABS_API_KEY", "fixture-only");
+    vi.stubEnv("SESSION_SECRET", "fixture-only-secret-at-least-32-characters");
+    try {
+      const started = Date.now();
+      await expect(interpret("Groceries last month?", context)).rejects.toThrow("saved activity is safe");
+      expect(Date.now() - started).toBeLessThan(22000);
+      await expect(interpret("Groceries last month?", context, caller.signal)).rejects.toThrow("saved activity is safe");
+      await vi.waitFor(() => expect(disconnected).toBe(2));
+      expect(requests).toBe(2);
+    } finally {
+      vi.unstubAllEnvs();
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  }, 25000);
 });
