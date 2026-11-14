@@ -151,7 +151,7 @@ test("phone visit keeps the answer hidden, corrects a scenario, and persists one
     data: { action: "advance", revision: current.revision, confirmed: true },
   });
   expect(advanced.status()).toBe(200);
-  expect((await advanced.json()).demoDate).toBe("2026-09-02");
+  expect((await advanced.json()).demoDate).toBe("2026-09-17");
   await page.reload();
   await page.getByRole("button", { name: "Talk to Sponky" }).click();
   await page.getByRole("button", { name: "Sound on", exact: true }).click();
@@ -230,7 +230,7 @@ test("a lost complete response never re-confirms the action on a newer date", as
     await page.getByRole("button", { name: "Retry", exact: true }).click();
     await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
     const after = await state();
-    expect(after.demoDate).toBe("2026-09-02");
-    expect(after.completedDates).toEqual(["2026-09-01"]);
+    expect(after.demoDate).toBe("2026-09-17");
+    expect(after.completedDates).toEqual(["2026-09-16"]);
     await expect(page.getByRole("button", { name: "Complete check-in", exact: true })).toBeDisabled();
 });

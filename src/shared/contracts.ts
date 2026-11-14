@@ -94,6 +94,7 @@ export type CoachView = z.infer<typeof viewSchema>;
 const revision = z.number().int().nonnegative();
 export const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("ask"), revision, text: z.string().trim().min(1).max(600) }).strict(),
+  z.object({ action: z.literal("weekly-checkup"), revision }).strict(),
   z.object({ action: z.literal("reveal"), revision, guessCents: money.max(10000000).nullable() }).strict(),
   z.object({ action: z.literal("correct"), revision, transactionId: z.string().max(60), basket: basketSchema, confirmed: z.literal(true) }).strict(),
   z.object({ action: z.literal("scenario"), revision, percent: z.number().int().min(0).max(100) }).strict(),

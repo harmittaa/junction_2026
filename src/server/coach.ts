@@ -1,6 +1,7 @@
 import "server-only";
 import { calculateSpending, euros, nextDate, percentageScenario, queryLabel } from "@/domain/spending";
 import { calculateAnalysis, recentCompleteQuery } from "@/domain/exploration";
+import { completeWeeklyCheckup } from "@/domain/checkup";
 import { speechText, type ReplyFacts } from "@/domain/replies";
 import { analysisKindSchema, analysisOperationSchema, basketLabels, type Analysis, type CoachRequest, type CoachView, type Activity, viewSchema } from "@/shared/contracts";
 import { categories, dataset } from "./data";
@@ -128,6 +129,11 @@ export function transition(current: SessionState, request: CoachRequest, interpr
     return { ...state, percent: null, message: `Got it, that's ${basketLabels[request.basket]} now. You know your life best! The amount stays the same; only the basket changes.` };
   }
   if (request.action === "scenario") return scenario(state, request.percent);
+  if (request.action === "weekly-checkup") {
+    const result = completeWeeklyCheckup(state.weeklyCompletedDates, state.demoDate);
+    return { ...state, weeklyCompletedDates: result.completedDates,
+      message: `Your weekly check-up is complete. ${result.streak} weeks in a row — that's showing up for yourself.` };
+  }
   if (request.action === "habit") {
     if (!categories.includes(request.habit.category)) throw new AppError("Choose an available spending category.");
     return { ...state, habit: request.habit, mode: "none", query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null,
