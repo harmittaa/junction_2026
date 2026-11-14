@@ -2,6 +2,7 @@ import { sessionId } from "@/server/session";
 import { synthesizeSpeech } from "@/server/providers/elevenlabs";
 import { readSession, consumeBudget } from "@/server/storage/sessions";
 import { toView } from "@/server/coach";
+import { speechText } from "@/domain/replies";
 import { speechRequestSchema } from "@/shared/contracts";
 import { AppError } from "@/server/errors";
 import { body, failure } from "@/server/http";
@@ -16,10 +17,9 @@ export async function POST(request: Request) {
     // Pending amounts and evidence never enter either payload.
     // Spell out Finnish-formatted currency for the English voice; the raw €
     // symbol was pronounced as "arrow" in the live acceptance recording.
-    const text = toView(state).message.replace(/(\d(?:[\d \u00a0\u202f]*\d)?),(\d{2})\s*€/g,
-      (_match, euros: string, cents: string) => `${euros.replace(/\s/g, "")} euros and ${Number(cents)} cents`);
+    const text = speechText(toView(state).message);
     await consumeBudget(id, "speech");
-    const audio = await synthesizeSpeech(text.slice(0, 600), request.signal);
+    const audio = await synthesizeSpeech(text, request.signal);
     return new Response(Buffer.from(audio), { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" } });
   } catch (error) { return failure(error); }
 }

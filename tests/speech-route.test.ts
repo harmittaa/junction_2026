@@ -15,7 +15,8 @@ it("authorizes speech from the current server state, withholds pending facts, an
     method: "POST", headers: { origin: "https://demo.example", "Content-Type": "application/json" }, body: JSON.stringify(body),
   }));
   const pending = { ...transition(initialState(), { action: "ask", revision: 0, text: "August groceries" }, {
-    kind: "spending", query: { category: "Groceries", start: "2026-08-01", end: "2026-08-31" }, percent: null, direct: false, reply: "none",
+    kind: "spending", query: { categories: ["Groceries"], baskets: [], merchantType: null, start: "2026-08-01", end: "2026-08-31" }, percent: null, direct: false, reply: "none",
+    comparePeriod: null, by: null, top: null, concept: null,
   }), revision: 1 };
   io.read.mockResolvedValue(pending);
   expect((await send({ revision: 1 })).status).toBe(200);
@@ -28,12 +29,13 @@ it("authorizes speech from the current server state, withholds pending facts, an
   const revealed = await send({ revision: 2 });
   expect(revealed.status).toBe(200);
   expect(revealed.headers.get("Content-Type")).toBe("audio/mpeg");
-  expect(spoken[1]).toContain("1111 euros and 6 cents");
+  expect(spoken[1]).toContain("one thousand one hundred eleven euros and six cents");
   expect(spoken[1]).toContain("groceries in August 2026, across 16 payments");
   const later = transition({ ...initialState(), demoDate: "2026-09-30" }, { action: "ask", revision: 0, text: "Health in September, just show me" }, {
-    kind: "spending", query: { category: "Health", start: "2026-09-01", end: "2026-09-30" }, percent: null, direct: true, reply: "none",
+    kind: "spending", query: { categories: ["Health"], baskets: [], merchantType: null, start: "2026-09-01", end: "2026-09-30" }, percent: null, direct: true, reply: "none",
+    comparePeriod: null, by: null, top: null, concept: null,
   });
   io.read.mockResolvedValue(later);
   expect((await send({ revision: 0 })).status).toBe(200);
-  expect(spoken[2]).toContain("73 euros and 15 cents");
+  expect(spoken[2]).toContain("seventy three euros and fifteen cents");
 });

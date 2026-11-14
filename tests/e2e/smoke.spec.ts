@@ -168,6 +168,37 @@ test("phone visit keeps the answer hidden, corrects a scenario, and persists one
   expect(await page.locator(".sp-coach-motion").evaluate(element => getComputedStyle(element).animationName)).toBe("none");
 });
 
+test("free-form breakdown shows scoped rows and a rejected writer still completes the turn", async ({ page }) => {
+  await enter(page);
+  const result = await ask(page, "Where did my money go in August?");
+  expect(result.activity.kind).toBe("analysis");
+  expect(result.activity.analysis.kind).toBe("breakdown");
+  const rows = result.activity.analysis.sections.flatMap((section: { rows: { label: string; amountCents: number }[] }) => section.rows);
+  expect(rows).toContainEqual(expect.objectContaining({ label: "Total spending", amountCents: 444878 }));
+  expect(rows).toContainEqual(expect.objectContaining({ label: "Groceries", amountCents: 111106 }));
+  expect(result.activity.analysis.evidenceCount).toBe(59);
+  expect(result.activity.analysis.evidence).toHaveLength(40);
+  await expect(page.locator(".sp-activities")).toContainText("2026-08-01");
+  await expect(page.locator(".sp-activities")).toContainText(/4\s448,78/);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.getByRole("button", { name: "Dark appearance", exact: true }).click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.waitForTimeout(750);
+  const fallback = await ask(page, "fabricated composition");
+  expect(fallback.activity.spending.totalCents).toBe(38472);
+  await expect(page.locator(".coach-message")).toContainText("384,72");
+  await expect(page.locator(".coach-message")).not.toContainText("99999");
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await page.waitForTimeout(750);
+  const whatif = await ask(page, "What if I cut restaurants by 20%?");
+  expect(whatif.activity.analysis.kind).toBe("whatif");
+  expect(whatif.activity.analysis.evidenceCount).toBe(30);
+  await expect(page.locator(".sp-card p").filter({ hasText: /^Historical ·/ })).not.toContainText("30 transactions");
+  await expect(page.getByRole("region", { name: "Projection basis: 2026-06-01 to 2026-08-31" })).toContainText("602,16");
+  await expect(page.getByRole("region", { name: "Selected period: 2026-08-01 to 2026-08-31" })).toContainText("10 transactions");
+});
+
 test("a lost complete response never re-confirms the action on a newer date", async ({ page }) => {
     await enter(page);
     const headers = { Origin: "http://localhost:3200" };
