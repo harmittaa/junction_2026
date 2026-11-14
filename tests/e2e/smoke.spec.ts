@@ -40,7 +40,7 @@ test("provider failure and fabricated prose preserve typing, saved state and ses
   const arbitrarySpeech = await page.request.post("/api/speech", { headers, data: { revision: direct.revision + 1, text: "Invented savings" } });
   expect(arbitrarySpeech.status()).toBe(400);
   const cookies = await context.cookies();
-  expect(cookies.find(cookie => cookie.name === "sponky_session")).toMatchObject({ httpOnly: true, sameSite: "Strict" });
+  expect(cookies.find(cookie => cookie.name === "__session")).toMatchObject({ httpOnly: true, sameSite: "Strict" });
   await context.clearCookies();
   const other = await (await page.request.get("/api/session")).json();
   expect(other.revision).toBe(0);

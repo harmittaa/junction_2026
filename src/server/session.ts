@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 import { config } from "@/server/config";
 import { AppError } from "@/server/errors";
 
-const cookieName = "sponky_session";
+// Firebase Hosting forwards only this cookie to the Cloud Run backend.
+const cookieName = "__session";
 const maxAge = 60 * 60 * 24 * 7;
 export function signSession(id: string, expires: number, secret: string) {
   const value = `${id}.${expires}`;
@@ -24,10 +25,15 @@ export async function sessionId(create = false): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const current = verifySession(jar.get(cookieName)?.value ?? "", secret, now);
   if (current) return current;
-  if (!create) throw new AppError("Your demo session expired. Refresh to start a new session.", 401, true);
-  const id = randomUUID();
-  jar.set(cookieName, signSession(id, now + maxAge, secret), {
-    httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge,
+  // Keep existing sessions on the original App Hosting origin through the rename.
+  const legacyToken = jar.get("sponky_session")?.value ?? "";
+  const legacyId = verifySession(legacyToken, secret, now);
+  if (!legacyId && !create) throw new AppError("Your demo session expired. Refresh to start a new session.", 401, true);
+  const id = legacyId ?? randomUUID();
+  const token = legacyId ? legacyToken : signSession(id, now + maxAge, secret);
+  jar.set(cookieName, token, {
+    httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/",
+    maxAge: legacyId ? Number(legacyToken.split(".")[1]) - now : maxAge,
   });
   return id;
 }
