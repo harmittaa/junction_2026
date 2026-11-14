@@ -152,12 +152,14 @@ try {
   }
   await page.goto(base);
   await page.getByRole('button', { name: 'Talk to Sponky', exact: true }).tap();
-  const ready = page.getByRole('button', { name: 'Sponky. Tap to talk', exact: true });
+  const ready = page.getByRole('button', { name: 'Sponky. Hold to talk', exact: true });
   await expect(ready).toBeEnabled();
   report.before = await (await page.request.get(`${base}/api/session`)).json();
   if (!spending) await page.getByRole('button', { name: 'Sound on', exact: true }).tap();
-  await ready.tap();
-  const stop = page.getByRole('button', { name: 'Sponky. Stop and send', exact: true });
+  const touch = await page.context().newCDPSession(page);
+  const box = await ready.boundingBox();
+  await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }] });
+  const stop = page.getByRole('button', { name: 'Sponky. Release to send', exact: true });
   await expect(stop).toBeVisible({ timeout: 20000 });
   report.listeningTracks = await page.evaluate(() => window.__tracks.map(t => ({ kind: t.kind, state: t.readyState })));
   assert.ok(report.listeningTracks.some(t => t.kind === 'audio' && t.state === 'live'));
@@ -167,7 +169,7 @@ try {
   await page.screenshot({ path: `${out}/${label}-listening.png`, fullPage: true });
   await page.waitForTimeout(spending ? 3800 : 10800);
   assert.equal(report.coachRequests.length, 0, 'No banking request before manual stop');
-  await stop.tap();
+  await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await expect.poll(() => report.coachRequests.length, { timeout: 15000 }).toBe(1);
   report.finalText = report.coachRequests[0].text;
   report.normalizedActual = normalize(report.finalText);
@@ -175,7 +177,7 @@ try {
   assert.ok(report.normalizedMatch, 'Exact punctuation-normalized transcript mismatch');
   if (spending && live) {
     const finishPlayback = async (index, stage) => {
-      await expect(page.getByRole('button', { name: 'Sponky. Speak instead', exact: true })).toBeVisible({ timeout: 35000 });
+      await expect(page.getByRole('button', { name: 'Sponky. Hold to interrupt', exact: true })).toBeVisible({ timeout: 35000 });
       await expect.poll(level).toBeGreaterThan(0);
       report[`${stage}PlaybackLevel`] = await level();
       report[stage] = await (await page.request.get(`${base}/api/session`)).json();

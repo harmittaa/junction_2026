@@ -102,12 +102,10 @@ export function Sponky() {
       setRequestState({ kind: "error", message: error instanceof Error ? error.message : "Please retry. Your saved state is safe." });
     }
   }
-  async function pressCoach() {
-    if (voice.state === "listening") { await voice.stop(); return; }
-    if (voice.state === "connecting" || voice.state === "transcribing") { voice.cancel(); return; }
+  function startCoach() {
     cancelRequest();
     setVoiceError("");
-    await voice.start();
+    void voice.start();
   }
   const coachState = voice.state === "listening" ? "listening" : voice.state === "speaking" ? "speaking"
     : busy || ["connecting", "transcribing", "loading"].includes(voice.state) ? "thinking" : celebrate ? "celebrate" : "ready";
@@ -129,7 +127,9 @@ export function Sponky() {
     <div className="toolbar"><button className="text-button" aria-pressed={voice.muted} onClick={voice.toggleMute}>{voice.muted ? "Sound off" : "Sound on"}</button><button className="text-button" aria-expanded={showHistory} onClick={() => setShowHistory(!showHistory)}>History</button></div>
     <p className="demo-date">Historical demo · Simulated {view?.demoDate ?? "2024-11-04"}</p>
     {showHistory && <History entries={history} onClose={() => setShowHistory(false)} />}
-    <Coach state={coachState} level={voice.level} onPress={() => void pressCoach()} disabled={!view} compact={view?.activity.kind !== "none" && !!view} />
+    <Coach state={coachState} readBands={voice.readBands} onStart={startCoach}
+      onRelease={() => void voice.stop()} onCancel={voice.cancel} connecting={voice.state === "connecting"}
+      disabled={!view} compact={view?.activity.kind !== "none" && !!view} />
     {voice.state === "connecting" && <p className="meta" role="status">Connecting microphone…</p>}
     {voice.state === "transcribing" && <p className="meta" role="status">Finishing your words…</p>}
     {["connecting", "transcribing", "loading"].includes(voice.state) && <button className="text-button replay" onClick={voice.cancel}>Cancel voice</button>}

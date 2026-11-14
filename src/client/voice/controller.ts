@@ -1,9 +1,10 @@
 import { speechRequestSchema, voiceTokenSchema } from "../../shared/contracts";
 import { ScribeSession } from "./scribe";
+import { toBands } from "./bands";
 
 type Capture = "ready" | "connecting" | "listening" | "transcribing";
 type Playback = "ready" | "loading" | "speaking";
-export type VoiceSnapshot = { state: Capture | Playback; level: number; partial: string; muted: boolean };
+export type VoiceSnapshot = { state: Capture | Playback; partial: string; muted: boolean };
 export type VoiceCallbacks = { onTranscript: (text: string) => void; onError: (message: string) => void };
 type Turn = {
   abort: AbortController;
@@ -12,7 +13,8 @@ type Turn = {
   session?: ScribeSession;
   worklet?: AudioWorkletNode;
   nodes: AudioNode[];
-  frame?: number;
+  analyser?: AnalyserNode;
+  spectrum?: Uint8Array<ArrayBuffer>;
   timer?: ReturnType<typeof setTimeout>;
   flush?: () => void;
   flushCapture?: () => Promise<void>;
@@ -52,7 +54,7 @@ export class VoiceController {
   private capture: Capture = "ready";
   private playback: Playback = "ready";
   private current?: Turn;
-  private snapshot: VoiceSnapshot = { state: "ready", level: 0, partial: "", muted: false };
+  private snapshot: VoiceSnapshot = { state: "ready", partial: "", muted: false };
 
   constructor(private callbacks: VoiceCallbacks, private changed: (snapshot: VoiceSnapshot) => void) {}
 
@@ -76,13 +78,12 @@ export class VoiceController {
       }
       turn.stream?.getTracks().forEach(track => track.stop());
       turn.nodes.forEach(node => node.disconnect());
-      if (turn.frame !== undefined) cancelAnimationFrame(turn.frame);
       clearTimeout(turn.timer);
       void turn.context.close().catch(() => {});
     }
     this.capture = "ready";
     this.playback = "ready";
-    this.update({ level: 0, partial: "" });
+    this.update({ partial: "" });
   };
 
   private failed(turn: Turn) {
@@ -93,20 +94,28 @@ export class VoiceController {
 
   private meter(turn: Turn, source: AudioNode) {
     const analyser = turn.context.createAnalyser();
-    analyser.fftSize = 256;
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.6;
+    analyser.minDecibels = -85;
+    analyser.maxDecibels = -25;
     source.connect(analyser);
     turn.nodes.push(analyser);
-    const samples = new Float32Array(analyser.fftSize);
-    const tick = () => {
-      if (this.current !== turn) return;
-      analyser.getFloatTimeDomainData(samples);
-      let sum = 0;
-      for (const value of samples) sum += value * value;
-      this.update({ level: Math.min(1, Math.sqrt(sum / samples.length)) });
-      turn.frame = requestAnimationFrame(tick);
-    };
-    tick();
+    turn.analyser = analyser;
+    turn.spectrum = new Uint8Array(analyser.frequencyBinCount);
   }
+
+  // Pull into the drawing loop's reusable buffer, never publish audio frames to React.
+  readBands = (out: Float32Array): boolean => {
+    const turn = this.current;
+    if (!turn?.analyser || !turn.spectrum || turn.context.state !== "running"
+      || (this.capture !== "listening" && this.playback !== "speaking")) {
+      out.fill(0);
+      return false;
+    }
+    turn.analyser.getByteFrequencyData(turn.spectrum);
+    toBands(turn.spectrum, turn.context.sampleRate, turn.analyser.fftSize, 16, out);
+    return true;
+  };
 
   start = async () => {
     this.cancel(); // Explicit interruption: playback is released before microphone access.
@@ -164,7 +173,11 @@ export class VoiceController {
       this.capture = "listening";
       this.update();
       clearTimeout(active.timer);
-      active.timer = setTimeout(() => { void this.stop(); }, 30_000);
+      active.timer = setTimeout(() => {
+        if (this.current !== active) return;
+        this.cancel();
+        this.callbacks.onError("Recording reached 30 seconds and was canceled. Hold again for a shorter question, then release to send.");
+      }, 30_000);
       // Save a flushing operation on the turn; it runs before the manual commit.
       active.flushCapture = () => new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error(failure)), 1000);
@@ -183,8 +196,7 @@ export class VoiceController {
     if (this.capture === "connecting") { this.cancel(); return; }
     this.capture = "transcribing";
     clearTimeout(turn.timer);
-    if (turn.frame !== undefined) cancelAnimationFrame(turn.frame);
-    this.update({ level: 0 });
+    this.update();
     try {
       await turn.flushCapture?.();
       if (this.current !== turn) return;
