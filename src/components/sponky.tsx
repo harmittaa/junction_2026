@@ -139,7 +139,12 @@ export function Sponky() {
     {["starting", "transcribing", "loading"].includes(voice.state) && <button className="text-button replay" onClick={voice.cancel}>Cancel voice</button>}
     <p className="coach-message" aria-live="polite">{view?.message ?? "Opening your coach…"}</p>
     <form className="typing" data-visible={!!voiceError} onSubmit={event => { event.preventDefault(); if (view && text.trim()) void send({ action: "ask", revision: view.revision, text }, draftVersion.current); }}><label><span className="sr-only">Message</span><input value={text} maxLength={600} onChange={event => { draftVersion.current++; setText(event.target.value); }} placeholder="Type a message" /></label><button disabled={!view || busy || !text.trim()}>Send</button></form>
-    {!view?.habit && view?.activity.kind === "none" && <div className="starters"><button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "How much did I spend on groceries last month?" })}>My August groceries ↗</button><button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "I've had a long day." })}>Talk about my day ↗</button></div>}
+    {!view?.habit && view?.activity.kind === "none" && <div className="starters">
+      <button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "Show my August spending by category." })}>Break down my August spending ↗</button>
+      <button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "How much did I spend on taxis last month?" })}>Taxis last month ↗</button>
+      <button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "What kind of spender am I?" })}>Explore my spending profile ↗</button>
+      <button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "Show my groceries spending trend by month." })}>My groceries over time ↗</button>
+    </div>}
     {view && <Activities view={view} busy={busy} onAction={request => void send(request)} />}
     {view?.habit && view.activity.kind !== "checkin" && <button className="checkin-entry" disabled={busy} onClick={() => void send({ action: "checkin", revision: view.revision })}>Daily check-in <span aria-hidden="true">↗</span></button>}
     {requestState.kind === "error" && <div className="error" role="alert"><p>{requestState.message}</p><button className="text-button" onClick={() => {
