@@ -32,7 +32,7 @@ test("provider failure and fabricated prose preserve typing, saved state and ses
   expect((await (await page.request.get("/api/session")).json()).revision).toBe(direct.revision);
   await page.waitForTimeout(750);
   await ask(page, "I've had a long day");
-  await expect(page.locator(".coach-message")).toContainText("We don't need to turn it into a money task");
+  await expect(page.locator(".coach-message")).toContainText("We can skip the money talk");
   const headers = { Origin: "http://localhost:3200" };
   const forged = await page.request.post("/api/coach", { headers, data: { action: "ask", revision: direct.revision + 1, text: "another customer", customerId: "CUST00002" } });
   expect(forged.status()).toBe(400);
@@ -65,7 +65,7 @@ test("phone visit keeps the answer hidden, corrects a scenario, and persists one
   await page.getByText("Evidence & basket corrections (11)", { exact: true }).click();
   await page.getByLabel("Basket interpretation", { exact: true }).first().selectOption("regular");
   await page.getByRole("button", { name: "Confirm correction", exact: true }).click();
-  await expect(page.locator(".coach-message")).toContainText("Historical spending is unchanged");
+  await expect(page.locator(".coach-message")).toContainText("The amount stays the same");
   await expect(page.locator(".sp-basket[data-basket=regular]")).toContainText("32,51");
   await page.getByText("Evidence & basket corrections (11)", { exact: true }).click();
   await page.getByRole("button", { name: "Confirm what-if", exact: true }).click();
@@ -77,7 +77,7 @@ test("phone visit keeps the answer hidden, corrects a scenario, and persists one
   await page.getByRole("textbox", { name: "Category", exact: true }).fill("Housing");
   await page.getByRole("textbox", { name: "My daily action", exact: true }).fill("Review my essential housing costs");
   await page.getByRole("button", { name: "Confirm habit", exact: true }).click();
-  await expect(page.locator(".coach-message")).toContainText("habit is saved");
+  await expect(page.locator(".coach-message")).toContainText("Habit saved");
   await page.getByRole("button", { name: "Daily check-in", exact: true }).click();
   await expect(page.locator(".coach-message")).toContainText("535,20");
   await page.getByRole("radio", { name: "I’m just reflecting today", exact: true }).check();
@@ -92,7 +92,7 @@ test("phone visit keeps the answer hidden, corrects a scenario, and persists one
   await page.getByText("Demo controls", { exact: true }).click();
   await page.getByRole("button", { name: "Advance simulated day", exact: true }).click();
   await expect(page.locator(".demo-date")).toContainText("2024-11-05");
-  await expect(page.locator(".coach-message")).toContainText("No housing spending recorded");
+  await expect(page.locator(".coach-message")).toContainText("no housing spending recorded");
   await page.getByRole("radio", { name: "I followed my action", exact: true }).check();
   await page.getByRole("button", { name: "Complete check-in", exact: true }).click();
   await expect(page.locator(".sp-days")).toContainText("2 completed reflection days");

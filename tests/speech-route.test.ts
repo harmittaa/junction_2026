@@ -29,8 +29,7 @@ it("authorizes speech from the current server state, withholds pending facts, an
   expect(revealed.status).toBe(200);
   expect(revealed.headers.get("Content-Type")).toBe("audio/mpeg");
   expect(spoken[1]).toContain("752 euros and 75 cents");
-  expect(spoken[1]).toContain("11 groceries transactions");
-  expect(spoken[1]).toContain("not money saved");
+  expect(spoken[1]).toContain("groceries in October 2024, across 11 payments");
   const later = transition({ ...initialState(), demoDate: "2024-11-30" }, { action: "ask", revision: 0, text: "Health in November, just show me" }, {
     kind: "spending", query: { category: "Health", start: "2024-11-01", end: "2024-11-30" }, percent: null, direct: true, reply: "none",
   });
