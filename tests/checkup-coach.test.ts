@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { speechText, verifyReply } from "@/domain/replies";
+import { euros } from "@/domain/spending";
 import { replyFacts, toView, transition } from "@/server/coach";
 import { scopePlan, type Interpretation } from "@/server/providers/gemini";
 import { initialState, type SessionState } from "@/server/storage/state";
@@ -230,5 +231,79 @@ describe("financial reply clauses", () => {
     const swappedUsual = usual.fallback.replace(/so far/, "in your usual month");
     expect(swappedUsual).not.toBe(usual.fallback);
     expect(verifyReply(swappedUsual, usual)).toBe(false);
+  });
+});
+
+describe("month selection and past-month jar questions", () => {
+  it("transitions between months and rejects out-of-range selections", () => {
+    const july = transition(initialState(), { action: "select-month", revision: 0, month: "2026-07" });
+    expect(july.jarMonth).toBe("2026-07");
+    expect(july.mode).toBe("jar");
+    expect(july.message).toBe(`${euros(120419)} left in your July 2026 jar, finishing inside your ${euros(220000)} limit.`);
+    const julyView = toView(july);
+    expect(julyView.jar.period).toEqual({ start: "2026-07-01", end: "2026-07-31" });
+    expect(julyView.jar.spentCents).toBe(99581);
+    expect(julyView.demoDate).toBe("2026-09-16");
+    expect(julyView.checkup).toMatchObject({ streak: 2, due: true, completed: false });
+
+    const august = transition(initialState(), { action: "select-month", revision: 0, month: "2026-08" });
+    expect(august.jarMonth).toBe("2026-08");
+    expect(august.message).toContain(`Your August 2026 jar went ${euros(113652)} over the rim.`);
+    const augustView = toView(august);
+    expect(augustView.jar.period).toEqual({ start: "2026-08-01", end: "2026-08-31" });
+    expect(augustView.jar.spentCents).toBe(333652);
+
+    const backToCurrent = transition(august, { action: "select-month", revision: 0, month: "2026-09" });
+    expect(backToCurrent.jarMonth).toBeNull();
+    expect(backToCurrent.message).toContain("left in your September 2026 jar, with 14 days to go.");
+    expect(toView(backToCurrent).jar.period).toEqual({ start: "2026-09-01", end: "2026-09-16" });
+
+    expect(() => transition(initialState(), { action: "select-month", revision: 0, month: "2026-01" }))
+      .toThrow("Choose an available month.");
+    expect(() => transition(initialState(), { action: "select-month", revision: 0, month: "2026-10" }))
+      .toThrow("Choose an available month.");
+
+    const next = transition(august, { action: "next-week", revision: 0 });
+    expect(next.jarMonth).toBeNull();
+    expect(next.demoDate).toBe("2026-09-23");
+  });
+
+  it("answers pace, usual and overspend questions for a selected past month without changing demoDate or checkup credit", () => {
+    const augustState = transition(initialState(), { action: "select-month", revision: 0, month: "2026-08" });
+
+    const paceOver = ask(augustState, "How was my pace?", { ...scopePlan, kind: "pace" });
+    expect(paceOver.mode).toBe("pace");
+    expect(paceOver.message).toBe(`You went ${euros(113652)} over August 2026's limit. The card shows your full pace details.`);
+    const paceOverView = toView(paceOver);
+    expect(paceOverView.demoDate).toBe("2026-09-16");
+    expect(paceOverView.checkup).toMatchObject({ streak: 2, due: true, completed: false });
+    expect(paceOverView.jar.spentCents).toBe(333652);
+
+    const julyState = transition(initialState(), { action: "select-month", revision: 0, month: "2026-07" });
+    const paceUnder = ask(julyState, "How was my pace?", { ...scopePlan, kind: "pace" });
+    expect(paceUnder.mode).toBe("pace");
+    expect(paceUnder.message).toBe(`July 2026 finished at ${euros(3212)} a day. The card shows your full pace details.`);
+
+    const usual = ask(augustState, "Compare with usual", { ...scopePlan, kind: "usual" });
+    expect(usual.mode).toBe("usual");
+    expect(usual.message).toContain("in August 2026.");
+    expect(usual.message).toContain("The full comparison is on screen. Your usual month averages the previous 6 complete months.");
+    const usualView = toView(usual);
+    expect(usualView.demoDate).toBe("2026-09-16");
+    expect(usualView.checkup.completed).toBe(false);
+    if (usualView.activity.kind === "usual") {
+      expect(usualView.activity.comparison.period).toEqual({ start: "2026-08-01", end: "2026-08-31" });
+      expect(usualView.activity.comparison.baseline).toEqual({ start: "2026-02-01", end: "2026-07-31" });
+    }
+
+    const overspend = ask(augustState, "Which days pushed me over?", { ...scopePlan, kind: "overspend" });
+    expect(overspend.mode).toBe("overspend");
+    expect(overspend.message).toContain(`Your August 2026 jar went ${euros(113652)} over the rim.`);
+    const overspendView = toView(overspend);
+    expect(overspendView.demoDate).toBe("2026-09-16");
+    expect(overspendView.checkup.completed).toBe(false);
+
+    const facts = replyFacts(paceOver);
+    expect(facts.period).toBe("in August 2026");
   });
 });

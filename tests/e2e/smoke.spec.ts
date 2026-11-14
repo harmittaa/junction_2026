@@ -76,9 +76,7 @@ test("entry before session load speaks the welcome once without replaying on rer
   await expect(page.locator(".coach-message")).toContainText("check-up");
   await expect.poll(() => speech).toEqual([{ revision: 0, entry: true }]);
   await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "speaking");
-  await page.getByRole("button", { name: "Dark appearance", exact: true }).click();
   await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "ready", { timeout: 8000 });
-  await page.getByRole("button", { name: "Light appearance", exact: true }).click();
   expect(speech).toEqual([{ revision: 0, entry: true }]);
 });
 
@@ -180,8 +178,10 @@ test(`free questions in ${order.join(" then ")} order do not complete a week`, a
     await expect(page.getByLabel("2 week check-up streak")).toBeVisible();
     await expect(page.locator(".checkup-reward")).toHaveCount(0);
   }
+  await expect(page.locator(".checkup-heading time")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Dark appearance|Light appearance/ })).toHaveCount(0);
   const advanced = page.waitForResponse(response => response.url().endsWith("/api/coach"));
-  await page.locator(".checkup-heading time").click({ clickCount: 3, delay: 80 });
+  await page.locator(".checkup-streak").click({ clickCount: 3, delay: 80 });
   expect(viewSchema.parse(await (await advanced).json())).toMatchObject({ demoDate: "2026-09-23",
     checkup: { due: true, completed: false, streak: 0, completedDates: ["2026-09-02", "2026-09-09"] }, jar: { overCents: 12720 } });
   await expect(page.getByRole("button", { name: questions.days, exact: true })).toBeVisible();
@@ -215,9 +215,8 @@ test("profile, taxi and six-month hypothetical reduction remain grounded direct 
   expect(whatif.checkup).toMatchObject({ due: true, streak: 2 });
   await page.setViewportSize({ width: 360, height: 800 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.getByRole("button", { name: "Dark appearance", exact: true }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: testInfo.outputPath("whatif-dark-360.png"), fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath("whatif-360.png"), fullPage: true });
   const jar = await chip(page, questions.jar);
   expect(jar).toMatchObject({ activity: { kind: "jar" }, jar: { leftCents: 91229 }, checkup: { due: true, streak: 2 } });
 });
@@ -309,4 +308,42 @@ test("a lost weekly completion response cannot award the newer week on retry", a
   await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
   expect(await (await page.request.get("/api/session")).json()).toMatchObject({ demoDate: "2026-09-23",
     checkup: { due: true, completed: false, completedDates: ["2026-09-02", "2026-09-09", "2026-09-16"] } });
+});
+
+test("selecting a past month jar updates the display and answers jar questions in that month's context", async ({ page }) => {
+  await enter(page);
+  await chip(page, questions.jar);
+  await expect(page.getByLabel("September spending jar")).toBeVisible();
+  await expect(page.locator(".checkup-jar-amount")).toHaveText("912,29 €");
+
+  const aug = page.waitForResponse(response => response.url().endsWith("/api/coach"));
+  await page.locator(".checkup-months button").filter({ hasText: "Aug" }).click();
+  expect((await aug).status()).toBe(200);
+  await expect(page.getByLabel("August spending jar")).toBeVisible();
+  await expect(page.locator(".checkup-jar-amount")).toHaveText("1 136,52 €");
+
+  const jul = page.waitForResponse(response => response.url().endsWith("/api/coach"));
+  await page.locator(".checkup-months button").filter({ hasText: "Jul" }).click();
+  expect((await jul).status()).toBe(200);
+  await expect(page.getByLabel("July spending jar")).toBeVisible();
+  await expect(page.locator(".checkup-jar-amount")).toHaveText("1 204,19 €");
+
+  const augReturn = page.waitForResponse(response => response.url().endsWith("/api/coach"));
+  await page.locator(".checkup-months button").filter({ hasText: "Aug" }).click();
+  expect((await augReturn).status()).toBe(200);
+  await expect(page.getByLabel("August spending jar")).toBeVisible();
+
+  const overspend = await chip(page, questions.days);
+  expect(overspend.activity.kind).toBe("overspend");
+  await expect(page.getByRole("heading", { name: "The days that filled your jar" })).toBeVisible();
+  await expect(page.locator(".sp-meta").first()).toContainText("2026-08-01 – 2026-08-31");
+
+  await chip(page, questions.jar);
+  await expect(page.getByLabel("August spending jar")).toBeVisible();
+
+  const sep = page.waitForResponse(response => response.url().endsWith("/api/coach"));
+  await page.locator(".checkup-months button").filter({ hasText: "Sep" }).click();
+  expect((await sep).status()).toBe(200);
+  await expect(page.getByLabel("September spending jar")).toBeVisible();
+  await expect(page.locator(".checkup-jar-amount")).toHaveText("912,29 €");
 });

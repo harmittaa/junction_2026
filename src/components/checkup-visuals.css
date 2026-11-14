@@ -35,6 +35,29 @@
 .checkup-jar-stage { width: 100%; max-width: 320px; height: auto; min-height: 0; display: block; margin: 0 auto; overflow: visible; }
 .checkup-main-jar { transform: translateX(40px); transition: transform 800ms var(--checkup-glide); }
 .checkup-jar[data-two=true] .checkup-main-jar { transform: none; }
+.checkup-jar-body {
+  transform-origin: 120px 220px;
+  transform-box: view-box;
+  animation: checkup-jar-enter 800ms var(--checkup-spring) both, checkup-jar-float 5s ease-in-out 800ms infinite;
+}
+@keyframes checkup-jar-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes checkup-jar-float {
+  0%, 100% {
+    transform: none;
+  }
+  50% {
+    transform: translateY(-2.5px) rotate(0.4deg);
+  }
+}
 .checkup-glass { fill: none; stroke: var(--textBrand); stroke-width: 4; stroke-linecap: round; }
 .checkup-liquid-front { fill: var(--fill-action, var(--primaryPressed)); }
 .checkup-liquid-back { fill: var(--brand-greenBright); opacity: .65; }
@@ -49,8 +72,40 @@
 .checkup-mini-label { fill: var(--status-infoText); font: 600 11px var(--font-ux), sans-serif; }
 .checkup-payment-bubble { fill: var(--status-warningBorder); pointer-events: none; }
 .checkup-payment-bubble.checkup-bubble-arriving { fill: var(--status-infoBorder); }
-.checkup-months { flex: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(28px, 1fr)); gap: 8px 4px; list-style: none; padding: 0; margin: 0; text-align: center; color: var(--textMuted); font-size: 11px; }
+.checkup-months { flex: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(28px, 1fr)); gap: 6px 3px; list-style: none; padding: 0; margin: 0; text-align: center; color: var(--textMuted); font-size: 11px; }
 .checkup-months li { animation: checkup-rise 450ms var(--checkup-spring) both; animation-delay: calc(200ms + var(--month) * 70ms); }
+.checkup-months button {
+  width: 100%;
+  min-height: 48px;
+  padding: 4px 2px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+.checkup-months button:focus-visible {
+  outline: 2px solid var(--textBrand);
+  outline-offset: 1px;
+}
+.checkup-months button[data-selected="true"] {
+  background: var(--surfaceAccent);
+  color: var(--textBrand);
+  box-shadow: inset 0 0 0 1.5px var(--textBrand);
+  font-weight: 700;
+}
+.checkup-months button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .checkup-month-mark { display: block; width: 22px; height: 22px; margin: 0 auto 3px; border-radius: 50%; font-size: 12px; font-weight: 700; line-height: 22px; }
 .checkup-months [data-inside=true] .checkup-month-mark { background: var(--fill-action, var(--primaryPressed)); color: var(--onPrimary); }
 .checkup-months [data-inside=false] .checkup-month-mark { background: var(--status-warningBg); color: var(--status-warningText); box-shadow: inset 0 0 0 1.5px var(--status-warningBorder); }

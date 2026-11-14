@@ -10,7 +10,6 @@ import "./checkup-screen.css";
 type RequestState = { kind: "idle" } | { kind: "sending" } | { kind: "error"; message: string; outdated?: boolean };
 const ribbon = <svg viewBox="0 0 120 120"><path d="M69 10C107 34 39 80 77 110M43 10C81 34 13 80 51 110" /></svg>;
 const bankCards = [["Accounts", "S-Tili · Taloustili"], ["Payments and e-invoices", "Make a new payment or view e-invoices"], ["Cards", "S-Etukortti Visa Credit/Debit"], ["Säästäjä", "Oma tavoitteeni"], ["Investments", "Value of your investments"]];
-const dateFormat = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const questions = {
   pace: "Am I still on track?", usual: "What have I spent more on than usual?",
   profile: "What kind of spender am I?", taxi: "How much did I spend on taxis this year?",
@@ -44,7 +43,6 @@ export function Sponky() {
   const [reward, setReward] = useState(false);
   const [revealKey, setRevealKey] = useState<number | undefined>();
   const [entryCaption, setEntryCaption] = useState(true);
-  const [dark, setDark] = useState(false);
   const activeRequest = useRef<AbortController | null>(null);
   const requestId = useRef(0);
   const lastRequest = useRef<CoachRequest | null>(null);
@@ -162,7 +160,7 @@ export function Sponky() {
         const moved = next.move && (!view?.move || next.move.transactionId !== view.move.transactionId
           || next.move.from !== view.move.from || next.move.to !== view.move.to);
         if (moved) setRevealKey(undefined);
-        else if (next.activity.kind === "jar") setRevealKey(next.revision);
+        else if (next.activity.kind === "jar" && request.action !== "select-month") setRevealKey(next.revision);
         void voice.speak(next.revision);
       }
     } catch (error) {
@@ -209,17 +207,14 @@ export function Sponky() {
     <header className="checkup-header">
       <button className="icon-button checkup-back" aria-label="Back to entry" onClick={() => { voice.cancel(); cancelRequest(); setEntered(false); }}>‹</button>
       <div className="checkup-heading"><h1 onPointerDown={event => { if (event.button !== 0) return; clearHold(); titleHold.current = setTimeout(() => void openSession(true), 1100); }}
-        onPointerUp={clearHold} onPointerLeave={clearHold} onPointerCancel={clearHold} onContextMenu={event => event.preventDefault()}>Sponky</h1>
-        <time dateTime={view?.demoDate} onClick={() => { const now = performance.now(); dateTaps.current = [...dateTaps.current.filter(t => now - t < 800), now]; if (dateTaps.current.length === 3) { dateTaps.current = []; if (view && !busy) void send({ action: "next-week", revision: view.revision }); } }}>{view ? dateFormat.format(new Date(`${view.demoDate}T12:00:00Z`)) : ""}</time>
-      </div>
-      <span className="checkup-streak" aria-label={`${view?.checkup.streak ?? 0} week check-up streak`}><span aria-hidden="true">♨</span> {view?.checkup.streak ?? 0} weeks</span>
+        onPointerUp={clearHold} onPointerLeave={clearHold} onPointerCancel={clearHold} onContextMenu={event => event.preventDefault()}>Sponky</h1></div>
+      <span className="checkup-streak" aria-label={`${view?.checkup.streak ?? 0} week check-up streak`} onClick={() => { const now = performance.now(); dateTaps.current = [...dateTaps.current.filter(t => now - t < 800), now]; if (dateTaps.current.length === 3) { dateTaps.current = []; if (view && !busy) void send({ action: "next-week", revision: view.revision }); } }}><span aria-hidden="true">♨</span> {view?.checkup.streak ?? 0} weeks</span>
       <button className="checkup-setting" aria-label={voice.muted ? "Sound off" : "Sound on"} aria-pressed={voice.muted} onClick={() => { voice.toggleMute(); if (!voice.muted) void sounds.current?.suspend(); }}>{voice.muted ? "♪̸" : "♪"}</button>
-      <button className="checkup-setting" aria-label={dark ? "Light appearance" : "Dark appearance"} onClick={() => { setDark(!dark); document.documentElement.dataset.theme = dark ? "light" : "dark"; }}>{dark ? "☀" : "◐"}</button>
     </header>
     <section className="checkup-canvas" aria-label="Current answer" aria-busy={busy}>
       {view && !hasContent && <CheckupWelcome firstName={view.profile.firstName} date={view.demoDate} due={view.checkup.due} />}
       {view && hasContent && !reward && <div className="checkup-answer" key={view.activity.kind === "jar" ? "jar" : `${view.activity.kind}:${view.revision}`}>
-        {(entryCaption && view.jar.overCents > 0) || view.activity.kind === "jar" ? <Jar jar={view.jar} move={view.move} revealKey={revealKey} /> : <Activities view={view} busy={busy} countActive={voice.state !== "loading"} onAction={request => void send(request)} />}
+        {(entryCaption && view.jar.overCents > 0) || view.activity.kind === "jar" ? <Jar jar={view.jar} move={view.move} revealKey={revealKey} demoDate={view.demoDate} busy={busy} onSelectMonth={month => void send({ action: "select-month", revision: view.revision, month })} /> : <Activities view={view} busy={busy} countActive={voice.state !== "loading"} onAction={request => void send(request)} />}
       </div>}
     </section>
     <section className="checkup-talk" aria-label="Conversation">

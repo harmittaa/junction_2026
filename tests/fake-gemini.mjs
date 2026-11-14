@@ -42,8 +42,14 @@ createServer(async (request, response) => {
   if (/compare/i.test(userMessage)) result = { ...result, kind: "comparison", comparePeriod: { start: "2026-07-01", end: "2026-07-31" } };
   if (/earn.*invest/i.test(userMessage)) result = { ...result, kind: "cashflow", query: { ...result.query, categories: [] } };
   if (/what if/i.test(userMessage) && !/cut restaurants|(?:cut|reduced) dining out/i.test(userMessage)) result = { ...result, kind: "scenario", query: scope.previousQuery, percent: 20 };
-  if (/cut restaurants|(?:cut|reduced) dining out/i.test(userMessage)) result = { ...result, kind: "whatif",
-    query: { ...result.query, categories: ["Restaurants"], baskets: ["everyday"], start: `${scope.referenceDate.slice(0, 7)}-01`, end: scope.referenceDate }, percent: 20 };
+  if (/cut restaurants|(?:cut|reduced) dining out/i.test(userMessage)) {
+    const isPastSelected = scope.selectedMonth && scope.selectedMonth < scope.referenceDate.slice(0, 7);
+    const [y, m] = (isPastSelected ? scope.selectedMonth : scope.referenceDate.slice(0, 7)).split("-").map(Number);
+    const start = isPastSelected ? `${scope.selectedMonth}-01` : `${scope.referenceDate.slice(0, 7)}-01`;
+    const end = isPastSelected ? new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10) : scope.referenceDate;
+    result = { ...result, kind: "whatif",
+      query: { ...result.query, categories: ["Restaurants"], baskets: ["everyday"], start, end }, percent: 20 };
+  }
   if (/on track|pace|per day/i.test(userMessage)) result = { ...result, kind: "pace", query: null };
   if (/more.*usual|compare.*usual/i.test(userMessage)) result = { ...result, kind: "usual", query: null, comparePeriod: null };
   if (/which days|pushed.*over/i.test(userMessage)) result = { ...result, kind: "overspend", query: null };

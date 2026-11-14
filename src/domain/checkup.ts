@@ -8,6 +8,7 @@ type CheckupInput = {
   referenceDate: string;
   corrections: Record<string, Basket>;
   limit: MonthlyLimit;
+  jarMonth?: string | null;
 };
 
 function shiftDate(date: string, days: number): string {
@@ -27,31 +28,43 @@ export function calculateJar(input: CheckupInput): JarStatus {
   dateSchema.parse(referenceDate);
   monthlyLimitSchema.parse(limit);
   dateSchema.parse(`${limit.activeSince}-01`);
-  const start = monthStart(referenceDate);
-  const period = { start, end: referenceDate };
+  const currentMonth = referenceDate.slice(0, 7);
+  if (input.jarMonth) {
+    dateSchema.parse(`${input.jarMonth}-01`);
+    if (input.jarMonth < limit.activeSince || input.jarMonth > currentMonth) {
+      throw new RangeError("Month out of range");
+    }
+  }
+  const targetMonth = input.jarMonth && input.jarMonth < currentMonth ? input.jarMonth : currentMonth;
+  dateSchema.parse(`${targetMonth}-01`);
+  const isPast = targetMonth < currentMonth;
+  const start = `${targetMonth}-01`;
+  const end = isPast ? shiftDate(monthStart(start, 1), -1) : referenceDate;
+  const period = { start, end };
   // calculateSpending owns gross-spending eligibility and corrected/default baskets.
   const spending = calculateSpending(rows, customerId,
     { ...period, categories: [], baskets: [], merchantType: null }, corrections, referenceDate);
   const evidence = spending.evidence.sort((a, b) => b.date.localeCompare(a.date) || b.sourceRow - a.sourceRow);
   const spentCents = spending.baskets.everyday;
-  const elapsedDays = Number(referenceDate.slice(8));
-  const daysInMonth = Number(shiftDate(monthStart(referenceDate, 1), -1).slice(8));
-  const daysLeft = daysInMonth - elapsedDays;
+  const elapsedDays = isPast ? Number(end.slice(8)) : Number(referenceDate.slice(8));
+  const daysInMonth = Number(shiftDate(monthStart(start, 1), -1).slice(8));
+  const daysLeft = isPast ? 0 : daysInMonth - elapsedDays;
   const leftCents = Math.max(0, limit.amountCents - spentCents);
   // Linear extrapolation of historical spending, not live affordability.
-  const projectedCents = Math.floor(spentCents * daysInMonth / elapsedDays);
+  const projectedCents = isPast ? spentCents : Math.floor(spentCents * daysInMonth / elapsedDays);
   const months: JarStatus["months"] = [];
-  for (let month = `${limit.activeSince}-01`; month < start; month = monthStart(month, 1)) {
+  const currentMonthStart = `${currentMonth}-01`;
+  for (let month = `${limit.activeSince}-01`; month < currentMonthStart; month = monthStart(month, 1)) {
     const closed = calculateSpending(rows, customerId, { start: month,
       end: shiftDate(monthStart(month, 1), -1), categories: [], baskets: ["everyday"], merchantType: null },
     corrections, referenceDate);
     months.push({ month: month.slice(0, 7), spentCents: closed.totalCents, inside: closed.totalCents <= limit.amountCents });
   }
   const recentStart = shiftDate(referenceDate, -6);
-  const contributionPeriod = { start: recentStart < start ? start : recentStart, end: referenceDate };
+  const contributionPeriod = isPast ? { start, end } : { start: recentStart < start ? start : recentStart, end: referenceDate };
   const days = new Map<string, JarStatus["topDays"][number]>();
   for (const row of evidence) {
-    if (row.basket !== "everyday" || row.date < contributionPeriod.start) continue;
+    if (row.basket !== "everyday" || row.date < contributionPeriod.start || row.date > contributionPeriod.end) continue;
     const day = days.get(row.date) ?? { date: row.date, amountCents: 0, count: 0 };
     day.amountCents += row.amountCents;
     day.count++;
@@ -66,10 +79,22 @@ export function calculateJar(input: CheckupInput): JarStatus {
 }
 
 export function calculateUsualComparison(input: CheckupInput): UsualComparison {
-  const { rows, customerId, referenceDate, corrections } = input;
+  const { rows, customerId, referenceDate, corrections, limit } = input;
   dateSchema.parse(referenceDate);
-  const period = { start: monthStart(referenceDate), end: referenceDate };
-  const baseline = { start: monthStart(referenceDate, -6), end: shiftDate(period.start, -1) };
+  const currentMonth = referenceDate.slice(0, 7);
+  if (input.jarMonth) {
+    dateSchema.parse(`${input.jarMonth}-01`);
+    if (limit && (input.jarMonth < limit.activeSince || input.jarMonth > currentMonth)) {
+      throw new RangeError("Month out of range");
+    }
+  }
+  const targetMonth = input.jarMonth && input.jarMonth < currentMonth ? input.jarMonth : currentMonth;
+  dateSchema.parse(`${targetMonth}-01`);
+  const isPast = targetMonth < currentMonth;
+  const start = `${targetMonth}-01`;
+  const end = isPast ? shiftDate(monthStart(start, 1), -1) : referenceDate;
+  const period = { start, end };
+  const baseline = { start: monthStart(start, -6), end: shiftDate(start, -1) };
   const current = calculateSpending(rows, customerId,
     { ...period, categories: [], baskets: ["everyday"], merchantType: null }, corrections, referenceDate);
   const previous = calculateSpending(rows, customerId,

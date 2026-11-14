@@ -274,10 +274,6 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
   // Neighbors above the enlarged region must still receive their own touches.
   await page.getByRole("button", { name: "Sound on", exact: true }).tap();
   await expect(page.getByRole("button", { name: "Sound off", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Dark appearance", exact: true }).tap();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await page.getByRole("button", { name: "Light appearance", exact: true }).tap();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   if (compact) {
     await page.getByRole("button", { name: "Am I still on track?", exact: true }).tap();
     await expect(page.getByRole("heading", { name: "A little room each day" })).toBeVisible();

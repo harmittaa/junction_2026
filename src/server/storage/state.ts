@@ -13,11 +13,12 @@ export const sessionStateSchema = z.object({
   analysis: analysisOperationSchema.nullable(), itemLimitation: z.boolean(),
   guessCents: z.number().int().nonnegative().nullable(), percent: z.number().int().min(0).max(100).nullable(),
   skipGuess: z.boolean(), message: z.string().max(1200),
+  jarMonth: z.string().regex(/^\d{4}-\d{2}$/).nullable().optional(),
 });
 export type SessionState = z.infer<typeof sessionStateSchema>;
 // V3 adds the seeded profile and weekly history without reinterpreting daily
 // check-ins. Existing dates, corrections, habits and revision remain unchanged.
-const v3Schema = sessionStateSchema.omit({ move: true }).extend({ version: z.literal(3),
+const v3Schema = sessionStateSchema.omit({ move: true, jarMonth: true }).extend({ version: z.literal(3),
   mode: z.enum(["none", "invitation", "reveal", "checkin", "analysis"]) });
 const v2Schema = v3Schema.omit({ profile: true, weeklyCompletedDates: true }).extend({ version: z.literal(2) });
 const legacySchema = v2Schema.omit({ analysis: true, itemLimitation: true }).extend({
@@ -38,7 +39,7 @@ export function migrateSessionState(value: unknown): SessionState {
   // Retain old activity data, but open the new entry rather than showing a
   // retired guessing/daily-habit screen or outdated stored narration.
   if (v3.success) value = { ...v3.data, version: 4, move: null, mode: "none",
-    message: welcomeMessage, skipGuess: true, guessCents: null };
+    message: welcomeMessage, skipGuess: true, guessCents: null, jarMonth: null };
   return sessionStateSchema.parse(value);
 }
 const welcomeMessage = "A little check-up, or something on your mind? I'm here for both.";
@@ -49,6 +50,6 @@ export function initialState(): SessionState {
     habit: null, completedDates: [], reflections: {}, corrections: {}, query: null,
     analysis: null, itemLimitation: false, move: null,
     mode: "none", guessCents: null, percent: null, skipGuess: true,
-    message: welcomeMessage,
+    message: welcomeMessage, jarMonth: null,
   };
 }
