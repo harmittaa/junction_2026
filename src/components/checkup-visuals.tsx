@@ -236,15 +236,9 @@ export function WeeklyReward({ streak, onFinish, onChime }: { streak: number; on
         callbacks.current.onChime?.();
       }
     };
-    const landTimer = setTimeout(land, calm ? 0 : 700);
-    const finishTimer = setTimeout(() => {
-      if (lifecycle.current.finished) return;
-      lifecycle.current.finished = true;
-      callbacks.current.onFinish();
-    }, 2450);
+    const landTimer = setTimeout(land, calm ? 0 : 1100);
     return () => {
       clearTimeout(landTimer);
-      clearTimeout(finishTimer);
       // Passive cleanup can run after removal has already returned focus to body.
       if ((document.activeElement === element || document.activeElement === document.body) && previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
@@ -263,7 +257,7 @@ export function WeeklyReward({ streak, onFinish, onChime }: { streak: number; on
       <div className="checkup-reward-count" data-reward-count>{streak}</div>
       <div className="checkup-reward-heading">{streak === 1 ? "week" : "weeks"} in a row</div>
       <p>You showed up for your money again.<br />That is the whole trick.</p>
-      <span className="checkup-reward-skip">Tap or press Enter to continue</span>
+      <span className="checkup-reward-skip">Click to continue</span>
     </div>
     <div className="checkup-reward-particles" aria-hidden="true">{Array.from({ length: 28 }, (_, index) => {
       const angle = index * Math.PI * 2 / 28;

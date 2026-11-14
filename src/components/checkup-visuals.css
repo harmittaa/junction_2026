@@ -58,11 +58,11 @@
 
 .checkup-reward { position: fixed; inset: 0; z-index: 100; isolation: isolate; display: grid; place-items: center; padding: max(28px, env(safe-area-inset-top)) 24px max(28px, env(safe-area-inset-bottom)); color: var(--brand-greenTintSubtle); cursor: pointer; outline-offset: -8px; }
 .checkup-reward:focus-visible { outline: 3px solid var(--brand-greenBright); }
-.checkup-reward-surface { position: absolute; inset: 0; z-index: -1; background: var(--brand-greenDeepest); clip-path: circle(150% at 50% 92%); animation: checkup-reward-grow 750ms var(--checkup-glide) both; }
-.checkup-reward-content { text-align: center; animation: checkup-rise 600ms var(--checkup-glide) 200ms both; }
+.checkup-reward-surface { position: absolute; inset: 0; z-index: -1; background: var(--brand-greenDeepest); clip-path: circle(150% at 50% 92%); animation: checkup-reward-grow 1150ms var(--checkup-glide) both; }
+.checkup-reward-content { text-align: center; animation: checkup-rise 900ms var(--checkup-glide) 350ms both; }
 .checkup-reward-flame { width: 64px; height: 64px; fill: var(--brand-greenBright); }
 .checkup-reward-count { font: 800 clamp(100px, 41vw, 160px)/1 var(--font-display), sans-serif; color: var(--brand-greenBright); font-variant-numeric: tabular-nums; }
-.checkup-reward[data-landed=true] .checkup-reward-count { animation: checkup-reward-pop 600ms var(--checkup-spring) both; }
+.checkup-reward[data-landed=true] .checkup-reward-count { animation: checkup-reward-pop 750ms var(--checkup-spring) both; }
 .checkup-reward-heading { font: 800 34px/1 var(--font-display), sans-serif; letter-spacing: .3px; text-transform: uppercase; }
 .checkup-reward p { margin: 16px 0 24px; font-size: 16px; line-height: 1.5; }
 .checkup-reward-skip { font-size: 12px; }
@@ -70,7 +70,7 @@
 .checkup-reward-particles i { position: absolute; width: 8px; height: 8px; opacity: 0; border-radius: 50%; background: var(--brand-greenBright); }
 .checkup-reward-particles i:nth-child(3n) { background: var(--brand-greenMint); }
 .checkup-reward-particles i:nth-child(3n + 1) { background: var(--status-warningBorder); }
-.checkup-reward[data-landed=true] .checkup-reward-particles i { animation: checkup-particle 1000ms var(--checkup-glide) both; animation-delay: calc(var(--particle) * 5ms); }
+.checkup-reward[data-landed=true] .checkup-reward-particles i { animation: checkup-particle 1250ms var(--checkup-glide) both; animation-delay: calc(var(--particle) * 5ms); }
 @keyframes checkup-reward-grow { from { clip-path: circle(0 at 50% 92%); } to { clip-path: circle(150% at 50% 92%); } }
 @keyframes checkup-reward-pop { 0% { transform: scale(1); } 40% { transform: scale(1.2); } 100% { transform: scale(1); } }
 @keyframes checkup-particle { 0% { opacity: 0; transform: scale(.5); } 10% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--x), var(--y)) scale(.2); } }
