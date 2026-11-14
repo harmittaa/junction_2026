@@ -19,7 +19,7 @@ describe("Firestore server persistence", () => {
   it("isolates sessions, preserves reload state, and atomically credits one completion per date", async () => {
     const a = randomUUID(), b = randomUUID();
     const habit = { category: "Groceries", action: "Pause and review my groceries", goal: "More intentional shopping" };
-    await updateSession(a, 0, state => transition(state, { action: "habit", habit, confirmed: true, revision: 0 }));
+    await updateSession(a, 0, state => transition({ ...state, demoDate: "2026-09-01" }, { action: "habit", habit, confirmed: true, revision: 0 }));
     const opened = await updateSession(a, 1, state => transition(state, { action: "checkin", revision: 1 }));
     const writes = await Promise.allSettled(Array.from({ length: 6 }, () => updateSession(a, 2, state => transition(state, { action: "complete", revision: 2, confirmed: true, reflection: "reflect" }))));
     expect(writes.filter(result => result.status === "fulfilled")).toHaveLength(1);
@@ -59,10 +59,10 @@ describe("Firestore server persistence", () => {
     const ref = getFirestore().collection("demoSessionsV1").doc(id);
     await ref.set({ state: legacy });
     const loaded = await readSession(id);
-    expect(loaded).toMatchObject({ version: 2, revision: 4, habit: legacy.habit, corrections: legacy.corrections,
+    expect(loaded).toMatchObject({ version: 3, revision: 4, habit: legacy.habit, corrections: legacy.corrections,
       completedDates: legacy.completedDates, query: { categories: ["Groceries"], baskets: [], merchantType: null } });
     await updateSession(id, 4, state => transition(state, { action: "checkin", revision: 4 }));
-    expect((await ref.get()).data()?.state.version).toBe(2);
+    expect((await ref.get()).data()?.state.version).toBe(3);
     await ref.set({ state: { ...legacy, customerId: "CUST00001" } });
     await expect(readSession(id)).rejects.toMatchObject({ status: 409 });
   });
@@ -70,5 +70,20 @@ describe("Firestore server persistence", () => {
     const id = randomUUID(), now = Date.now();
     for (let i = 0; i < 10; i++) await consumeBudget(id, "reasoning", new Date(now + i * 1000), 3);
     await expect(consumeBudget(id, "reasoning", new Date(now + 11000))).rejects.toMatchObject({ status: 429 });
+  });
+  it("atomically completes one weekly check-up, preserves daily history and isolates sessions", async () => {
+    const a = randomUUID(), b = randomUUID();
+    const writes = await Promise.allSettled(Array.from({ length: 6 }, () =>
+      updateSession(a, 0, state => transition(state, { action: "weekly-checkup", revision: 0 }))));
+    expect(writes.filter(result => result.status === "fulfilled")).toHaveLength(1);
+    const saved = await readSession(a);
+    expect(saved.weeklyCompletedDates).toEqual(["2026-09-02", "2026-09-09", "2026-09-16"]);
+    expect(saved.completedDates).toEqual([]);
+    expect((await readSession(b)).weeklyCompletedDates).toEqual(["2026-09-02", "2026-09-09"]);
+    await updateSession(a, 1, state => transition({ ...state, demoDate: "2026-09-20" }, { action: "weekly-checkup", revision: 1 }));
+    expect((await readSession(a)).weeklyCompletedDates).toEqual(saved.weeklyCompletedDates);
+    const next = await updateSession(a, 2, state => transition({ ...state, demoDate: "2026-09-23" }, { action: "weekly-checkup", revision: 2 }));
+    expect(next.weeklyCompletedDates).toEqual([...saved.weeklyCompletedDates, "2026-09-23"]);
+    expect(next.message).toContain("4 weeks");
   });
 });

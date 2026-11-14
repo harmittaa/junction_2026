@@ -1,5 +1,11 @@
 # Sponky demo acceptance record
 
+## Check-up and jar foundation
+
+New sessions use CUST04060's stored profile, Matti, an Everyday-only monthly limit of 220,000 cents active since February 2026, date September 16, and completed weekly check-ups on September 2 and 9. Session version 3 explicitly migrates older records: it preserves the existing date, revision, corrections, daily completions and habits; adds the profile; and seeds only weekly dates on or before that session's date. A fresh session starts the new story without deleting previous records. Daily completions are never converted into weekly credit.
+
+Usual-month comparisons include the six previous complete calendar months, including zero-spending months, and truncate their average to whole cents. Per-day amounts also truncate to whole cents. Percentage reductions round half up once per month; the annual what-if is that rounded monthly reduction multiplied by 12. These choices match the owner's source-CSV reconciliation targets. Spending never changes a check-up streak.
+
 > The dataset was replaced after the dated records below (customer CUST04060, simulated date 2026-09-01; see `data/README.md`). Amounts, dates and counts inside those dated records describe the earlier CUST00001 slice and are kept as history.
 
 Demo address: **https://sponky.web.app**. Firebase Hosting routes to the existing App Hosting Cloud Run service; the original `hosted.app` address remains available. The short URL targets the service’s active revision (intentionally no `pinTag`). After each successful App Hosting rollout, deploy Hosting too: this clears its CDN cache of Next.js static HTML so the short URL serves the new UI.

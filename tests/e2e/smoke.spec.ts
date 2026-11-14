@@ -134,7 +134,8 @@ test("phone visit keeps the answer hidden, corrects a scenario, and persists one
   await page.getByRole("button", { name: "Confirm habit", exact: true }).click();
   await expect(page.locator(".coach-message")).toContainText("Habit saved");
   await page.getByRole("button", { name: "Daily check-in", exact: true }).click();
-  await expect(page.locator(".coach-message")).toContainText("903,42");
+  await expect(page.locator(".coach-message")).toContainText("no housing spending recorded");
+  await expect(page.locator(".sp-amount")).toContainText("0,00");
   await page.getByRole("radio", { name: "I’m just reflecting today", exact: true }).check();
   await page.getByRole("button", { name: "Complete check-in", exact: true }).click();
   await expect(page.locator(".sp-days")).toContainText("1 completed reflection day");
@@ -151,7 +152,7 @@ test("phone visit keeps the answer hidden, corrects a scenario, and persists one
     data: { action: "advance", revision: current.revision, confirmed: true },
   });
   expect(advanced.status()).toBe(200);
-  expect((await advanced.json()).demoDate).toBe("2026-09-02");
+  expect((await advanced.json()).demoDate).toBe("2026-09-17");
   await page.reload();
   await page.getByRole("button", { name: "Talk to Sponky" }).click();
   await page.getByRole("button", { name: "Sound on", exact: true }).click();
@@ -230,7 +231,7 @@ test("a lost complete response never re-confirms the action on a newer date", as
     await page.getByRole("button", { name: "Retry", exact: true }).click();
     await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
     const after = await state();
-    expect(after.demoDate).toBe("2026-09-02");
-    expect(after.completedDates).toEqual(["2026-09-01"]);
+    expect(after.demoDate).toBe("2026-09-17");
+    expect(after.completedDates).toEqual(["2026-09-16"]);
     await expect(page.getByRole("button", { name: "Complete check-in", exact: true })).toBeDisabled();
 });
