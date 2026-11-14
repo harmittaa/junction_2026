@@ -1,5 +1,15 @@
 # Sponky demo acceptance record
 
+## Current release: radial orb and hold-to-talk
+
+Application source [d9bd112](https://github.com/harmittaa/junction_2026/commit/d9bd11273cd69a9715a90230b2d700f718149c64) is live at https://sponky--sponky-junction-2026.europe-west4.hosted.app. On 14 November 2026 at 07:59 UTC, rollout `build-2026-11-14-005` succeeded; readback confirmed revision `sponky-build-2026-11-14-005` serving 100% of traffic, `GEMINI_API_KEY@2`, unchanged other secret pins, CPU/memory and revision scaling 0–1. No billing/infrastructure changes or Firestore rule deployment.
+
+Hold the orb (touch, mouse, Space/Enter) to speak; release sends the final transcript once. Hold again to interrupt playback. Early release during startup, Escape, lost focus and the 30-second recording limit cancel without sending. Typing remains available. Local quickcheck passed 40 Vitest and 3 importer tests; build, 7 browser journeys, 2 emulator tests and [GitHub CI](https://github.com/harmittaa/junction_2026/actions/runs/43573373360) passed. Inspected 360/390 px light/dark/full/compact/reduced-motion states and pointer recording passed; the timeout regression failed before its fix and passed after.
+
+One deployed English fixture round trip finished at 08:00 UTC: **1 transcription, 1 Gemini request, 2 speech outputs**, no retries or mocked provider responses. Release produced one commit and the exact grocery question. All routes returned HTTP 200; invitation text/audio hid the answer, then reveal returned 75,275 cents across 11 transactions. Both replies ended naturally, microphone/socket/contexts closed, and habit/check-in state stayed unchanged. Inspected video and both MP3s are retained with the sanitized report and deployment readback in the [voice-orb thread](https://ampcode.com/threads/T-01a1d8d9-10c9-736f-8c6d-2cc46c3be02e). Chromium used prerecorded microphone input without autoplay bypass; physical-phone microphone quality and Safari remain untested. Historical tap-based evidence below is not acceptance of the new gesture.
+
+## Previous sponsored-key rollout and acceptance
+
 The deployed Gemini blocker is resolved with the temporary sponsored credential. On 14 November 2026 at 07:22–07:24 UTC, the real typed question, exact English spending voice fixture, grounded hidden/revealed replies, natural speech playback and saved check-in reload passed. Finnish-English transcription also passed; the demo's replies remain English-only. The previous key's upstream 429 is established, but the cause of its earlier silent 20-second timeouts remains unproven. These bounded samples are not an availability guarantee. Physical phone microphone and Safari checks remain human acceptance work.
 
 - Demo: https://sponky--sponky-junction-2026.europe-west4.hosted.app

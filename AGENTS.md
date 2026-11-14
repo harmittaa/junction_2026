@@ -8,7 +8,7 @@
 
 Read the issue being implemented and its latest comments. [Product scope #8](https://github.com/harmittaa/junction_2026/issues/8) and [design #9](https://github.com/harmittaa/junction_2026/issues/9) define our current slice; their later voice updates supersede the earlier voice exclusion and mandatory eight-step journey. [Interview #3](https://github.com/harmittaa/junction_2026/issues/3) supplies context; research #4 is inspiration, not a backlog. Raise conflicts with the challenge brief instead of silently changing the product.
 
-Use `docs/style-guide.md` and `docs/design-tokens.json`. Preserve documented accessible color mappings. Voice input is tap-to-start/tap-to-stop, replies are spoken, and typing remains available. Guessing, exploration and habits are optional. Historical and simulated dates must be explicit. Native apps, live banking, transfers, notifications and safe-to-spend forecasts are outside the current scope.
+Use `docs/style-guide.md` and `docs/design-tokens.json`. Preserve documented accessible color mappings. Voice input is hold-to-speak/release-to-send (touch, mouse, Space/Enter), replies are spoken, and typing remains available. Release waits for the final transcript and sends once; release during startup, cancellation, lost focus and recording timeout cancel without sending. This owner-approved interaction supersedes older tap-to-start/tap-to-stop specs. Guessing, exploration and habits are optional. Historical and simulated dates must be explicit. Native apps, live banking, transfers, notifications and safe-to-spend forecasts are outside the current scope.
 
 ## Baseline and boundaries
 
