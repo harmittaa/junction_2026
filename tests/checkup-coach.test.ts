@@ -71,6 +71,45 @@ describe("weekly coordinator contract", () => {
     });
 });
 
+describe("spoken check-up and necessity grammar", () => {
+  it.each(["Did I complete my check-up this week?", "How do I start my weekly check-up?", "I dont want to do my check-up",
+    "Can't I do my check-up later?", "I don’t want to do my check-up", "Please don’t start my check-up", "can I do my check-up"])
+  ("asks for the chip instead of completing: %s", text => {
+    const before = initialState();
+    const after = ask(before, text, { ...scopePlan, kind: "weekly_checkup" });
+    expect(after.weeklyCompletedDates).toEqual(before.weeklyCompletedDates);
+    expect(after.message).toContain("Let's do my check-up");
+  });
+
+  it.each(["Let's do my check-up", "let’s do my weekly check-up.", "I want to start my check-up", "I would like to do my check-up", "Okay, please complete my check-up", "I'd like to do my check-up"])
+  ("completes on an explicit first-person request: %s", text => {
+    expect(toView(ask(initialState(), text, { ...scopePlan, kind: "weekly_checkup" })).checkup).toMatchObject({ completed: true, streak: 3 });
+  });
+
+  const amt = "The 14,16 € payment";
+  const cases = [
+    `Was the 14,16 € payment necessary?`, `${amt} isn't a necessity`, `${amt} isn’t a necessity`, `${amt} isnt a necessity`,
+    `Which payment was essential, the 14,16 € one?`, `${amt} weren't needed`, `I needed to check the 14,16 € payment`,
+    `I don't think the 14,16 € payment was necessary`, `Never said the 14,16 € payment was necessary`,
+    `No, the 14,16 € payment was necessary`, `The 14,16 € payment was necessary or not`, `Who says the 14,16 € payment was necessary`,
+    `${amt} wasn’t necessary`, `${amt} was not necessary`, `was the 14,16 € payment necessary`,
+    `If ${amt} was necessary could you move it`, `Suppose ${amt} was necessary`, `${amt} was necessary? hmm`,
+  ];
+  it.each(cases.flatMap(text => [[text, text], [text, text.match(/necessity|necessary|essential|needed/i)?.[0] ?? "needed"]]))
+  ("does not move for %s (quote: %s)", (text, necessityQuote) => {
+    const original = nextWeek();
+    const state = ask(original, text, { ...movePlan, correction: { amountCents: 1416, date: null, merchant: null, category: null, necessityQuote } });
+    expect(state.corrections).toEqual({});
+    expect(state.move).toBeNull();
+  });
+
+  it.each(["The 177,96 € was a burst pipe", "The 177,96 € was necessary", "The 177,96 € was an emergency", "The 177,96 € was a must-have", "I had to pay the 177,96 €", "The 177,96 € was an emergency repair"])
+  ("moves for an affirmative statement: %s", text => {
+    const state = ask(nextWeek(), text, { ...movePlan, correction: { amountCents: 17796, date: null, merchant: null, category: null, necessityQuote: text } });
+    expect(state.corrections).toEqual({ "row-2898396": "unexpected" });
+  });
+});
+
 describe("evidence-bound necessity moves", () => {
   it("moves exactly the stated payment, keeps it visible for undo, and restores 232720 cents", () => {
     const original = nextWeek();

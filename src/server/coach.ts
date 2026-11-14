@@ -100,6 +100,12 @@ function scenario(state: SessionState, percent: number): SessionState {
   return { ...state, percent, message: `Let's play pretend: trimming ${percent}% off your ${euros(result.baseCents)} of everyday spending would free up ${euros(result.reductionCents)}. Purely hypothetical, nothing's actually saved. Move any must-haves out of Everyday first so the maths stays fair.` };
 }
 
+// Spoken input has no reliable punctuation or apostrophes, so grammar is anchored
+// and negation/hypothetical/question wording blocks mutation instead of being ignored.
+const refusal = /\b(?:(?:is|was|were|are|do|does|did|has|have|had|could|would|should|ai)n[’']?t|can[’']?t|won[’']?t|cannot|not|no|nope|never|neither|nor|without|nothing|unnecessary|skip|if|suppose|imagine|example|pretend|hypothetical|maybe|might|would|could|should|assuming|quote|quoted|said)\b/i;
+const asking = /\?|^\s*(?:was|were|is|are|did|do|does|can|could|would|should)\b|\b(?:who|which|what|whether|why|how)\b/i;
+const checkupRequest = /^\s*(?:(?:ok(?:ay)?|yes|yeah|please|hey sponky)[,.!]?\s+)*(?:(?:let[’']?s|let us)\s+|(?:i(?:\s+(?:want|wanna|would like|need)|[’']d like)\s+to\s+)|(?:i[’']?m ready to\s+)|(?:please\s+)?)(?:do|start|begin|complete|finish)\s+(?:my|the|a|our)\s+(?:weekly\s+)?check[- ]?up[\s.!]*$/i;
+const necessityStatement = /\b(?:(?:was|were|is|it[’']?s|that[’']?s)\s+(?:(?:a|an|the|my|really|truly|actually|definitely|absolutely|very)\s+)*(?:necessity|necessary|essential|emergency|urgent|unavoidable|must[- ]have|must|burst pipe)\b|had to (?:pay|buy|get|fix|replace|cover)\b)/i;
 export function transition(current: SessionState, request: CoachRequest, interpretation?: Interpretation): SessionState {
   if (current.customerId !== dataset.customerId) throw new AppError("This session uses another dataset.", 409);
   let state = structuredClone(current);
@@ -107,8 +113,7 @@ export function transition(current: SessionState, request: CoachRequest, interpr
     const result = validatePlan(interpretation, { categories, ...dataset.period, referenceDate: state.demoDate, previousQuery: state.query });
     if (result.kind === "weekly_checkup") {
       // Questions about a check-up are not permission to complete one.
-      if (!/\b(?:do|start|begin|complete|finish) (?:my|the|a) (?:weekly )?check[- ]?up\b/i.test(request.text)
-        || /\b(?:not|don't|do not|never|skip|if|when|would|example|suppose|imagine)\b/i.test(request.text)) return { ...state, message: "Ready when you are. Choose “Let's do my check-up” to begin." };
+      if (!checkupRequest.test(request.text)) return { ...state, message: "Ready when you are. Choose “Let's do my check-up” to begin." };
       return transition(state, { action: "weekly-checkup", revision: request.revision });
     }
     if (result.kind === "jar" || result.kind === "pace" || result.kind === "usual" || result.kind === "overspend") {
@@ -124,9 +129,8 @@ export function transition(current: SessionState, request: CoachRequest, interpr
     if (result.kind === "move") {
       const criteria = result.correction;
       const quote = criteria?.necessityQuote.toLowerCase() ?? "";
-      const stated = criteria && request.text.toLowerCase().includes(quote)
-        && /\b(?:must|had to|needed|necessary|necessity|essential|emergency|burst|urgent)\b/.test(quote)
-        && !/\b(?:not|wasn't|was not|unnecessary|didn't|did not|if|suppose|example|imagine|would be|would have)\b/i.test(request.text);
+      const stated = criteria && request.text.toLowerCase().includes(quote) && necessityStatement.test(quote)
+        && !refusal.test(request.text) && !asking.test(request.text);
       const amount = criteria?.amountCents;
       const suppliedAmount = !amount || quantities(request.text).some(value =>
         value === `money:${amount}` || value === `number:${amount / 100}`);
