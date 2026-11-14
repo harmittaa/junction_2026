@@ -14,6 +14,61 @@ async function ask(page: Page, text: string) {
   return await (await response).json();
 }
 
+test("an outdated session offers explicit recovery and retains the previous saved records", async ({ page, context }) => {
+  await enter(page);
+  const headers = { Origin: "http://localhost:3200" };
+  const saved = await page.request.post("/api/coach", { headers, data: {
+    action: "habit", revision: 0, confirmed: true,
+    habit: { category: "Housing", action: "Review my housing costs", goal: "" },
+  } });
+  expect(saved.status()).toBe(200);
+  const previous = await saved.json();
+  const oldCookies = await context.cookies();
+  for (const invalid of [
+    { headers, data: { confirmed: false } },
+    { headers: { Origin: "https://unrelated.example" }, data: { confirmed: true } },
+  ]) {
+    expect((await page.request.post("/api/session", invalid)).ok()).toBe(false);
+    expect(await (await page.request.get("/api/session")).json()).toEqual(previous);
+  }
+  await page.route("**/api/session", async route => {
+    if (route.request().method() === "GET") await route.fulfill({ status: 409, json: {
+      error: "This session uses an older demo dataset. Start a new browser session.", retryable: false,
+    } });
+    else await route.continue();
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "Talk to Sponky" }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("older demo dataset");
+  await expect(page.locator(".coach-message")).not.toContainText("Opening");
+  await page.getByRole("button", { name: "Back to entry" }).click();
+  await page.getByRole("button", { name: "Talk to Sponky" }).click();
+  await expect(page.getByRole("button", { name: "Start new demo session" })).toBeInViewport();
+  await page.getByRole("button", { name: "Start new demo session" }).click();
+  await expect(page.getByRole("button", { name: "Sponky. Hold to talk", exact: true })).toBeEnabled();
+  await expect(page.locator(".coach-message")).toContainText("less mysterious");
+  const fresh = await (await page.request.get("/api/session")).json();
+  expect(fresh.revision).toBe(0);
+  expect(fresh.habit).toBeNull();
+  await context.addCookies(oldCookies);
+  expect(await (await page.request.get("/api/session")).json()).toEqual(previous);
+});
+
+test("a stalled startup times out and retries without losing the typed draft", async ({ page }) => {
+  await page.route("**/api/session", () => {});
+  await page.goto("/");
+  await page.getByRole("button", { name: "Talk to Sponky" }).click();
+  await expect(page.locator(".coach-message")).toContainText("Opening");
+  await page.getByRole("textbox", { name: "Message", exact: true }).fill("My draft question");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Check your connection", { timeout: 20000 });
+  await expect(page.locator(".coach-message")).not.toContainText("Opening");
+  await page.unroute("**/api/session");
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.locator(".coach-message")).toContainText("less mysterious");
+  await expect(page.getByRole("textbox", { name: "Message", exact: true })).toHaveValue("My draft question");
+  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
+});
+
 test("provider failure and fabricated prose preserve typing, saved state and session boundaries", async ({ page, context }) => {
   await enter(page);
   const before = await (await page.request.get("/api/session")).json();

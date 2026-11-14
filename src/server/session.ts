@@ -29,11 +29,19 @@ export async function sessionId(create = false): Promise<string> {
   const legacyToken = jar.get("sponky_session")?.value ?? "";
   const legacyId = verifySession(legacyToken, secret, now);
   if (!legacyId && !create) throw new AppError("Your demo session expired. Refresh to start a new session.", 401, true);
-  const id = legacyId ?? randomUUID();
-  const token = legacyId ? legacyToken : signSession(id, now + maxAge, secret);
-  jar.set(cookieName, token, {
+  if (!legacyId) return newSession();
+  jar.set(cookieName, legacyToken, {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/",
-    maxAge: legacyId ? Number(legacyToken.split(".")[1]) - now : maxAge,
+    maxAge: Number(legacyToken.split(".")[1]) - now,
+  });
+  return legacyId;
+}
+export async function newSession(): Promise<string> {
+  const id = randomUUID();
+  const token = signSession(id, Math.floor(Date.now() / 1000) + maxAge, config().SESSION_SECRET);
+  // Rotate the browser's session only; retain the previous session's saved records.
+  (await cookies()).set(cookieName, token, {
+    httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge,
   });
   return id;
 }
