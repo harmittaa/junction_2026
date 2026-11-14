@@ -35,12 +35,12 @@ class ImportTests(unittest.TestCase):
         writer = csv.writer(text)
         writer.writerow(importer.FIELDS)
         for customer, date, amount, kind, merchant, mcc in [
-            ("CUST00001", "2024-09-30", "-1", "purchase", "M1", "5411"),
-            ("CUST00001", "2024-10-01", "-32.51", "purchase", "M1", "5411"),
+            ("CUST04060", "2024-09-30", "-1", "purchase", "M1", "5411"),
+            ("CUST04060", "2024-10-01", "-32.51", "purchase", "M1", "5411"),
             ("OTHER", "2024-10-02", "-9", "purchase", "M1", "5411"),
-            ("CUST00001", "2024-11-05", "3.29", "refund", ".", "."),
-            ("CUST00001", "2024-11-30", "-219.64", "investment_deposit", "", ""),
-            ("CUST00001", "2024-12-01", "-7", "purchase", "M1", "5411"),
+            ("CUST04060", "2026-02-05", "3.29", "refund", ".", "."),
+            ("CUST04060", "2026-09-30", "-219.64", "investment_deposit", "", ""),
+            ("CUST04060", "2026-10-01", "-7", "purchase", "M1", "5411"),
         ]:
             writer.writerow([customer, "ACC-test", date, "raw timestamp", "test\ncategory",
                              amount, "0", kind, merchant, mcc])
@@ -51,16 +51,16 @@ class ImportTests(unittest.TestCase):
             # The production pin is never bypassed by the CLI. Pin this fixture in-process.
             with patch.object(importer, "SOURCE_SHA256", hashlib.sha256(data).hexdigest()):
                 result = importer.build_dataset(path)
-        self.assertEqual(result["customerId"], "CUST00001")
-        self.assertEqual(result["period"], {"start": "2024-10-01", "end": "2024-11-30"})
-        self.assertEqual(result["referenceDate"], "2024-11-04")
+        self.assertEqual(result["customerId"], "CUST04060")
+        self.assertEqual(result["period"], {"start": "2024-10-01", "end": "2026-09-30"})
+        self.assertEqual(result["referenceDate"], "2026-09-01")
         rows = result["transactions"]
         self.assertEqual([r["id"] for r in rows], ["row-4", "row-8", "row-10"])
         self.assertEqual([r["sourceRow"] for r in rows], [4, 8, 10])
         self.assertEqual([r["amountCents"] for r in rows], [-3251, 329, -21964])
         self.assertEqual([r["transactionType"] for r in rows], ["purchase", "refund", "investment_deposit"])
         self.assertEqual(rows[0], {
-            "id": "row-4", "sourceRow": 4, "customerId": "CUST00001", "accountId": "ACC-test",
+            "id": "row-4", "sourceRow": 4, "customerId": "CUST04060", "accountId": "ACC-test",
             "date": "2024-10-01", "timestamp": "raw timestamp", "category": "test\ncategory",
             "amountCents": -3251, "transactionType": "purchase", "merchantId": "M1", "mcc": "5411",
         })

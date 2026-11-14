@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Import the pinned, complete two-month demo customer slice (stdlib only)."""
+"""Import the pinned, complete 24-month demo customer slice (stdlib only)."""
 
 import argparse
 import csv
@@ -16,10 +16,10 @@ SOURCE_URL = (
     f"{SOURCE_COMMIT}/tx_junction_transactions.csv"
 )
 SOURCE_SHA256 = "49b3265d8e44e751de305a074dcffcda732bb79aa1e07b46fcca774ce76f1e63"
-CUSTOMER_ID = "CUST00001"
+CUSTOMER_ID = "CUST04060"
 START = "2024-10-01"
-END = "2024-11-30"
-REFERENCE_DATE = "2024-11-04"
+END = "2026-09-30"
+REFERENCE_DATE = "2026-09-01"
 FIELDS = [
     "customer_id", "bank_account_id", "tx_date", "tx_timestamp", "category",
     "tx_amount_eur", "balance_after_eur", "transaction_type", "merchant_id", "mcc_code",

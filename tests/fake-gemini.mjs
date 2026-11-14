@@ -13,7 +13,7 @@ createServer(async (request, response) => {
   if (JSON.stringify(scope).length > 2000 || /amountCents|transactions|sourceRow|customerId/.test(JSON.stringify(scope))) {
     response.writeHead(400); response.end('{"error":{"message":"unbounded model scope"}}'); return;
   }
-  let result = { kind: "spending", query: { category: "Groceries", start: "2024-10-01", end: "2024-10-31" }, direct: /just show/i.test(userMessage), percent: null, reply: "none" };
+  let result = { kind: "spending", query: { category: "Groceries", start: "2026-08-01", end: "2026-08-31" }, direct: /just show/i.test(userMessage), percent: null, reply: "none" };
   if (/utilities/i.test(userMessage)) result.query.category = "Utilities";
   if (/what if/i.test(userMessage)) result = { ...result, kind: "scenario", query: scope.previousQuery, percent: 20 };
   if (/long day/i.test(userMessage)) result = { ...result, kind: "chat", query: null, reply: "tired" };

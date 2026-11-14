@@ -17,6 +17,6 @@ export function initialState(): SessionState {
     version: 1, customerId: dataset.customerId, revision: 0, demoDate: dataset.referenceDate,
     habit: null, completedDates: [], reflections: {}, corrections: {}, query: null,
     mode: "none", guessCents: null, percent: null, skipGuess: false,
-    message: "Hey, I'm Sponky! Let's make your money a little less mysterious. Ask me about your October spending, or just tell me how your day's going.",
+    message: "Hey, I'm Sponky! Let's make your money a little less mysterious. Ask me about your August spending, or just tell me how your day's going.",
   };
 }
