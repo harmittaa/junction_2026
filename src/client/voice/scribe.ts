@@ -49,7 +49,8 @@ export class ScribeSession {
 
   send(bytes: Uint8Array) {
     if (this.closed) throw new Error(failure);
-    if (this.socket.bufferedAmount > 256_000) { this.fail(); throw new Error(failure); }
+    // Room for a full 30-second backlog sent when the session opens after capture started.
+    if (this.socket.bufferedAmount > 1_500_000) { this.fail(); throw new Error(failure); }
     this.socket.send(JSON.stringify({ message_type: "input_audio_chunk", audio_base_64: btoa(String.fromCharCode(...bytes)), sample_rate: 16000, commit: false }));
   }
 

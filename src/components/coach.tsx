@@ -18,16 +18,16 @@ const directions = Array.from({ length: 32 }, (_, i) => ({
 
 type Hold = { kind: "pointer"; id: number } | { kind: "key"; key: string };
 
-export function Coach({ state, readBands, onStart, onRelease, onCancel, connecting = false, disabled = false }: {
+export function Coach({ state, readBands, onStart, onRelease, onCancel, starting = false, disabled = false }: {
   state: CoachState;
   readBands: (out: Float32Array) => boolean;
   onStart: () => void;
   onRelease: () => void;
   onCancel: () => void;
-  connecting?: boolean;
+  starting?: boolean;
   disabled?: boolean;
 }) {
-  const [label, action] = connecting ? ["Connecting", "Release to cancel"] : labels[state];
+  const [label, action] = starting ? ["Starting mic", "Release to cancel"] : labels[state];
   const helpId = useId();
   const held = useRef<Hold | null>(null);
   const cancelHold = useCallback(() => {

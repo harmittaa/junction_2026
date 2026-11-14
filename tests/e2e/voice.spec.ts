@@ -139,7 +139,7 @@ test(`prerecorded voice, interruption and typing recovery (${reducedMotion})`, a
 });
 }
 
-test("hold cancels before connection or on lost focus, and keyboard release commits only once", async ({ page }) => {
+test("hold cancels during microphone startup or on lost focus, listens before connection, and commits only once", async ({ page }) => {
   let releaseToken!: () => void;
   const tokenGate = new Promise<void>(resolve => { releaseToken = resolve; });
   let tokens = 0, commits = 0, requests = 0;
@@ -162,22 +162,44 @@ test("hold cancels before connection or on lost focus, and keyboard release comm
       }
     });
   });
+  await page.addInitScript(() => {
+    const getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    let gate: Promise<void> | undefined = new Promise(resolve => { Object.assign(window, { grantMicrophone: resolve }); });
+    navigator.mediaDevices.getUserMedia = async constraints => {
+      if (gate) { await gate; gate = undefined; }
+      return getUserMedia(constraints);
+    };
+  });
   await page.goto("/");
   await page.getByRole("button", { name: "Talk to Sponky" }).click();
   const trigger = page.locator(".sp-coach-trigger");
   const coach = page.locator(".sp-coach");
   await expect(trigger).toBeEnabled();
+  await expect.poll(() => tokens).toBe(1); // Prefetched on entry, still unanswered.
   await trigger.focus();
   await page.keyboard.down("Space");
-  await expect.poll(() => tokens).toBe(1);
   await expect(trigger).toHaveAccessibleName("Sponky. Release to cancel");
   await page.keyboard.up("Space");
   await expect(coach).toHaveAttribute("data-state", "ready");
-  releaseToken();
-  // A late connection response must not restart capture after release.
+  await page.evaluate(() => (window as unknown as { grantMicrophone: () => void }).grantMicrophone());
+  // A late microphone grant must not restart capture after release.
   await page.waitForTimeout(200);
   await expect(coach).toHaveAttribute("data-state", "ready");
   expect(commits).toBe(0);
+
+  // Capture starts while the token is pending; release then waits for the connection and sends once.
+  await trigger.focus();
+  await page.keyboard.down("Space");
+  await expect(coach).toHaveAttribute("data-state", "listening");
+  await page.waitForTimeout(300);
+  await page.keyboard.up("Space");
+  await expect(coach).toHaveAttribute("data-state", "thinking");
+  expect(commits).toBe(0);
+  releaseToken();
+  await expect.poll(() => commits).toBe(1);
+  await expect.poll(() => requests).toBe(1);
+  await expect(coach).toHaveAttribute("data-state", "ready");
+  expect(tokens).toBe(2); // One prefetched for the next hold, none for the canceled startup.
 
   for (const cancel of ["focus", "Escape", "pointer"] as const) {
     if (cancel === "pointer") {
@@ -194,8 +216,8 @@ test("hold cancels before connection or on lost focus, and keyboard release comm
     await page.keyboard.up("Space");
     if (cancel === "pointer") await page.mouse.up();
     await expect(coach).toHaveAttribute("data-state", "ready");
-    expect(commits).toBe(0);
-    expect(requests).toBe(0);
+    expect(commits).toBe(1);
+    expect(requests).toBe(1);
   }
 
   for (const key of ["Space", "Enter"]) {
@@ -206,7 +228,7 @@ test("hold cancels before connection or on lost focus, and keyboard release comm
     await page.keyboard.down(key); // Browser auto-repeat must not restart the stream.
     expect(tokens).toBe(beforeRepeat);
     await page.keyboard.up(key);
-    await expect.poll(() => commits).toBe(key === "Space" ? 1 : 2);
+    await expect.poll(() => commits).toBe(key === "Space" ? 2 : 3);
     await expect.poll(() => requests).toBe(commits);
     await expect(coach).toHaveAttribute("data-state", "ready");
   }
@@ -274,7 +296,7 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
   expect(targetBox.x).toBeGreaterThanOrEqual(0);
   expect(targetBox.x + targetBox.width).toBeLessThanOrEqual(width);
   expect(targetBox.width).toBeGreaterThanOrEqual(regionBox.width - 1);
-  expect(tokens).toBe(0);
+  expect(tokens).toBe(1); // Prefetched when Sponky opened.
 
   // Observe real microphone cleanup and browser gesture side effects, not just the label.
   const probe = await page.evaluateHandle(() => {
@@ -346,7 +368,7 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
   await expect(draft).toHaveValue("I've had a long day");
   await expect(page.locator("body")).not.toContainText("752,75");
   expect(submitted).toEqual([finalText]);
-  expect(tokens).toBe(2);
+  await expect.poll(() => tokens).toBe(3); // Each hold uses one; the next is prefetched.
   expect(commits).toBe(1);
 
   // Controls below the region must remain touchable, including typing after cancellation.
@@ -367,7 +389,7 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
   await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(50);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  expect(tokens).toBe(2);
+  expect(tokens).toBe(3);
   expect(commits).toBe(1);
   await expect(coach).toHaveAttribute("data-state", "ready");
   await probe.dispose();

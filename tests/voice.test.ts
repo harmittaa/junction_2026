@@ -265,6 +265,30 @@ describe("browser voice lifecycle", () => {
     expect(error).not.toHaveBeenCalled();
   });
 
+  it("listens before transcription connects, using a prefetched token and sending buffered audio once", async () => {
+    controller.prepare();
+    controller.prepare(); // A fresh prefetched token is reused, not refetched.
+    await drain();
+    expect(fetch).toHaveBeenCalledOnce();
+    await controller.start();
+    expect(snapshot!.state).toBe("listening");
+    await drain();
+    const socket = Socket.instances[0];
+    expect(fetch).toHaveBeenCalledOnce();
+    Worklet.instances[0].port.onmessage({ data: new Uint8Array([9, 9]).buffer });
+    const stopping = controller.stop(); // Release before the session starts.
+    await drain();
+    expect(snapshot!.state).toBe("transcribing");
+    expect(socket.sent).toEqual([]);
+    socket.receive({ message_type: "session_started" });
+    await drain();
+    expect(socket.sent.map(message => [message.audio_base_64, message.commit])).toEqual([["CQk=", false], ["AQI=", false], ["", true]]);
+    socket.receive({ message_type: "committed_transcript", text: "Groceries?" });
+    await stopping;
+    expect(transcript).toHaveBeenCalledExactlyOnceWith("Groceries?");
+    expect(fetch).toHaveBeenCalledTimes(2); // The next hold's token is prefetched.
+  });
+
   it("cancels an overlong hold without sending, including after release", async () => {
     const socket = await listen();
     socket.receive({ message_type: "partial_transcript", text: "unfinished" });
@@ -386,6 +410,7 @@ describe("browser voice lifecycle", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ error: "private", retryable: true }, { status: 503 })));
     await controller.speak(2);
     await controller.start();
+    await drain(); // Transcription connects after capture starts.
     expect(error.mock.calls.map(([message]) => message)).toEqual([
       "Could not start the microphone. Check microphone permission, then hold again or type your question.",
       "Could not play the spoken reply. Try Play reply or continue typing.",
@@ -438,14 +463,18 @@ describe("browser voice lifecycle", () => {
       if (phase === "playback") {
         decode.mockRejectedValueOnce(new Error("private audio data"));
         await controller.speak(2);
+      } else if (phase === "capture") {
+        await controller.start();
+        await drain();
+        expect(Socket.instances).toHaveLength(0); // No token is spent without working capture.
+        expect(fetch).not.toHaveBeenCalled();
+        expect(track.stop).toHaveBeenCalled();
       } else {
         const socket = await listen();
-        if (phase !== "capture") {
-          if (phase === "flush") Worklet.instances[0].port.postMessage = () => {};
-          const stopping = controller.stop();
-          await vi.advanceTimersByTimeAsync(phase === "flush" ? 1001 : 10_001);
-          await stopping;
-        }
+        if (phase === "flush") Worklet.instances[0].port.postMessage = () => {};
+        const stopping = controller.stop();
+        await vi.advanceTimersByTimeAsync(phase === "flush" ? 1001 : 10_001);
+        await stopping;
         expect(socket.closed).toBe(true);
         expect(track.stop).toHaveBeenCalled();
       }

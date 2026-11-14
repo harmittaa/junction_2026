@@ -54,6 +54,10 @@ export function Sponky() {
     });
     return () => { controller.abort(); activeRequest.current?.abort(); };
   }, []);
+  // The session cookie exists once the view loads; prefetch so holding to talk starts capture at once.
+  const { prepare } = voice;
+  const ready = entered && view !== null;
+  useEffect(() => { if (ready) prepare(); }, [ready, prepare]);
   useEffect(() => {
     if (!celebrate) return;
     const timer = setTimeout(() => setCelebrate(false), 900);
@@ -108,7 +112,7 @@ export function Sponky() {
     void voice.start();
   }
   const coachState = voice.state === "listening" ? "listening" : voice.state === "speaking" ? "speaking"
-    : busy || ["connecting", "transcribing", "loading"].includes(voice.state) ? "thinking" : celebrate ? "celebrate" : "ready";
+    : busy || ["starting", "transcribing", "loading"].includes(voice.state) ? "thinking" : celebrate ? "celebrate" : "ready";
   function toggleTheme() {
     setDark(!dark);
     document.documentElement.dataset.theme = dark ? "light" : "dark";
@@ -116,7 +120,7 @@ export function Sponky() {
 
   function toggleTalk() {
     if (voice.state === "listening") void voice.stop();
-    else if (voice.state === "connecting") voice.cancel();
+    else if (voice.state === "starting") voice.cancel();
     else startCoach();
   }
 
@@ -134,11 +138,11 @@ export function Sponky() {
     <div className="toolbar"><button className="text-button" aria-pressed={voice.muted} onClick={voice.toggleMute}>{voice.muted ? "Sound off" : "Sound on"}</button><button className="text-button" aria-expanded={showHistory} onClick={() => setShowHistory(!showHistory)}>History</button></div>
     {showHistory && <History entries={history} onClose={() => setShowHistory(false)} />}
     <Coach state={coachState} readBands={voice.readBands} onStart={startCoach}
-      onRelease={() => void voice.stop()} onCancel={voice.cancel} connecting={voice.state === "connecting"}
+      onRelease={() => void voice.stop()} onCancel={voice.cancel} starting={voice.state === "starting"}
       disabled={!view} />
-    {voice.state === "connecting" && <p className="meta" role="status">Connecting microphone…</p>}
+    {voice.state === "starting" && <p className="meta" role="status">Starting microphone…</p>}
     {voice.state === "transcribing" && <p className="meta" role="status">Finishing your words…</p>}
-    {["connecting", "transcribing", "loading"].includes(voice.state) && <button className="text-button replay" onClick={voice.cancel}>Cancel voice</button>}
+    {["starting", "transcribing", "loading"].includes(voice.state) && <button className="text-button replay" onClick={voice.cancel}>Cancel voice</button>}
     <p className="coach-message" aria-live="polite">{view?.message ?? "Opening your coach…"}</p>
     <form className="typing" data-visible={!!voiceError} onSubmit={event => { event.preventDefault(); if (view && text.trim()) void send({ action: "ask", revision: view.revision, text }, draftVersion.current); }}><label><span className="sr-only">Message</span><input value={text} maxLength={600} onChange={event => { draftVersion.current++; setText(event.target.value); }} placeholder="Type a message" /></label><button disabled={!view || busy || !text.trim()}>Send</button></form>
     {!view?.habit && view?.activity.kind === "none" && <div className="starters"><button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "How much did I spend on groceries last month?" })}>My October groceries ↗</button><button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "I've had a long day." })}>Talk about my day ↗</button></div>}
@@ -152,8 +156,8 @@ export function Sponky() {
     {busy && <button className="text-button" onClick={cancelRequest}>Stop waiting</button>}
     {view && !busy && voice.state === "ready" && view.revision > 0 && <button className="text-button replay" disabled={voice.muted} onClick={() => void voice.speak(view.revision)}>Play reply</button>}
     <details className="demo-controls"><summary>Demo controls</summary><p className="demo-date">Simulated date {view?.demoDate ?? "2024-11-04"}</p><button className="secondary" disabled={!view || busy} onClick={() => { if (view) void send({ action: "advance", revision: view.revision, confirmed: true }); }}>Advance simulated day</button></details>
-    <button className="talk-toggle" disabled={!view || !["ready", "speaking", "listening", "connecting"].includes(voice.state)} aria-pressed={voice.state === "listening" || voice.state === "connecting"} onClick={toggleTalk}>
+    <button className="talk-toggle" disabled={!view || !["ready", "speaking", "listening", "starting"].includes(voice.state)} aria-pressed={voice.state === "listening" || voice.state === "starting"} onClick={toggleTalk}>
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
-      <span className="sr-only">{voice.state === "listening" ? "Tap to send" : voice.state === "connecting" ? "Tap to cancel" : "Tap to talk"}</span></button>
+      <span className="sr-only">{voice.state === "listening" ? "Tap to send" : voice.state === "starting" ? "Tap to cancel" : "Tap to talk"}</span></button>
   </main>;
 }
