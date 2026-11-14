@@ -7,6 +7,8 @@ import { Activities } from "./activities";
 import { History } from "./history";
 
 type RequestState = { kind: "idle" } | { kind: "sending" } | { kind: "error"; message: string };
+const ribbon = <svg viewBox="0 0 120 120"><path d="M69 10C107 34 39 80 77 110M43 10C81 34 13 80 51 110" /></svg>;
+const bankCards = [["Accounts", "S-Tili · Taloustili"], ["Payments and e-invoices", "Make a new payment or view e-invoices"], ["Cards", "S-Etukortti Visa Credit/Debit"], ["Säästäjä", "Oma tavoitteeni"], ["Investments", "Value of your investments"]];
 type HistoryEntry = { role: "user" | "coach"; text: string };
 
 async function loadSession(signal?: AbortSignal) {
@@ -112,27 +114,33 @@ export function Sponky() {
     document.documentElement.dataset.theme = dark ? "light" : "dark";
   }
 
-  if (!entered) return <main className="app landing">
-    <header className="landing-header"><span className="eyebrow">S-MOBIILI · ENTRY CONCEPT</span><h1>A little clarity.<br />Every day.</h1></header>
-    <div className="entry-mark" aria-hidden="true"><svg viewBox="0 0 120 120"><path d="M69 10C107 34 39 80 77 110M43 10C81 34 13 80 51 110" /></svg></div>
-    <section className="entry-card"><span className="eyebrow">MEET YOUR MONEY COACH</span><h2>Say hello to Sponky</h2><p>A question, a little discovery, a habit that feels like you.</p><button onClick={() => setEntered(true)}>Talk to Sponky <span aria-hidden="true">↗</span></button></section>
-    <p className="meta">Hackathon demo · Synthetic historical transactions<br />A proposed entry point, not an S-mobiili integration.</p>
-    <button className="text-button" onClick={toggleTheme}>{dark ? "Light appearance" : "Dark appearance"}</button>
+  function toggleTalk() {
+    if (voice.state === "listening") void voice.stop();
+    else if (voice.state === "connecting") voice.cancel();
+    else startCoach();
+  }
+
+  if (!entered) return <main className="app bank">
+    <header className="bank-header"><h1>S-Bank</h1></header>
+    <ul className="bank-cards">
+      {bankCards.map(([title, detail]) => <li key={title}><span className="bank-icon" aria-hidden="true">{ribbon}</span><span><strong>{title}</strong>{detail}</span><span className="bank-chevron" aria-hidden="true">›</span></li>)}
+    </ul>
+    <button className="sponky-entry" onClick={() => setEntered(true)}><span className="sponky-entry-label">Ask Sponky</span><span className="sponky-entry-orb" aria-hidden="true">{ribbon}</span><span className="sr-only">Talk to Sponky</span></button>
+    <nav className="bank-tabs" aria-label="Bank app"><span>Home</span><span>S-Etukortti</span><span aria-current="page">Bank</span><span>Me</span></nav>
   </main>;
 
   return <main className="app">
     <header className="app-header"><button className="icon-button" aria-label="Back to entry" onClick={() => { voice.cancel(); cancelRequest(); setEntered(false); }}>‹</button><h1>Sponky<span>Your money, a little clearer</span></h1><button className="icon-button" aria-label={dark ? "Light appearance" : "Dark appearance"} onClick={toggleTheme}>{dark ? "☀" : "◐"}</button></header>
     <div className="toolbar"><button className="text-button" aria-pressed={voice.muted} onClick={voice.toggleMute}>{voice.muted ? "Sound off" : "Sound on"}</button><button className="text-button" aria-expanded={showHistory} onClick={() => setShowHistory(!showHistory)}>History</button></div>
-    <p className="demo-date">Historical demo · Simulated {view?.demoDate ?? "2024-11-04"}</p>
     {showHistory && <History entries={history} onClose={() => setShowHistory(false)} />}
     <Coach state={coachState} readBands={voice.readBands} onStart={startCoach}
       onRelease={() => void voice.stop()} onCancel={voice.cancel} connecting={voice.state === "connecting"}
-      disabled={!view} compact={view?.activity.kind !== "none" && !!view} />
+      disabled={!view} />
     {voice.state === "connecting" && <p className="meta" role="status">Connecting microphone…</p>}
     {voice.state === "transcribing" && <p className="meta" role="status">Finishing your words…</p>}
     {["connecting", "transcribing", "loading"].includes(voice.state) && <button className="text-button replay" onClick={voice.cancel}>Cancel voice</button>}
     <p className="coach-message" aria-live="polite">{view?.message ?? "Opening your coach…"}</p>
-    <form className="typing" onSubmit={event => { event.preventDefault(); if (view && text.trim()) void send({ action: "ask", revision: view.revision, text }, draftVersion.current); }}><label><span className="sr-only">Message</span><input value={text} maxLength={600} onChange={event => { draftVersion.current++; setText(event.target.value); }} placeholder="Or type here" /></label><button disabled={!view || busy || !text.trim()}>Send</button></form>
+    <form className="typing" data-visible={!!voiceError} onSubmit={event => { event.preventDefault(); if (view && text.trim()) void send({ action: "ask", revision: view.revision, text }, draftVersion.current); }}><label><span className="sr-only">Message</span><input value={text} maxLength={600} onChange={event => { draftVersion.current++; setText(event.target.value); }} placeholder="Type a message" /></label><button disabled={!view || busy || !text.trim()}>Send</button></form>
     {!view?.habit && view?.activity.kind === "none" && <div className="starters"><button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "How much did I spend on groceries last month?" })}>My October groceries ↗</button><button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "I've had a long day." })}>Talk about my day ↗</button></div>}
     {view && <Activities view={view} busy={busy} onAction={request => void send(request)} />}
     {view?.habit && view.activity.kind !== "checkin" && <button className="checkin-entry" disabled={busy} onClick={() => void send({ action: "checkin", revision: view.revision })}>Daily check-in <span aria-hidden="true">↗</span></button>}
@@ -143,6 +151,9 @@ export function Sponky() {
     {voiceError && <div className="error" role="alert"><p>{voiceError}</p><p>Typing is always available.</p><button className="text-button" onClick={() => setVoiceError("")}>Dismiss</button></div>}
     {busy && <button className="text-button" onClick={cancelRequest}>Stop waiting</button>}
     {view && !busy && voice.state === "ready" && view.revision > 0 && <button className="text-button replay" disabled={voice.muted} onClick={() => void voice.speak(view.revision)}>Play reply</button>}
-    <footer><p className="meta">Synthetic data · No bank connection · No money moves</p><details className="demo-controls"><summary>About this demo & simulated date</summary><p>One synthetic customer’s records, October–November 2024. “Last month” uses the simulated date above. Spending excludes income and investment movements. Baskets are correctable interpretations, not judgments.</p><p>Daily streak counts completed reflection dates. No points or missed-day penalty. Habits and check-ins persist in this browser for seven days; clearing its cookie starts a separate demo.</p><p>Supported categories: {view?.categories.join(", ")}. Voice uses ElevenLabs; interpretation uses Gemini. English demo, not financial advice.</p><button className="secondary" disabled={!view || busy} onClick={() => { if (view) void send({ action: "advance", revision: view.revision, confirmed: true }); }}>Advance simulated day</button></details></footer>
+    <details className="demo-controls"><summary>Demo controls</summary><p className="demo-date">Simulated date {view?.demoDate ?? "2024-11-04"}</p><button className="secondary" disabled={!view || busy} onClick={() => { if (view) void send({ action: "advance", revision: view.revision, confirmed: true }); }}>Advance simulated day</button></details>
+    <button className="talk-toggle" disabled={!view || !["ready", "speaking", "listening", "connecting"].includes(voice.state)} aria-pressed={voice.state === "listening" || voice.state === "connecting"} onClick={toggleTalk}>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
+      <span className="sr-only">{voice.state === "listening" ? "Tap to send" : voice.state === "connecting" ? "Tap to cancel" : "Tap to talk"}</span></button>
   </main>;
 }

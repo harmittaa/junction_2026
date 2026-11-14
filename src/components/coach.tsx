@@ -18,7 +18,7 @@ const directions = Array.from({ length: 32 }, (_, i) => ({
 
 type Hold = { kind: "pointer"; id: number } | { kind: "key"; key: string };
 
-export function Coach({ state, readBands, onStart, onRelease, onCancel, connecting = false, disabled = false, compact = false }: {
+export function Coach({ state, readBands, onStart, onRelease, onCancel, connecting = false, disabled = false }: {
   state: CoachState;
   readBands: (out: Float32Array) => boolean;
   onStart: () => void;
@@ -26,7 +26,6 @@ export function Coach({ state, readBands, onStart, onRelease, onCancel, connecti
   onCancel: () => void;
   connecting?: boolean;
   disabled?: boolean;
-  compact?: boolean;
 }) {
   const [label, action] = connecting ? ["Connecting", "Release to cancel"] : labels[state];
   const helpId = useId();
@@ -124,7 +123,7 @@ export function Coach({ state, readBands, onStart, onRelease, onCancel, connecti
     return () => { cancelAnimationFrame(frame); motion.removeEventListener("change", restart); };
   }, [state, readBands]);
 
-  return <div ref={root} className="sp-coach" data-state={state} data-compact={compact}>
+  return <div ref={root} className="sp-coach" data-state={state}>
     <button className="sp-coach-trigger" type="button" draggable={false}
       disabled={disabled || !action} aria-label={`Sponky. ${action || label}`} aria-describedby={helpId}
       onPointerDown={event => {
