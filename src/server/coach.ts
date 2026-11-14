@@ -30,12 +30,27 @@ function analysis(state: SessionState) {
   if (!state.analysis) throw new AppError("Ask an exploration question first.");
   return calculateAnalysis(dataset.transactions, state.customerId, state.analysis, state.corrections, state.demoDate, dataset.period.start);
 }
+function lastDayOfMonth(m: string): string {
+  const [year, mon] = m.split("-").map(Number);
+  return new Date(Date.UTC(year, mon, 0)).toISOString().slice(0, 10);
+}
+function activeMonth(state: SessionState): string {
+  return state.jarMonth && state.jarMonth < state.demoDate.slice(0, 7) ? state.jarMonth : state.demoDate.slice(0, 7);
+}
+function activePeriod(state: SessionState): { start: string; end: string } {
+  const m = activeMonth(state);
+  return { start: `${m}-01`, end: m === state.demoDate.slice(0, 7) ? state.demoDate : lastDayOfMonth(m) };
+}
 function checkupInput(state: SessionState) {
   return { rows: dataset.transactions, customerId: state.customerId, referenceDate: state.demoDate,
-    corrections: state.corrections, limit: state.profile.everydayLimit };
+    corrections: state.corrections, limit: state.profile.everydayLimit, jarMonth: activeMonth(state) };
 }
 function jarMessage(state: SessionState, welcome = false) {
   const jar = calculateJar(checkupInput(state));
+  if (activeMonth(state) < state.demoDate.slice(0, 7)) {
+    if (jar.overCents) return `Your ${month.format(utc(jar.period.start))} jar went ${euros(jar.overCents)} over the rim. ${jar.topDays.length ? `The biggest days were ${jar.topDays.map(row => fullDate.format(utc(row.date))).join(" and ")}.` : "We can take a closer look together."}`;
+    return `${euros(jar.leftCents)} left in your ${month.format(utc(jar.period.start))} jar, finishing inside your ${euros(jar.limitCents)} limit.`;
+  }
   if (jar.overCents) return `${welcome ? "Welcome back. " : ""}Your jar is ${euros(jar.overCents)} over the rim. ${jar.topDays.length ? `The biggest days this past week were ${jar.topDays.map(row => fullDate.format(utc(row.date))).join(" and ")}.` : "We can take a closer look together."}`;
   return `${euros(jar.leftCents)} left in your ${month.format(utc(state.demoDate))} jar, with ${jar.daysLeft} days to go.${jar.daysLeft ? " Your daily room is on screen." : ""}`;
 }
@@ -113,8 +128,16 @@ const necessityStatement = /\b(?:(?:was|were|is|it[’']?s|that[’']?s)\s+(?:(?
 export function transition(current: SessionState, request: CoachRequest, interpretation?: Interpretation): SessionState {
   if (current.customerId !== dataset.customerId) throw new AppError("This session uses another dataset.", 409);
   let state = structuredClone(current);
+  if (request.action === "select-month") {
+    if (request.month < state.profile.everydayLimit.activeSince || request.month > state.demoDate.slice(0, 7)) {
+      throw new AppError("Choose an available month.");
+    }
+    state = { ...state, jarMonth: request.month === state.demoDate.slice(0, 7) ? null : request.month,
+      mode: "jar", query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null };
+    return { ...state, message: jarMessage(state) };
+  }
   if (request.action === "ask") {
-    const result = validatePlan(interpretation, { categories, ...dataset.period, referenceDate: state.demoDate, previousQuery: state.query });
+    const result = validatePlan(interpretation, { categories, ...dataset.period, referenceDate: state.demoDate, previousQuery: state.query, selectedMonth: activeMonth(state) });
     if (result.kind === "weekly_checkup") {
       // Questions about a check-up are not permission to complete one.
       if (!checkupRequest.test(request.text)) return { ...state, message: "Ready when you are. Choose “Let's do my check-up” to begin." };
@@ -126,15 +149,20 @@ export function transition(current: SessionState, request: CoachRequest, interpr
       const jar = calculateJar(checkupInput(state));
       const usual = mode === "usual" ? calculateUsualComparison(checkupInput(state)) : null;
       const topOver = usual?.rows.filter(row => row.currentCents > row.usualCents).sort((a, b) => (b.currentCents - b.usualCents) - (a.currentCents - a.usualCents))[0];
-      return { ...state, message: mode === "pace"
+      const isPast = activeMonth(state) < state.demoDate.slice(0, 7);
+      const paceMessage = isPast
         ? jar.overCents
+          ? `You went ${euros(jar.overCents)} over ${month.format(utc(jar.period.start))}'s limit. The card shows your full pace details.`
+          : `${month.format(utc(jar.period.start))} finished at ${euros(jar.dailySpentCents)} a day. The card shows your full pace details.`
+        : jar.overCents
           ? `You're already ${euros(jar.overCents)} over this month's limit. The card shows your full pace details.`
           : jar.daysLeft
             ? `That's ${euros(jar.dailyRemainingCents)} a day for the ${jar.daysLeft} days left to stay inside your limit. The card shows your full pace details.`
-            : `This month is complete at ${euros(jar.dailySpentCents)} a day. The card shows your full pace details.`
-        : usual
-          ? `${topOver ? `${topOver.category}: ${euros(topOver.currentCents)} so far. ` : "No category is above its usual full month yet. "}The full comparison is on screen. Your usual month averages the previous 6 complete months.`
-          : jarMessage(state) };
+            : `This month is complete at ${euros(jar.dailySpentCents)} a day. The card shows your full pace details.`;
+      const usualMessage = isPast
+        ? `${topOver ? `${topOver.category}: ${euros(topOver.currentCents)} in ${month.format(utc(jar.period.start))}. ` : "No category was above its usual month. "}The full comparison is on screen. Your usual month averages the previous 6 complete months.`
+        : `${topOver ? `${topOver.category}: ${euros(topOver.currentCents)} so far. ` : "No category is above its usual full month yet. "}The full comparison is on screen. Your usual month averages the previous 6 complete months.`;
+      return { ...state, message: mode === "pace" ? paceMessage : mode === "usual" ? usualMessage : jarMessage(state) };
     }
     if (result.kind === "move") {
       const criteria = result.correction;
@@ -206,7 +234,7 @@ export function transition(current: SessionState, request: CoachRequest, interpr
     let date = state.demoDate;
     for (let day = 0; day < 7; day++) date = nextDate(date);
     if (date > dataset.period.end) throw new AppError("You've reached the last available week.");
-    state = { ...state, demoDate: date, mode: "jar", query: null, analysis: null, itemLimitation: false, move: null };
+    state = { ...state, demoDate: date, mode: "jar", query: null, analysis: null, itemLimitation: false, move: null, jarMonth: null };
     return { ...state, message: jarMessage(state, true) };
   }
   if (request.action === "undo-move") {
@@ -268,7 +296,7 @@ export async function coach(id: string, request: CoachRequest, signal?: AbortSig
   const deadline = AbortSignal.any([AbortSignal.timeout(27000), ...(signal ? [signal] : [])]);
   if (request.action === "ask") {
     await consumeBudget(id, "reasoning", new Date(), 3);
-    interpretation = await interpret(request.text, { categories, ...dataset.period, referenceDate: state.demoDate, previousQuery: state.query }, deadline);
+    interpretation = await interpret(request.text, { categories, ...dataset.period, referenceDate: state.demoDate, previousQuery: state.query, selectedMonth: activeMonth(state) }, deadline);
   }
   let next = transition(state, request, interpretation);
   if ((request.action === "ask" && !["checkin", "habit", "scenario", "weekly_checkup", "move"].includes(interpretation!.kind)) || request.action === "reveal") {
@@ -300,7 +328,7 @@ export function replyFacts(state: SessionState, plan?: Interpretation): ReplyFac
     // verified financial clause rather than accepting a bag of valid numbers
     // that could swap "left"/"spent" or "so far"/"usual".
     base.subject = state.mode === "usual" ? "Everyday spending against your usual month" : "Everyday monthly limit";
-    base.period = period({ start: `${state.demoDate.slice(0, 7)}-01`, end: state.demoDate });
+    base.period = period(activePeriod(state));
     base.required = [state.message];
     base.notes = [state.message];
     return base;

@@ -44,7 +44,7 @@ function wave(y: number, amplitude: number, phase: number) {
   return `${path} L200 232 L40 232 Z`;
 }
 
-export function Jar({ jar, move = null, revealKey }: { jar: JarStatus; move?: BasketMove | null; revealKey?: number }) {
+export function Jar({ jar, move = null, revealKey, demoDate, busy = false, onSelectMonth }: { jar: JarStatus; move?: BasketMove | null; revealKey?: number; demoDate?: string; busy?: boolean; onSelectMonth?: (month: string) => void }) {
   const root = useRef<HTMLElement>(null);
   const liquid = useRef<LiquidState | null>(null);
   const previous = useRef<{ revealKey?: number; move: string } | null>(null);
@@ -53,7 +53,8 @@ export function Jar({ jar, move = null, revealKey }: { jar: JarStatus; move?: Ba
   const over = jar.overCents > 0;
   const amount = over ? jar.overCents : jar.leftCents;
   const month = monthFormat.format(calendarDate(jar.period.start));
-  const currentMonth = jar.period.start.slice(0, 7);
+  const currentMonth = (demoDate ?? jar.period.start).slice(0, 7);
+  const selectedMonth = jar.period.start.slice(0, 7);
   const moveKey = move ? `${move.transactionId}:${move.from}:${move.to}:${move.amountCents}` : "";
   const movesToUnexpected = move?.to === "unexpected" && move.from !== "unexpected" && jar.evidence.some(row => row.id === move.transactionId);
   const showUnexpected = movesToUnexpected;
@@ -92,6 +93,9 @@ export function Jar({ jar, move = null, revealKey }: { jar: JarStatus; move?: Ba
         mini: clamp((jar.unexpectedCents - move.amountCents) / Math.max(1, jar.limitCents)),
         amount: excess || Math.max(0, jar.limitCents - spent), spent };
     }
+    if (!liquid.current && !calm && !reveal && !flight) {
+      liquid.current = { fill: 0, velocity: 0, dome: 0, mini: 0, amount: 0, spent: 0 };
+    }
     const state = liquid.current ??= { ...target, velocity: 0 };
     const fromAmount = state.amount;
     const fromSpent = state.spent;
@@ -128,7 +132,11 @@ export function Jar({ jar, move = null, revealKey }: { jar: JarStatus; move?: Ba
         ? `${String(Math.floor(elapsed / 70) % 10).repeat(3)},${String(Math.floor(elapsed / 90) % 10).repeat(2)} €`
         : euros(Math.round(state.amount));
       const y = 220 - 176 * clamp(state.fill);
-      const amplitude = calm ? 0 : 2 + Math.min(9, Math.abs(state.velocity) * 40) * (1 - progress);
+      const amplitude = calm || state.fill <= 0
+        ? 0
+        : elapsed > pause + 2400
+          ? 2.5
+          : 2.5 + Math.min(9, Math.abs(state.velocity) * 40) * (1 - progress);
       const phase = elapsed / 420;
       contents.setAttribute("visibility", state.fill > 0 ? "visible" : "hidden");
       front.setAttribute("d", wave(y, amplitude, phase));
@@ -146,11 +154,11 @@ export function Jar({ jar, move = null, revealKey }: { jar: JarStatus; move?: Ba
         bubble.setAttribute("transform", `translate(${u * u * 120 + 2 * u * e * 215 + e * e * 268} ${u * u * 20 - 2 * u * e * 40 + e * e * 165}) scale(${1 + Math.sin(e * Math.PI) * .3})`);
         bubble.classList.toggle("checkup-bubble-arriving", e > .5);
       }
-      if (!calm && elapsed < pause + 2450) frame = requestAnimationFrame(paint);
+      if (!calm) frame = requestAnimationFrame(paint);
     }
     frame = requestAnimationFrame(paint);
     return () => cancelAnimationFrame(frame);
-  }, [amount, calm, jar.limitCents, jar.overCents, jar.spentCents, jar.unexpectedCents, move, moveKey, movesToUnexpected, over, revealKey]);
+  }, [amount, calm, jar.limitCents, jar.overCents, jar.period.start, jar.spentCents, jar.unexpectedCents, move, moveKey, movesToUnexpected, over, revealKey]);
 
   const initialFill = jar.limitCents > 0 ? clamp(jar.spentCents / jar.limitCents) : jar.spentCents > 0 ? 1 : 0;
   const months = jar.months.filter(result => result.month < currentMonth);
@@ -160,8 +168,13 @@ export function Jar({ jar, move = null, revealKey }: { jar: JarStatus; move?: Ba
       <div className="checkup-jar-amount" data-counter aria-hidden="true">{euros(amount)}</div>
       <div className="checkup-jar-label" aria-hidden="true">{label}</div>
       <div className="checkup-jar-tags">
-        <span>{jar.daysLeft} {jar.daysLeft === 1 ? "day" : "days"} to go</span>
-        {!over && jar.daysLeft > 0 ? <span>{euros(jar.dailyRemainingCents)} a day</span> : null}
+        {selectedMonth < currentMonth ? <>
+          <span>Closed month</span>
+          <span>{euros(jar.dailySpentCents)} a day</span>
+        </> : <>
+          <span>{jar.daysLeft} {jar.daysLeft === 1 ? "day" : "days"} to go</span>
+          {!over && jar.daysLeft > 0 ? <span>{euros(jar.dailyRemainingCents)} a day</span> : null}
+        </>}
       </div>
     </div>
     <svg className="checkup-jar-stage" viewBox="0 -12 344 274" role="img" aria-labelledby={`${id}-title ${id}-description`}>
@@ -172,16 +185,18 @@ export function Jar({ jar, move = null, revealKey }: { jar: JarStatus; move?: Ba
         <clipPath id={`${id}-mini`}><rect x="242" y="122" width="52" height="98" rx="14" /></clipPath>
       </defs>
       <g className="checkup-main-jar" aria-hidden="true">
-        <ellipse className="checkup-jar-dome" data-dome cx="120" cy="44" rx="77" ry={over ? Math.min(30, 6 + jar.overCents / Math.max(1, jar.limitCents) * 300) : 0} />
-        <g data-liquid visibility={initialFill > 0 ? "visible" : "hidden"} clipPath={`url(#${id}-jar)`}>
-          <path className="checkup-liquid-back" data-liquid-back d={wave(216 - initialFill * 176, 0, 0)} />
-          <path className="checkup-liquid-front" data-liquid-front d={wave(220 - initialFill * 176, 0, 0)} />
-          <text className="checkup-spent" data-spent x="120" y={Math.min(204, 250 - initialFill * 176)} textAnchor="middle">{initialFill > .18 ? `${euros(jar.spentCents)} spent` : ""}</text>
+        <g className="checkup-jar-body">
+          <ellipse className="checkup-jar-dome" data-dome cx="120" cy="44" rx="77" ry={over ? Math.min(30, 6 + jar.overCents / Math.max(1, jar.limitCents) * 300) : 0} />
+          <g data-liquid visibility={initialFill > 0 ? "visible" : "hidden"} clipPath={`url(#${id}-jar)`}>
+            <path className="checkup-liquid-back" data-liquid-back d={wave(216 - initialFill * 176, 0, 0)} />
+            <path className="checkup-liquid-front" data-liquid-front d={wave(220 - initialFill * 176, 0, 0)} />
+            <text className="checkup-spent" data-spent x="120" y={Math.min(204, 250 - initialFill * 176)} textAnchor="middle">{initialFill > .18 ? `${euros(jar.spentCents)} spent` : ""}</text>
+          </g>
+          <path className="checkup-glass" d="M40 24V180a40 40 0 0 0 40 40H160a40 40 0 0 0 40-40V24" />
+          <path className="checkup-limit-tick" d="M204 44H214" />
+          <text className="checkup-rim" x="218" y="34">Limit</text>
+          <text className="checkup-rim" x="218" y="49">{euros(jar.limitCents)}</text>
         </g>
-        <path className="checkup-glass" d="M40 24V180a40 40 0 0 0 40 40H160a40 40 0 0 0 40-40V24" />
-        <path className="checkup-limit-tick" d="M204 44H214" />
-        <text className="checkup-rim" x="218" y="34">Limit</text>
-        <text className="checkup-rim" x="218" y="49">{euros(jar.limitCents)}</text>
       </g>
       <g className="checkup-mini-jar" aria-hidden="true">
         <text className="checkup-mini-label" x="268" y="112" textAnchor="middle">Unexpected</text>
@@ -192,15 +207,34 @@ export function Jar({ jar, move = null, revealKey }: { jar: JarStatus; move?: Ba
       <g className="checkup-payment-bubble" data-bubble opacity="0" aria-hidden="true"><circle r="15" /></g>
     </svg>
     <ol className="checkup-months" aria-label="Monthly jar results" key={`${currentMonth}:${revealKey ?? "static"}`}>
-      {months.map((result, index) => <li key={result.month} style={{ "--month": index } as CSSProperties} data-inside={result.inside}>
-        <span className="checkup-month-mark" aria-hidden="true">{result.inside ? "✓" : "!"}</span>
-        <span className="checkup-visually-hidden">{result.inside ? "Within limit" : "Over limit"}, </span>
-        <time dateTime={result.month}>{shortMonthFormat.format(calendarDate(`${result.month}-01`))}</time>
-      </li>)}
+      {months.map((result, index) => {
+        const isSelected = result.month === selectedMonth;
+        return <li key={result.month} style={{ "--month": index } as CSSProperties} data-inside={result.inside}>
+          <button
+            type="button"
+            disabled={busy}
+            aria-pressed={isSelected}
+            data-selected={isSelected}
+            onClick={() => onSelectMonth?.(result.month)}
+          >
+            <span className="checkup-month-mark" aria-hidden="true">{result.inside ? "✓" : "!"}</span>
+            <span className="checkup-visually-hidden">{result.inside ? "Within limit" : "Over limit"}, </span>
+            <time dateTime={result.month}>{shortMonthFormat.format(calendarDate(`${result.month}-01`))}</time>
+          </button>
+        </li>;
+      })}
       <li className="checkup-month-current" aria-current="date" style={{ "--month": months.length } as CSSProperties}>
-        <span className="checkup-month-mark" aria-hidden="true">·</span>
-        <time dateTime={currentMonth}>{shortMonthFormat.format(calendarDate(jar.period.start))}</time>
-        <span className="checkup-visually-hidden">, current month</span>
+        <button
+          type="button"
+          disabled={busy}
+          aria-pressed={currentMonth === selectedMonth}
+          data-selected={currentMonth === selectedMonth}
+          onClick={() => onSelectMonth?.(currentMonth)}
+        >
+          <span className="checkup-month-mark" aria-hidden="true">·</span>
+          <time dateTime={currentMonth}>{shortMonthFormat.format(calendarDate(`${currentMonth}-01`))}</time>
+          <span className="checkup-visually-hidden">, current month</span>
+        </button>
       </li>
     </ol>
   </section>;

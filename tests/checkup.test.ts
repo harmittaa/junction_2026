@@ -164,3 +164,74 @@ describe("weekly check-up credit", () => {
     expect(() => calculateJar({ ...input, limit: { amountCents: 220000, activeSince: "2026-13" } })).toThrow();
   });
 });
+
+describe("past-month jar and usual comparison", () => {
+  it("calculates past months inside and over limit while keeping all closed months", () => {
+    const july = calculateJar({ ...input, jarMonth: "2026-07" });
+    expect(july).toMatchObject({
+      period: { start: "2026-07-01", end: "2026-07-31" },
+      limitCents: 220000,
+      spentCents: 99581,
+      leftCents: 120419,
+      overCents: 0,
+      elapsedDays: 31,
+      daysLeft: 0,
+      dailySpentCents: 3212,
+      dailyRemainingCents: 0,
+      projectedCents: 99581,
+      projectedOverCents: 0,
+      contributionPeriod: { start: "2026-07-01", end: "2026-07-31" },
+    });
+    expect(july.months).toEqual([
+      { month: "2026-02", spentCents: 145205, inside: true },
+      { month: "2026-03", spentCents: 113723, inside: true },
+      { month: "2026-04", spentCents: 292322, inside: false },
+      { month: "2026-05", spentCents: 140290, inside: true },
+      { month: "2026-06", spentCents: 240758, inside: false },
+      { month: "2026-07", spentCents: 99581, inside: true },
+      { month: "2026-08", spentCents: 333652, inside: false },
+    ]);
+
+    const august = calculateJar({ ...input, jarMonth: "2026-08" });
+    expect(august).toMatchObject({
+      period: { start: "2026-08-01", end: "2026-08-31" },
+      limitCents: 220000,
+      spentCents: 333652,
+      leftCents: 0,
+      overCents: 113652,
+      elapsedDays: 31,
+      daysLeft: 0,
+      dailySpentCents: 10762,
+      dailyRemainingCents: 0,
+      projectedCents: 333652,
+      projectedOverCents: 113652,
+      contributionPeriod: { start: "2026-08-01", end: "2026-08-31" },
+    });
+    expect(august.topDays).toHaveLength(2);
+    expect(august.months).toEqual(july.months);
+
+    const usualAug = calculateUsualComparison({ ...input, jarMonth: "2026-08" });
+    expect(usualAug).toMatchObject({
+      period: { start: "2026-08-01", end: "2026-08-31" },
+      baseline: { start: "2026-02-01", end: "2026-07-31" },
+      monthCount: 6,
+    });
+    expect(usualAug.rows.length).toBeGreaterThan(0);
+
+    const usualJul = calculateUsualComparison({ ...input, jarMonth: "2026-07" });
+    expect(usualJul).toMatchObject({
+      period: { start: "2026-07-01", end: "2026-07-31" },
+      baseline: { start: "2026-01-01", end: "2026-06-30" },
+      monthCount: 6,
+    });
+  });
+
+  it("rejects invalid or out-of-range jar months", () => {
+    expect(() => calculateJar({ ...input, jarMonth: "2026-01" })).toThrow();
+    expect(() => calculateJar({ ...input, jarMonth: "2026-10" })).toThrow();
+    expect(() => calculateJar({ ...input, jarMonth: "2026-13" })).toThrow();
+    expect(() => calculateJar({ ...input, jarMonth: "not-a-month" })).toThrow();
+    expect(() => calculateUsualComparison({ ...input, jarMonth: "2026-01" })).toThrow();
+    expect(() => calculateUsualComparison({ ...input, jarMonth: "2026-10" })).toThrow();
+  });
+});

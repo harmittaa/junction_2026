@@ -83,6 +83,7 @@ export type Analysis = z.infer<typeof analysisSchema>;
 const revision = z.number().int().nonnegative();
 export const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("ask"), revision, text: z.string().trim().min(1).max(600) }).strict(),
+  z.object({ action: z.literal("select-month"), revision, month: z.string().regex(/^\d{4}-\d{2}$/) }).strict(),
   z.object({ action: z.literal("weekly-checkup"), revision }).strict(),
   z.object({ action: z.literal("next-week"), revision }).strict(),
   z.object({ action: z.literal("undo-move"), revision }).strict(),
