@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { transition, toView } from "@/server/coach";
+import { changeGoalText } from "@/domain/replies";
+import { euros } from "@/domain/spending";
 import { initialState } from "@/server/storage/state";
 import { type Interpretation, interpret } from "@/server/providers/gemini";
 import { signSession, verifySession } from "@/server/session";
@@ -112,6 +114,21 @@ describe("coordinator boundaries", () => {
 
     const profile = transition(initialState(), ask, { ...operation, kind: "profile", query: null });
     expect(euroCount(profile.message)).toBeLessThanOrEqual(1);
+
+    const saveState = transition(initialState(), ask, { ...operation, kind: "save", query: null });
+    expect(euroCount(saveState.message)).toBeLessThanOrEqual(1);
+
+    const spendWeekState = transition(initialState(), ask, { ...operation, kind: "spend_week", query: null });
+    expect(euroCount(spendWeekState.message)).toBeLessThanOrEqual(1);
+
+    const goalState = transition(initialState(), ask, { ...operation, kind: "goal", query: null, goal: { amountCents: 150000, targetMonth: "2027-03" } });
+    expect(euroCount(goalState.message)).toBeLessThanOrEqual(1);
+
+    const setGoalState = transition(initialState(), { action: "set-goal", revision: 0, goal: { amountCents: 150000, targetMonth: "2027-03" }, confirmed: true });
+    expect(euroCount(setGoalState.message)).toBeLessThanOrEqual(1);
+
+    const clearGoalState = transition(setGoalState, { action: "clear-goal", revision: 0, confirmed: true });
+    expect(euroCount(clearGoalState.message)).toBeLessThanOrEqual(1);
   });
   it("does not save a model-proposed habit or complete reflection through ordinary text", () => {
     const current = initialState();
@@ -232,4 +249,94 @@ describe("coordinator boundaries", () => {
       await new Promise<void>(resolve => server.close(() => resolve()));
     }
   }, 5000);
+
+  it("handles save, spend_week, and savings goals with limits and noticed cards", () => {
+    const initial = initialState();
+    const initialView = toView(initial);
+    expect(initialView.spendWeek.amountCents).toBe(26064);
+    expect(initialView.entryNoticed?.rule).toBe("balance_lower");
+
+    // Activity kinds
+    const saveView = toView(transition(initial, ask, { ...operation, kind: "save", query: null }));
+    expect(saveView.activity.kind).toBe("save");
+    expect(saveView.noticed?.rule).toBe("invest_over_left");
+
+    const spendWeekView = toView(transition(initial, ask, { ...operation, kind: "spend_week", query: null }));
+    expect(spendWeekView.activity.kind).toBe("spend_week");
+    expect(spendWeekView.noticed?.rule).toBe("jar_pace");
+
+    const goalPlan: Interpretation = { ...operation, kind: "goal", query: null, goal: { amountCents: 150000, targetMonth: "2027-03" } };
+    const askedGoalState = transition(initial, ask, goalPlan);
+    expect(askedGoalState.goal).toBeNull();
+    expect(askedGoalState.proposedGoal).toEqual({ amountCents: 150000, targetMonth: "2027-03" });
+
+    const goalView = toView(askedGoalState);
+    expect(goalView.activity.kind).toBe("goal");
+    if (goalView.activity.kind !== "goal") throw new Error("Expected goal");
+    expect(goalView.activity.verdict.verdict).toBe("stretch");
+    expect(goalView.activity.verdict.monthsInside).toBe(3);
+    expect(goalView.activity.verdict.monthlyCents).toBe(25000);
+    expect(goalView.noticed?.rule).toBe("largest_category");
+
+    // set-goal
+    const setReq = { action: "set-goal", revision: 0, goal: { amountCents: 150000, targetMonth: "2027-03" }, confirmed: true } as const;
+    const setGoalState = transition(initial, setReq);
+    expect(setGoalState.goal).toEqual({ amountCents: 150000, targetMonth: "2027-03" });
+    const setGoalView = toView(setGoalState);
+    expect(setGoalView.jar.limitCents).toBe(161419);
+    expect(setGoalView.jar.spentCents).toBe(128771);
+    expect(setGoalView.spendWeek.amountCents).toBe(9328);
+    expect(setGoalView.message).toBe(`Your goal is set. The jar limit is now ${euros(161419)} a month.`);
+
+    // Unreachable goal throws and state stays
+    const unreachableReq = { action: "set-goal", revision: 0, goal: { amountCents: 600000, targetMonth: "2027-03" }, confirmed: true } as const;
+    expect(() => transition(setGoalState, unreachableReq)).toThrow("That goal is out of reach. Try a smaller amount or a later month.");
+    expect(setGoalState.goal).toEqual({ amountCents: 150000, targetMonth: "2027-03" });
+
+    // Past-date goal throws
+    expect(() => transition(initial, { action: "set-goal", revision: 0, goal: { amountCents: 150000, targetMonth: "2026-08" }, confirmed: true })).toThrow();
+    expect(() => transition(initial, { action: "set-goal", revision: 0, goal: { amountCents: 150000, targetMonth: "2026-09" }, confirmed: true })).toThrow();
+
+    // changeGoalText returns fixed question
+    const changeState = transition(setGoalState, { action: "ask", revision: 0, text: changeGoalText }, { ...operation, kind: "goal", query: null, goal: null, reply: "none" });
+    expect(changeState.message).toBe("How much do you want to save, and by which month?");
+
+    // Question about removing does not remove it
+    const questionRemoveState = transition(setGoalState, { action: "ask", revision: 0, text: "Should I remove my goal?" }, { ...operation, kind: "goal", query: null, goal: null, reply: "none" });
+    expect(questionRemoveState.message).toBe("Say “remove my goal” and I will do it.");
+    expect(questionRemoveState.goal).toEqual({ amountCents: 150000, targetMonth: "2027-03" });
+
+    // Imperative remove clears goal
+    const removeState = transition(setGoalState, { action: "ask", revision: 0, text: "Remove my goal." }, { ...operation, kind: "goal", query: null, goal: null, reply: "none" });
+    expect("goal" in removeState && removeState.goal).toBeFalsy();
+    const removedView = toView(removeState);
+    expect(removedView.jar.limitCents).toBe(220000);
+    expect(removedView.spendWeek.amountCents).toBe(26064);
+
+    // clear-goal restores limit
+    const clearReq = { action: "clear-goal", revision: 0, confirmed: true } as const;
+    const clearedState = transition(setGoalState, clearReq);
+    expect("goal" in clearedState && clearedState.goal).toBeFalsy();
+    const clearedView = toView(clearedState);
+    expect(clearedView.goal).toBeNull();
+    expect(clearedView.jar.limitCents).toBe(220000);
+    expect(clearedView.spendWeek.amountCents).toBe(26064);
+    expect(clearedView.message).toBe(`Goal removed. The jar limit is back to ${euros(220000)} a month.`);
+    expect(() => transition(clearedState, clearReq)).toThrow("There is no goal to remove.");
+
+    // Other activity noticed rules
+    const usualView = toView(transition(initial, ask, { ...operation, kind: "usual", query: null }));
+    expect(usualView.noticed).toBeNull();
+
+    const profileView = toView(transition(initial, ask, { ...operation, kind: "profile", query: null }));
+    expect(profileView.noticed?.rule).toBe("month_over_usual");
+
+    // Old session (no goal property) loads through toView
+    const oldSession = { ...initial };
+    delete oldSession.goal;
+    delete oldSession.proposedGoal;
+    const oldView = toView(oldSession);
+    expect(oldView.goal).toBeNull();
+    expect(oldView.spendWeek.amountCents).toBe(26064);
+  });
 });

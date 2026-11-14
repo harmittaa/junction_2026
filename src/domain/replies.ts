@@ -13,6 +13,8 @@ export type ReplyFacts = {
 };
 export const replySchema = z.object({ text: z.string().trim().min(1).max(480) }).strict();
 
+export const changeGoalText = "I want to change my goal";
+
 const small: Record<string, number> = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6,
   seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14,
   fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20,
@@ -86,8 +88,9 @@ export function verifyReply(text: string, facts: ReplyFacts): boolean {
   if (!replySchema.shape.text.safeParse(text).success || speechText(text).length > 600) return false;
   if (/\b(?:demo|simulated|historical|assumptions?)\b/i.test(text)) return false;
   if (/\b(?:was any|were any|was that|was this)\b.{0,50}\b(?:must|necessity|necessary|essential)\b/i.test(text)) return false;
+  if (/\b(?:goal saved|you(?:'ve| have)?\s+(?:actually\s+)?saved)\b/i.test(text)) return false;
   if (quantities(text).filter(value => value.startsWith("money:")).length > 1) return false;
-  if (["jar", "pace", "usual", "overspend"].includes(facts.kind)) {
+  if (["jar", "pace", "usual", "overspend", "save", "goal", "spend_week"].includes(facts.kind)) {
     if (!facts.required?.length || facts.required.some(note => text.split(note).length !== 2)) return false;
     const extra = facts.required.reduce((rest, note) => rest.replace(note, ""), text).trim();
     return ["", "We can look at it together.", "One step at a time.", "You've got this."].includes(extra);
