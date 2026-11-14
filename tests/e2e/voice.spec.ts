@@ -247,6 +247,7 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
   const orb = page.locator(".sp-coach-orb");
   const draft = page.getByRole("textbox", { name: "Message", exact: true });
   await expect(trigger).toBeEnabled();
+  await expect(trigger).toHaveCSS("-webkit-tap-highlight-color", "rgba(0, 0, 0, 0)");
   // Neighbors above the enlarged region must still receive their own touches.
   await page.getByRole("button", { name: "Sound on", exact: true }).tap();
   await expect(page.getByRole("button", { name: "Sound off", exact: true })).toHaveAttribute("aria-pressed", "true");
