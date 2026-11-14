@@ -3,7 +3,7 @@ import { applicationDefault, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { AppError } from "@/server/errors";
 import { dataset } from "@/server/data";
-import { initialState, sessionStateSchema, type SessionState } from "./state";
+import { initialState, migrateSessionState, sessionStateSchema, type SessionState } from "./state";
 
 function database() {
   const projectId = process.env.GOOGLE_CLOUD_PROJECT ?? "sponky-junction-2026";
@@ -16,7 +16,7 @@ function sessionRef(id: string) {
   return database().collection("demoSessionsV1").doc(id);
 }
 function parseState(value: unknown) {
-  const state = sessionStateSchema.parse(value);
+  const state = migrateSessionState(value);
   if (state.customerId !== dataset.customerId) throw new AppError("This session uses an older demo dataset. Start a new browser session.", 409);
   return state;
 }
@@ -38,7 +38,7 @@ export async function updateSession(id: string, revision: number, change: (state
 
 // Per-session bounds plus a shared daily ceiling protect the public demo's paid
 // providers. This is not a billing cap; upstream pricing and abusive clients vary.
-export async function consumeBudget(id: string, kind: "reasoning" | "speech" | "token", now = new Date()) {
+export async function consumeBudget(id: string, kind: "reasoning" | "speech" | "token", now = new Date(), units: 1 | 2 | 3 = 1) {
   const date = now.toISOString().slice(0, 10);
   const ref = sessionRef(id).collection("usage").doc(date);
   const global = database().collection("demoUsageV1").doc(date);
@@ -48,10 +48,11 @@ export async function consumeBudget(id: string, kind: "reasoning" | "speech" | "
     const localCount = Number(sessionDoc.data()?.[kind] ?? 0);
     const globalCount = Number(globalDoc.data()?.[kind] ?? 0);
     const last = Number(sessionDoc.data()?.[`${kind}Last`] ?? 0);
-    if (now.getTime() - last < 700 || localCount >= limits[0] || globalCount >= limits[1]) {
+    if (now.getTime() - last < 700 || localCount + units > limits[0] || globalCount + units > limits[1]) {
       throw new AppError("The demo's voice or reasoning limit is reached. Try typing later; saved activities still work.", 429, true);
     }
-    tx.set(ref, { [kind]: localCount + 1, [`${kind}Last`]: now.getTime() }, { merge: true });
-    tx.set(global, { [kind]: globalCount + 1 }, { merge: true });
+    // Reserve the maximum calls for this turn, including one composition retry.
+    tx.set(ref, { [kind]: localCount + units, [`${kind}Last`]: now.getTime() }, { merge: true });
+    tx.set(global, { [kind]: globalCount + units }, { merge: true });
   });
 }

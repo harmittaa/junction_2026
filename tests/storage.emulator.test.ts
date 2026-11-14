@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
+import { getFirestore } from "firebase-admin/firestore";
 import { readSession, updateSession, consumeBudget } from "@/server/storage/sessions";
 import { transition, toView } from "@/server/coach";
 
@@ -39,5 +40,27 @@ describe("Firestore server persistence", () => {
     expect(read.status).toBe(403);
     const write = await fetch(`${root}/demoSessionsV1/forbidden`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fields: { value: { stringValue: "no" } } }) });
     expect(write.status).toBe(403);
+  });
+  it("migrates legacy query state without losing saved choices and still rejects another customer", async () => {
+    const id = randomUUID();
+    const current = await readSession(id);
+    const legacy = { ...current, version: 1, revision: 4,
+      query: { category: "Groceries", start: "2026-08-01", end: "2026-08-31" }, mode: "reveal",
+      habit: { category: "Groceries", action: "Review my groceries", goal: "" },
+      corrections: { "row-2898292": "regular" }, completedDates: ["2026-09-01"] };
+    const ref = getFirestore().collection("demoSessionsV1").doc(id);
+    await ref.set({ state: legacy });
+    const loaded = await readSession(id);
+    expect(loaded).toMatchObject({ version: 2, revision: 4, habit: legacy.habit, corrections: legacy.corrections,
+      completedDates: legacy.completedDates, query: { categories: ["Groceries"], baskets: [], merchantType: null } });
+    await updateSession(id, 4, state => transition(state, { action: "checkin", revision: 4 }));
+    expect((await ref.get()).data()?.state.version).toBe(2);
+    await ref.set({ state: { ...legacy, customerId: "CUST00001" } });
+    await expect(readSession(id)).rejects.toMatchObject({ status: 409 });
+  });
+  it("reserves every possible model call without raising the existing per-session budget", async () => {
+    const id = randomUUID(), now = Date.now();
+    for (let i = 0; i < 10; i++) await consumeBudget(id, "reasoning", new Date(now + i * 1000), 3);
+    await expect(consumeBudget(id, "reasoning", new Date(now + 11000))).rejects.toMatchObject({ status: 429 });
   });
 });
