@@ -251,3 +251,41 @@ test("selecting a past month jar updates the display and answers jar questions i
   await expect(page.getByLabel("September spending jar")).toBeVisible();
   await expect(page.locator(".checkup-jar-amount")).toHaveText("912,29 €");
 });
+
+test("safe to save, stretch goal, set goal, reload keeps goal", async ({ page }) => {
+  const say = await installVoice(page);
+  await enter(page);
+
+  // 1. say("How much is safe to save?"). Expect the card to show 16,90 €.
+  const saveResponse = await say("How much is safe to save?");
+  expect(saveResponse.status()).toBe(200);
+  const saveView = viewSchema.parse(await saveResponse.json());
+  expect(saveView.activity.kind).toBe("save");
+  await expect(page.locator(".ac-card")).toContainText(/16,90\s*€/);
+
+  // 2. say("Can I save 1,500 euros by March?"). Expect "Possible, but a stretch".
+  const goalResponse = await say("Can I save 1,500 euros by March?");
+  expect(goalResponse.status()).toBe(200);
+  const goalView = viewSchema.parse(await goalResponse.json());
+  expect(goalView.activity.kind).toBe("goal");
+  await expect(page.locator(".ac-goal-headline")).toContainText("Possible, but a stretch");
+
+  // 3. Click "Set this goal". Expect the jar to show 1 614,19 € as the limit.
+  const setGoalResponse = page.waitForResponse(response => response.url().endsWith("/api/coach"));
+  await page.getByRole("button", { name: "Set this goal", exact: true }).click();
+  const setGoalResult = await setGoalResponse;
+  expect(setGoalResult.status()).toBe(200);
+  const setGoalView = viewSchema.parse(await setGoalResult.json());
+  expect(setGoalView.goal).toEqual({ amountCents: 150000, targetMonth: "2027-03" });
+  const jar = page.getByRole("region", { name: "September spending jar" });
+  await expect(jar).toBeVisible();
+  await expect(jar.locator(".checkup-rim-amount")).toContainText(/1\s*614,19\s*€/);
+
+  // 4. page.reload(), click /Talk to Sponky/. Expect the jar limit still 1 614,19 €.
+  const reloaded = page.waitForResponse(response => response.url().endsWith("/api/session") && response.request().method() === "GET");
+  await page.reload();
+  await reloaded;
+  await page.getByRole("button", { name: /Talk to Sponky/ }).click();
+  await expect(jar).toBeVisible();
+  await expect(jar.locator(".checkup-rim-amount")).toContainText(/1\s*614,19\s*€/);
+});
