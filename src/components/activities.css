@@ -28,8 +28,6 @@
 .sp-coach[data-state=celebrate] .sp-coach-motion{animation:sp-celebrate .65s var(--sp-spring) 1}
 .sp-coach-label{display:grid;gap:2px;color:var(--textBrand)}
 .sp-coach-label span{font-size:14px;color:var(--textSecondary)}
-.sp-coach[data-compact=true] .sp-coach-trigger{padding:4px 0 16px;gap:8px}
-.sp-coach[data-compact=true] .sp-coach-orb{width:88px;height:88px;margin:32px}
 .sp-activities,.sp-history{font-size:16px;line-height:1.5;min-width:0}
 .sp-activities *,.sp-history *{box-sizing:border-box}
 .sp-card,.sp-history{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin:16px 0;overflow-wrap:anywhere;animation:sp-enter .4s var(--sp-spring)}
