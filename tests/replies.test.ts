@@ -87,4 +87,24 @@ describe("verified model-written replies", () => {
       query: { categories: ["Groceries"], baskets: [], merchantType: null, start: "2026-08-01", end: "2026-08-31" } });
     expect(migrateSessionState({ ...old, demoDate: "2026-09-01" }).weeklyCompletedDates).toEqual([]);
   });
+
+  it("converts Finnish euro amounts to rounded whole euros in spoken text", () => {
+    expect(speechText("12,50 €")).toBe("about thirteen euros");
+    expect(speechText("12,49 €")).toBe("about twelve euros");
+    expect(speechText("213,00 €")).toBe("two hundred thirteen euros");
+    expect(speechText("1,00 €")).toBe("one euro");
+    expect(speechText("0,00 €")).toBe("zero euros");
+    expect(speechText("1 030,75 €")).toBe("about one thousand thirty one euros");
+  });
+
+  it("rejects replies with more than one money quantity even if all amounts are known facts", () => {
+    const multiFacts: ReplyFacts = {
+      ...facts,
+      values: [
+        { label: "Restaurants recorded spending", amountCents: 17205, count: 10 },
+        { label: "Earlier spending", amountCents: 5000, count: 2 },
+      ],
+    };
+    expect(verifyReply("You spent 172,05 € and 50,00 €.", multiFacts)).toBe(false);
+  });
 });

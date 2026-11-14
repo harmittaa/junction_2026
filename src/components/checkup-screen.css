@@ -35,7 +35,7 @@
 .checkup-screen .sp-analysis-section { margin: 12px 0; }
 .checkup-screen .sp-analysis-rows>li { padding: 8px 0; }
 .checkup-screen .sp-analysis-rows .sp-bar-label { font-size: 14px; }
-.checkup-screen .sp-amount { font: 800 60px/1 var(--font-display),sans-serif; text-align: center; }
+.checkup-screen .sp-amount { font: 700 34px/40px var(--font-ux),sans-serif; letter-spacing: -.5px; font-variant-numeric: tabular-nums; text-align: center; }
 .checkup-screen .sp-meta { font-size: 12px; }
 .checkup-screen .sp-bar { animation-timing-function: var(--checkup-spring); }
 .checkup-screen .meta { margin: 0; }
@@ -46,6 +46,6 @@
 .checkup-usual-track[data-over=true] b { background: var(--status-warningBorder); }
 .checkup-usual-track i { position: absolute; width: 2px; top: -3px; bottom: -3px; background: var(--textPrimary); }
 .checkup-screen .checkup-pace { text-align: center; }
-.checkup-pace .sp-amount { font-size: 52px; }
+.checkup-pace .sp-amount { font: 700 34px/40px var(--font-ux),sans-serif; letter-spacing: -.5px; font-variant-numeric: tabular-nums; }
 @media(max-height: 720px) { .checkup-screen { gap: 6px; padding-bottom: 142px; } .checkup-canvas .checkup-jar-stage { max-height: 168px; } .checkup-screen .coach-message { max-height: 90px; font-size: 15px; } .checkup-canvas .checkup-welcome { top: 96px; } }
 @media(prefers-reduced-motion: reduce) { .checkup-screen *, .checkup-screen *::before, .checkup-screen *::after { animation: none !important; transition: none !important; } }

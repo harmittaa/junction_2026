@@ -29,7 +29,8 @@ it("speaks the server-owned entry or answer and rejects stale revisions or arbit
   const revealed = await send({ revision: 1 });
   expect(revealed.status).toBe(200);
   expect(revealed.headers.get("Content-Type")).toBe("audio/mpeg");
-  expect(spoken[1]).toContain("one thousand one hundred eleven euros and six cents");
+  expect(spoken[1]).toContain("about one thousand one hundred eleven euros");
+  expect(spoken[1]).not.toContain("cents");
   expect(spoken[1]).toContain("groceries in August 2026, across 16 payments");
   const later = transition({ ...initialState(), demoDate: "2026-09-30" }, { action: "ask", revision: 0, text: "Health in September, just show me" }, {
     kind: "spending", query: { categories: ["Health"], baskets: [], merchantType: null, start: "2026-09-01", end: "2026-09-30" }, percent: null, direct: true, reply: "none",
@@ -37,5 +38,6 @@ it("speaks the server-owned entry or answer and rejects stale revisions or arbit
   });
   io.read.mockResolvedValue(later);
   expect((await send({ revision: 0 })).status).toBe(200);
-  expect(spoken[2]).toContain("seventy three euros and fifteen cents");
+  expect(spoken[2]).toContain("about seventy three euros");
+  expect(spoken[2]).not.toContain("cents");
 });

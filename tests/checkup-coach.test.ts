@@ -223,11 +223,11 @@ describe("financial reply clauses", () => {
     expect(spentInsteadOfLeft).not.toBe(jar.fallback);
     expect(verifyReply(spentInsteadOfLeft, jar)).toBe(false);
     const pace = replyFacts(ask(initialState(), "How is my pace?", { ...scopePlan, kind: "pace" }));
-    const swappedPace = pace.fallback.replace("80,48", "SWAP").replace("65,16", "80,48").replace("SWAP", "65,16");
+    const swappedPace = pace.fallback.replace(/stay inside/, "go over");
     expect(swappedPace).not.toBe(pace.fallback);
     expect(verifyReply(swappedPace, pace)).toBe(false);
     const usual = replyFacts(ask(initialState(), "Compare with usual", { ...scopePlan, kind: "usual" }));
-    const swappedUsual = usual.fallback.replace("281,65", "SWAP").replace("186,77", "281,65").replace("SWAP", "186,77");
+    const swappedUsual = usual.fallback.replace(/so far/, "in your usual month");
     expect(swappedUsual).not.toBe(usual.fallback);
     expect(verifyReply(swappedUsual, usual)).toBe(false);
   });

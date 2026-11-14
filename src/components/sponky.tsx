@@ -219,7 +219,7 @@ export function Sponky() {
     <section className="checkup-canvas" aria-label="Current answer" aria-busy={busy}>
       {view && !hasContent && <CheckupWelcome firstName={view.profile.firstName} date={view.demoDate} due={view.checkup.due} />}
       {view && hasContent && !reward && <div className="checkup-answer" key={view.activity.kind === "jar" ? "jar" : `${view.activity.kind}:${view.revision}`}>
-        {(entryCaption && view.jar.overCents > 0) || view.activity.kind === "jar" ? <Jar jar={view.jar} move={view.move} revealKey={revealKey} /> : <Activities view={view} busy={busy} onAction={request => void send(request)} />}
+        {(entryCaption && view.jar.overCents > 0) || view.activity.kind === "jar" ? <Jar jar={view.jar} move={view.move} revealKey={revealKey} /> : <Activities view={view} busy={busy} countActive={voice.state !== "loading"} onAction={request => void send(request)} />}
       </div>}
     </section>
     <section className="checkup-talk" aria-label="Conversation">

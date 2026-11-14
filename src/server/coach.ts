@@ -37,7 +37,7 @@ function checkupInput(state: SessionState) {
 function jarMessage(state: SessionState, welcome = false) {
   const jar = calculateJar(checkupInput(state));
   if (jar.overCents) return `${welcome ? "Welcome back. " : ""}Your jar is ${euros(jar.overCents)} over the rim. ${jar.topDays.length ? `The biggest days this past week were ${jar.topDays.map(row => fullDate.format(utc(row.date))).join(" and ")}.` : "We can take a closer look together."}`;
-  return `${euros(jar.leftCents)} left in your ${month.format(utc(state.demoDate))} jar, with ${jar.daysLeft} days to go.${jar.daysLeft ? ` That's ${euros(jar.dailyRemainingCents)} a day to stay inside your limit.` : ""}`;
+  return `${euros(jar.leftCents)} left in your ${month.format(utc(state.demoDate))} jar, with ${jar.daysLeft} days to go.${jar.daysLeft ? " Your daily room is on screen." : ""}`;
 }
 function currentEvidence(state: SessionState) {
   if (["jar", "pace", "overspend"].includes(state.mode)) return calculateJar(checkupInput(state)).evidence;
@@ -55,20 +55,24 @@ function analysisSummary(result: Analysis) {
     if (!result.evidenceCount) return `No matching spending records ${period(result.query)}. That does not establish spending outside this dataset.`;
     const baskets = result.sections[0].rows.map(row => `${row.label}: ${row.sharePercent}%`).join(", ");
     const top = result.sections[1].rows[0];
-    const variable = result.sections[2].rows[0];
-    return `Your recorded spending ${period(result.query)}: ${baskets}. ${top ? `Top category: ${top.label}, ${euros(top.amountCents)}. ` : ""}${variable ? `Largest monthly range: ${variable.label}, ${euros(variable.amountCents)}.` : "No matching categories."} These are patterns, not personality labels.`;
+    return `Your recorded spending ${period(result.query)}: ${baskets}. ${top ? `Top category: ${top.label}, ${euros(top.amountCents)}. ` : ""}The full breakdown is on screen. These are patterns, not personality labels.`;
   }
-  if (result.kind === "cashflow") return `Recorded ${period(result.query)}: income ${euros(rows[0].amountCents)}, spending ${euros(rows[1].amountCents)}, and recorded transfers to investments ${euros(rows[2].amountCents)}. Investment deposits are not a verified goal result.`;
-  return `${result.title} ${period(result.query)}: ${selected.map(row => `${row.label}: ${euros(row.amountCents)}`).join("; ")}. ${basis ? `${basis}. ` : ""}${result.kind === "whatif" ? "Hypothetical only; no money has been saved." : "The card shows the payments and calculation."}`;
+  if (result.kind === "cashflow") return `Recorded ${period(result.query)}: recorded transfers to investments came to ${euros(rows[2].amountCents)}. Income and spending are on screen. Investment deposits are not a verified goal result.`;
+  if (result.kind === "whatif") {
+    const row = rows.find(r => /monthly reduction/i.test(r.label)) ?? selected[0];
+    return `${result.title} ${period(result.query)}: ${row ? `${row.label}: ${euros(row.amountCents)}. ` : ""}${basis ? `${basis}. ` : ""}Hypothetical only; no money has been saved. The full breakdown is on screen.`;
+  }
+  const headline = selected[0];
+  return `${result.title} ${period(result.query)}: ${headline ? `${headline.label}: ${euros(headline.amountCents)}. ` : ""}The breakdown is on screen. The card shows the payments and calculation.`;
 }
 function guessReaction(guessCents: number, totalCents: number) {
   const gap = Math.abs(totalCents - guessCents);
-  if (gap === 0) return `Spot on! You guessed ${euros(guessCents)}, and that's exactly it.`;
+  if (gap === 0) return `Spot on! You guessed it — it comes to ${euros(totalCents)}.`;
   // Within 10% counts as close, compared in integer cents.
-  if (gap * 10 <= totalCents) return `So close! You guessed ${euros(guessCents)}, and it's ${euros(totalCents)}.`;
+  if (gap * 10 <= totalCents) return `So close! It comes to ${euros(totalCents)}.`;
   return totalCents > guessCents
-    ? `Plot twist! It's ${euros(totalCents)}, ${euros(gap)} more than your guess of ${euros(guessCents)}.`
-    : `Less than you thought. It's ${euros(totalCents)}, ${euros(gap)} under your guess of ${euros(guessCents)}.`;
+    ? `Plot twist! A bit more than your guess: it comes to ${euros(totalCents)}.`
+    : `Nice surprise! Less than your guess: it comes to ${euros(totalCents)}.`;
 }
 function reveal(state: SessionState, guessCents: number | null): SessionState {
   const result = spending(state);
@@ -97,7 +101,7 @@ function checkin(state: SessionState): SessionState {
 function scenario(state: SessionState, percent: number): SessionState {
   if (state.mode !== "reveal") throw new AppError("Reveal the spending first, then explore a what-if.");
   const result = percentageScenario(spending(state).baskets.everyday, percent);
-  return { ...state, percent, message: `Let's play pretend: trimming ${percent}% off your ${euros(result.baseCents)} of everyday spending would free up ${euros(result.reductionCents)}. Purely hypothetical, nothing's actually saved. Move any must-haves out of Everyday first so the maths stays fair.` };
+  return { ...state, percent, message: `Let's play pretend: trimming ${percent}% off your everyday spending would free up ${euros(result.reductionCents)}. Purely hypothetical, nothing's actually saved. Move any must-haves out of Everyday first so the maths stays fair.` };
 }
 
 // Spoken input has no reliable punctuation or apostrophes, so grammar is anchored
@@ -121,9 +125,15 @@ export function transition(current: SessionState, request: CoachRequest, interpr
       state = { ...state, mode, query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null };
       const jar = calculateJar(checkupInput(state));
       const usual = mode === "usual" ? calculateUsualComparison(checkupInput(state)) : null;
+      const topOver = usual?.rows.filter(row => row.currentCents > row.usualCents).sort((a, b) => (b.currentCents - b.usualCents) - (a.currentCents - a.usualCents))[0];
       return { ...state, message: mode === "pace"
-        ? `So far, ${euros(jar.dailySpentCents)} a day. ${jar.overCents ? `You're already ${euros(jar.overCents)} over this month's limit.` : jar.daysLeft ? `${euros(jar.dailyRemainingCents)} a day for the ${jar.daysLeft} days left stays inside the limit.` : "This month is complete."} ${jar.projectedOverCents ? `At this pace, the month would finish ${euros(jar.projectedOverCents)} over.` : ""}`.trim()
-        : usual ? `${usual.rows.filter(row => row.currentCents > row.usualCents).sort((a, b) => (b.currentCents - b.usualCents) - (a.currentCents - a.usualCents)).slice(0, 2).map(row => `${row.category}: ${euros(row.currentCents)} so far, against ${euros(row.usualCents)} in your usual full month`).join("; ") || "No category is above its usual full month yet"}. Your usual month averages the previous 6 complete months.`
+        ? jar.overCents
+          ? `You're already ${euros(jar.overCents)} over this month's limit. The card shows your full pace details.`
+          : jar.daysLeft
+            ? `That's ${euros(jar.dailyRemainingCents)} a day for the ${jar.daysLeft} days left to stay inside your limit. The card shows your full pace details.`
+            : `This month is complete at ${euros(jar.dailySpentCents)} a day. The card shows your full pace details.`
+        : usual
+          ? `${topOver ? `${topOver.category}: ${euros(topOver.currentCents)} so far. ` : "No category is above its usual full month yet. "}The full comparison is on screen. Your usual month averages the previous 6 complete months.`
           : jarMessage(state) };
     }
     if (result.kind === "move") {
@@ -146,7 +156,7 @@ export function transition(current: SessionState, request: CoachRequest, interpr
       state.corrections[row.id] = "unexpected";
       state = { ...state, mode: "jar", query: null, analysis: null, itemLimitation: false, percent: null,
         move: { transactionId: row.id, amountCents: row.amountCents, from: row.basket, to: "unexpected" } };
-      return { ...state, message: `${euros(row.amountCents)} moved to Unexpected. The payment amount hasn't changed. ${jarMessage(state)}` };
+      return { ...state, message: `${euros(row.amountCents)} moved to Unexpected. The payment amount hasn't changed. Your updated jar is on screen.` };
     }
     if (analysisKindSchema.safeParse(result.kind).success) {
       const query = result.kind === "profile" ? recentCompleteQuery(state.demoDate, dataset.period.start, 1) : result.query;
