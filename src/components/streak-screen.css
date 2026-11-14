@@ -136,17 +136,6 @@
   margin-bottom: 10px;
 }
 
-.streak-road-line {
-  position: absolute;
-  top: 26px;
-  left: 22px;
-  right: 22px;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.15);
-  transform-origin: left;
-  animation: streak-road-draw 600ms var(--checkup-glide) 200ms both;
-}
-
 .streak-slots {
   list-style: none;
   margin: 0;
@@ -321,15 +310,6 @@
   }
   100% {
     transform: scale(1);
-  }
-}
-
-@keyframes streak-road-draw {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
   }
 }
 

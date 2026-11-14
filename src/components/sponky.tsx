@@ -11,7 +11,7 @@ import "./checkup-screen.css";
 
 type RequestState = { kind: "idle" } | { kind: "sending" } | { kind: "error"; message: string; outdated?: boolean };
 const ribbon = <svg viewBox="0 0 120 120"><path d="M69 10C107 34 39 80 77 110M43 10C81 34 13 80 51 110" /></svg>;
-const flame = <svg className="checkup-streak-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1c1 3 4 4 4 8a4 4 0 0 1-8 0c0-1.5.7-2.5 1.5-3.2C6 7.5 7.5 5 8 1Z" /></svg>;
+const flame = <svg className="checkup-streak-icon" viewBox="4 1 8 12" aria-hidden="true"><path d="M8 1c1 3 4 4 4 8a4 4 0 0 1-8 0c0-1.5.7-2.5 1.5-3.2C6 7.5 7.5 5 8 1Z" /></svg>;
 const speaker = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z" /><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /></svg>;
 const mutedSpeaker = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z" /><path d="M16 9.5l5 5M21 9.5l-5 5" /></svg>;
 const bankCards = [["Accounts", "S-Tili · Taloustili"], ["Payments and e-invoices", "Make a new payment or view e-invoices"], ["Cards", "S-Etukortti Visa Credit/Debit"], ["Säästäjä", "Oma tavoitteeni"], ["Investments", "Value of your investments"]];
@@ -38,7 +38,6 @@ export function Sponky() {
   const [view, setView] = useState<CoachView | null>(null);
   const [requestState, setRequestState] = useState<RequestState>({ kind: "idle" });
   const [voiceError, setVoiceError] = useState("");
-  const [question, setQuestion] = useState("");
   const [ideasOpen, setIdeasOpen] = useState(false);
   const [streakOpen, setStreakOpen] = useState(false);
   const [content, setContent] = useState(false);
@@ -128,15 +127,12 @@ export function Sponky() {
       const next = await loadSession(controller.signal, restart);
       if (controller.signal.aborted) return;
       setView(next); setRequestState({ kind: "idle" }); setVoiceError("");
-      setContent(false); setQuestion(""); setEntryCaption(true); setRevealKey(undefined);
+      setContent(false); setEntryCaption(true); setRevealKey(undefined);
       if (entered) void voice.speak(next.revision, true);
     } catch (error) { if (!controller.signal.aborted) setRequestState(sessionError(error)); }
   }
   async function send(request: CoachRequest) {
     cancelRequest(); voice.cancel(); setVoiceError(""); unlockSound(); beginAnswer();
-    if (request.action === "ask") setQuestion(request.text);
-    if (request.action === "weekly-checkup") setQuestion("Let's do my check-up");
-    if (request.action === "next-week") setQuestion("");
     const controller = new AbortController(); activeRequest.current = controller;
     const current = ++requestId.current; lastRequest.current = request;
     setRequestState({ kind: "sending" });
@@ -196,8 +192,6 @@ export function Sponky() {
     : busy || ["starting", "transcribing", "loading"].includes(voice.state) ? "thinking" : "ready";
   const isProfileAnalysis = view?.activity.kind === "analysis" && view.activity.analysis.kind === "profile";
   const hideCaptionVisual = !hasContent || !view || ["save", "goal", "spend_week", "jar"].includes(view.activity.kind) || isProfileAnalysis;
-  const hideQuestionVisual = ["save", "goal"].includes(view?.activity.kind ?? "") || isProfileAnalysis;
-  const showQuestion = Boolean(question && !hideQuestionVisual);
 
   if (!entered) return <main className="app bank">
     <header className="bank-header"><h1>S-Bank</h1></header>
@@ -250,7 +244,6 @@ export function Sponky() {
     </section>
     {view && hasContent && !reward && <IdeasButton due={view.checkup.due} onClick={() => setIdeasOpen(true)} className="checkup-ideas-answer" />}
     <section className="checkup-talk" aria-label="Conversation">
-      {showQuestion && <p className="checkup-question">{question}</p>}
       <p className={`coach-message${hideCaptionVisual ? " sr-only" : ""}`} aria-live="polite">{view ? entryCaption ? view.entryMessage : view.message : requestState.kind === "error" ? "Your coach could not open." : "Opening your coach…"}</p>
       {(requestState.kind === "error" || voiceError) && <div className="error" role="alert">
         <p>{requestState.kind === "error" ? requestState.message : voiceError}</p>

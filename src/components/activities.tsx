@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDay } from "@/domain/dates";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { basketLabels, type Analysis, type Basket, type CoachRequest, type CoachView, type Habit, type Spending, type SpendingQuery } from "@/shared/contracts";
 import { euros, percentageScenario, queryLabel } from "@/domain/spending";
@@ -23,14 +24,8 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function Period({ query, count }: { query: SpendingQuery; count?: number }) {
-  return <p className="sp-meta">{query.start} – {query.end}
+  return <p className="sp-meta">{formatDay(query.start)} – {formatDay(query.end)}
     {count !== undefined && <> · {count} {count === 1 ? "transaction" : "transactions"}</>}</p>;
-}
-
-function Assumptions({ assumptions }: { assumptions: string[] }) {
-  return assumptions.length > 0 ? <details className="sp-assumptions"><summary>How it adds up</summary>
-    <ul className="sp-meta">{assumptions.map((assumption, index) => <li key={index}>{assumption}</li>)}</ul>
-  </details> : null;
 }
 
 export function GuessCard({ query, busy, revision, onAction }: Actions & { query: SpendingQuery }) {
@@ -77,7 +72,6 @@ export function RevealCard({ spending, guessCents, countActive = true, children 
     <Period query={spending.query} count={spending.evidenceCount} />
     <p className="sp-amount"><CountAmount key={spending.totalCents} cents={spending.totalCents} active={countActive} /></p>
     {gapLabel && <p className="sp-gap-wrap"><span className="sp-gap-chip" data-status={gapStatus}>{gapLabel}</span></p>}
-    <Assumptions assumptions={spending.assumptions} />
     {guessCents !== null && <div className="sp-comparison">
       <div className="sp-bar-label"><span>Your guess</span><strong>{euros(guessCents)}</strong></div>
       <div className="sp-track"><div className="sp-bar sp-bar-guess" style={{ width: `${guessCents / maximum * 100}%` }} /></div>
@@ -94,7 +88,7 @@ function CorrectionRow({ row, correctable, busy, revision, onAction }: Actions &
   const id = useId();
   return <li className="sp-evidence-row">
     <div className="sp-bar-label"><strong>{row.merchant}</strong><strong>{euros(row.amountCents)}</strong></div>
-    <p className="sp-meta">{row.date} · {row.category} · Source row {row.sourceRow}</p>
+    <p className="sp-meta">{formatDay(row.date)} · {row.category} · Source row {row.sourceRow}</p>
     {correctable && <><label htmlFor={id}>Basket interpretation</label>
     <select id={id} value={basket} disabled={busy} onChange={e => {
       const selected = baskets.find(b => b === e.target.value);
@@ -138,14 +132,12 @@ export function AnalysisSections({ analysis, skip = 0 }: { analysis: Analysis; s
   </>;
 }
 
-export function AnalysisCard({ analysis, ...actions }: Actions & { analysis: Analysis }) {
+export function AnalysisCard({ analysis }: Actions & { analysis: Analysis }) {
   return <Card title={analysis.title}>
     <p className="sp-meta">{queryLabel(analysis.query)}</p>
     <Period query={analysis.query} count={analysis.kind === "comparison" || analysis.kind === "whatif" ? undefined : analysis.evidenceCount} />
     {analysis.kind === "whatif" && <p className="sp-meta">Hypothetical calculation · no money has been saved or moved.</p>}
     <AnalysisSections analysis={analysis} />
-    <Assumptions assumptions={analysis.assumptions} />
-    <Evidence evidence={analysis.evidence} evidenceCount={analysis.evidenceCount} correctable={analysis.kind !== "cashflow"} {...actions} />
   </Card>;
 }
 
@@ -274,7 +266,6 @@ export function SpenderCard({
           {breakdownOpen && (
             <div className="ac-breakdown-region">
               <AnalysisSections analysis={analysis} skip={1} />
-              <Assumptions assumptions={analysis.assumptions} />
             </div>
           )}
 
@@ -360,10 +351,9 @@ export function CheckinCard({ spending, completed, habit, completedDates, demoDa
   const [reflection, setReflection] = useState<"done" | "adjust" | "reflect" | null>(null);
   const id = useId();
   return <Card title={completed ? "A moment well spent" : "A moment for your day"}>
-    <p className="sp-meta">Simulated historical date · {demoDate}</p>
+    <p className="sp-meta">Simulated historical date · {formatDay(demoDate)}</p>
     <p>{queryLabel(spending.query)} · daily spending</p><p className="sp-amount">{euros(spending.totalCents)}</p>
     <Period query={spending.query} count={spending.evidenceCount} />
-    <Assumptions assumptions={spending.assumptions} />
     {spending.totalCents === 0 && <p>No recorded spending today. There is still room to reflect.</p>}
     {habit && <div className="sp-habit-context"><strong>Your daily action</strong><p>{habit.action}</p>{habit.goal && <p className="sp-meta">For: {habit.goal}</p>}</div>}
     {completed ? <><p className="sp-complete" role="status">✓ Check-in complete</p>
@@ -396,23 +386,22 @@ export function Activities({ view, busy, countActive = true, onAction }: { view:
       <div className="checkup-pace"><p className="sp-amount">{euros(jar.overCents || jar.dailyRemainingCents)}</p><p>{jar.overCents ? "over this month's everyday limit" : `per day for the ${jar.daysLeft} days left`}</p></div>
       <div className="sp-bar-label"><span>Your pace so far</span><strong>{euros(jar.dailySpentCents)} / day</strong></div>
       <p className="sp-meta">{jar.overCents ? `You're ${euros(jar.overCents)} over your ${euros(jar.limitCents)} limit.` : `${euros(jar.leftCents)} left in your ${euros(jar.limitCents)} everyday limit.`}</p>
-      <p className="sp-meta">{jar.period.start} – {jar.period.end}. {jar.projectedOverCents > 0 ? `At the same pace, the month would finish ${euros(jar.projectedOverCents)} over.` : "The same pace would stay inside the limit."}</p>
+      <p className="sp-meta">{formatDay(jar.period.start)} – {formatDay(jar.period.end)}. {jar.projectedOverCents > 0 ? `At the same pace, the month would finish ${euros(jar.projectedOverCents)} over.` : "The same pace would stay inside the limit."}</p>
     </Card>}
     {activity.kind === "usual" && <Card title="This month, compared with usual">
-      <p className="sp-meta">So far: {activity.comparison.period.start} – {activity.comparison.period.end}. Usual is a full month, averaged across {activity.comparison.baseline.start} – {activity.comparison.baseline.end}.</p>
-      {activity.comparison.rows.map(row => {
+      <p className="sp-meta">So far: {formatDay(activity.comparison.period.start)} – {formatDay(activity.comparison.period.end)}. Usual is a full month, averaged across {formatDay(activity.comparison.baseline.start)} – {formatDay(activity.comparison.baseline.end)}.</p>
+      <div className="checkup-usual-strip">{activity.comparison.rows.map(row => {
         const maximum = Math.max(row.currentCents, row.usualCents, 1) * 1.15;
         return <section key={row.category} className="sp-analysis-section">
           <div className="checkup-usual-label"><span>{row.category}</span><strong>{euros(row.currentCents)}</strong></div>
           <div className="checkup-usual-track" data-over={row.currentCents > row.usualCents} aria-hidden="true"><b style={{ width: `${row.currentCents / maximum * 100}%` }} /><i style={{ left: `${row.usualCents / maximum * 100}%` }} /></div>
-          <p className="sp-meta">Usual month {euros(row.usualCents)} · paid {row.paymentDates.map(date => date.slice(8)).join(", ") || "—"}</p>
+          <p className="sp-meta">Usual month {euros(row.usualCents)}</p>
         </section>;
-      })}
-      <Evidence evidence={activity.comparison.evidence} evidenceCount={activity.comparison.evidence.length} correctable={false} {...actions} />
+      })}</div>
     </Card>}
     {activity.kind === "overspend" && <Card title="The days that filled your jar">
-      <p className="sp-meta">{jar.contributionPeriod.start} – {jar.contributionPeriod.end}</p>
-      {jar.topDays.map(day => <section key={day.date} className="sp-analysis-section"><div className="checkup-usual-label"><span>{day.date}<small> · {day.count} payments</small></span><strong>{euros(day.amountCents)}</strong></div>
+      <p className="sp-meta">{formatDay(jar.contributionPeriod.start)} – {formatDay(jar.contributionPeriod.end)}</p>
+      {jar.topDays.map(day => <section key={day.date} className="sp-analysis-section"><div className="checkup-usual-label"><span>{formatDay(day.date)}<small> · {day.count} payments</small></span><strong>{euros(day.amountCents)}</strong></div>
         <ul className="sp-analysis-rows">{jar.evidence.filter(row => row.date === day.date && row.basket === "everyday").map(row => <li key={row.id}><div className="sp-bar-label"><span>{row.category}<small> · {row.merchant}</small></span><strong>{euros(row.amountCents)}</strong></div></li>)}</ul>
       </section>)}
       <p className="sp-meta">Only everyday spending counts towards the rim.</p>

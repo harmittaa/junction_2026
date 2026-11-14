@@ -27,6 +27,7 @@ function monthsIn(query: SpendingQuery): string[] {
   return months;
 }
 
+const byLabel = { category: "Spending by category", basket: "Spending by basket", month: "Spending by month", merchantType: "Where the money went" } as const;
 export function recentCompleteQuery(referenceDate: string, datasetStart: string, count = 3): SpendingQuery {
   dateSchema.parse(referenceDate);
   dateSchema.parse(datasetStart);
@@ -119,7 +120,7 @@ export function calculateAnalysis(
       } else {
         breakdown = ranked(grouped(spending, row => operation.by === "basket" ? basketLabels[row.basket] : row.category), spending.totalCents, top);
       }
-      sections.push({ label: `Spending by ${operation.by}`, rows: breakdown }, { label: "Period total", rows: [totalRow] });
+      sections.push({ label: byLabel[operation.by], rows: breakdown }, { label: "Period total", rows: [totalRow] });
       assumptions.push("Shares are rounded half up to one decimal; rounded shares need not sum to 100%. Other is the remainder excluded by top N.");
       break;
     }

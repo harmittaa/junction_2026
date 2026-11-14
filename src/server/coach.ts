@@ -5,7 +5,7 @@ import { calculateAnalysis, recentCompleteQuery } from "@/domain/exploration";
 import { calculateJar, calculateUsualComparison, completeWeeklyCheckup, weeklyCheckup } from "@/domain/checkup";
 import { goalVerdict, noticed, safeToSave, safeToSpendWeek, usualMonth } from "@/domain/coaching";
 import { changeGoalText, quantities, speechText, type ReplyFacts } from "@/domain/replies";
-import { analysisKindSchema, analysisOperationSchema, basketLabels, type Analysis, type CoachRequest, type CoachView, type Activity, type Noticed, viewSchema } from "@/shared/contracts";
+import { analysisKindSchema, analysisOperationSchema, basketLabels, type Analysis, type CoachRequest, type CoachView, type Activity, type Noticed, viewSchema, noticedSchema } from "@/shared/contracts";
 import { categories, dataset } from "./data";
 import { AppError } from "./errors";
 import { compose, interpret, scopePlan, validatePlan, type Interpretation } from "./providers/gemini";
@@ -399,7 +399,7 @@ export function toView(state: SessionState): CoachView {
     noticedRow = noticed({ place: "spender", usual });
   }
 
-  const entryNoticed = noticed({
+  const entryBalanceNoticed = noticed({
     place: "entry",
     rows: dataset.transactions,
     customerId: state.customerId,
@@ -411,6 +411,10 @@ export function toView(state: SessionState): CoachView {
   const upcomingNoticed = noticed({
     place: "upcoming", rows: dataset.transactions, customerId: state.customerId, referenceDate: state.demoDate,
   });
+  // The landing bubble leads with the seasonal car notice; balance and save rules are the fallback.
+  const entryNoticed = upcomingNoticed
+    ? noticedSchema.parse({ rule: "car_season", text: "Winter season ahead: expect higher-than-average vehicle costs.", question: upcomingNoticed.question })
+    : entryBalanceNoticed;
 
   const merchantNoticed = activity.kind === "analysis" && activity.analysis.kind === "profile"
     ? merchantSpike({ rows: dataset.transactions, customerId: state.customerId, month: activity.analysis.query.start.slice(0, 7), referenceDate: state.demoDate })
@@ -497,7 +501,6 @@ export function replyFacts(state: SessionState, plan?: Interpretation): ReplyFac
     if (state.guessCents !== null) base.values.push({ label: "Your guess", amountCents: state.guessCents },
       { label: "Absolute difference from your guess", amountCents: Math.abs(state.guessCents - result.totalCents) });
     base.notes = result.assumptions;
-    if (state.query?.merchantType && result.missingMccCount) base.required!.push("Missing merchant codes mean this merchant-type subtotal may be incomplete.");
     if (!result.evidenceCount) base.notes.push("No matching records is not proof of no spending outside this dataset.");
   } else if (state.mode === "analysis") {
     const result = analysis(state);
@@ -507,7 +510,6 @@ export function replyFacts(state: SessionState, plan?: Interpretation): ReplyFac
       ...(row.count !== null ? { count: row.count } : {}), ...(row.sharePercent !== null ? { percent: row.sharePercent } : {}) })));
     base.notes = result.assumptions;
     if (state.analysis?.percent !== null && state.analysis?.percent !== undefined) base.values.push({ label: "Requested hypothetical reduction", percent: state.analysis.percent });
-    if (result.assumptions.some(note => /subtotal may be incomplete|subtotals may be incomplete/.test(note))) base.required!.push("Missing merchant codes mean merchant-type subtotals may be incomplete.");
     if (result.kind === "whatif") {
       const basis = result.sections.find(section => section.label.startsWith("Projection basis:"));
       base.required!.push(basis ? `${basis.label}.` : "No complete months are available for an annual projection.");

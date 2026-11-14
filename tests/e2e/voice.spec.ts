@@ -91,7 +91,7 @@ test("prerecorded voice, interruption and suggestion recovery", async ({ page })
     observer.observe(element, { attributes: true, subtree: true });
     setTimeout(() => { observer.disconnect(); resolve(writes); }, 200);
   }))).toBe(0);
-  await expect(page.locator(".checkup-question")).toHaveText("How much did I spend on groceries last month?");
+  await expect(page.getByText("How much did I spend on groceries last month?", { exact: true })).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText(interim);
   await expect(page.getByRole("button", { name: "Play reply", exact: true })).toHaveCount(0);
   // A new answer still speaks automatically and can be interrupted without a replay control.

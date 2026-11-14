@@ -191,7 +191,6 @@ export function StreakScreen({
           <strong className="streak-road-progress">{Math.min(streak, 4)} of 4</strong>
         </div>
         <div className="streak-slots-wrapper">
-          <div className="streak-road-line" aria-hidden="true" />
           <ol className="streak-slots">
             {slots.map((slot, index) => {
               const clipId = `${baseId}_clip_${index}`;

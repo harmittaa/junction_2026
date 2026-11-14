@@ -95,6 +95,7 @@ describe("verified model-written replies", () => {
     expect(speechText("1,00 €")).toBe("one euro");
     expect(speechText("0,00 €")).toBe("zero euros");
     expect(speechText("1 030,75 €")).toBe("about one thousand thirty one euros");
+    expect(speechText("reached 1.509,98 € across 33 payments")).toBe("reached about one thousand five hundred ten euros across 33 payments");
   });
 
   it("rejects replies with more than one money quantity even if all amounts are known facts", () => {

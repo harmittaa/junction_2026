@@ -308,7 +308,8 @@ describe("coordinator boundaries", () => {
     const initial = initialState();
     const initialView = toView(initial);
     expect(initialView.spendWeek.amountCents).toBe(26064);
-    expect(initialView.entryNoticed?.rule).toBe("balance_lower");
+    expect(initialView.entryNoticed?.rule).toBe("car_season");
+    expect(initialView.entryNoticed?.text).toBe("Winter season ahead: expect higher-than-average vehicle costs.");
 
     // Activity kinds
     const saveView = toView(transition(initial, ask, { ...operation, kind: "save", query: null }));

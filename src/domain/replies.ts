@@ -72,9 +72,9 @@ function spokenInteger(value: number): string {
 }
 
 export function speechText(text: string): string {
-  return text.replace(/([−-]?\d(?:[\d \u00a0\u202f]*\d)?),(\d{2})\s*€/g, (_match, euros: string, cents: string) => {
+  return text.replace(/([−-]?\d(?:[\d.\u00a0\u202f ]*\d)?),(\d{2})\s*€/g, (_match, euros: string, cents: string) => {
     const negative = euros.startsWith("-") || euros.startsWith("−");
-    const whole = Number(euros.replace(/[\s\u00a0\u202f−-]/g, ""));
+    const whole = Number(euros.replace(/[\s.\u00a0\u202f−-]/g, ""));
     const centValue = Number(cents);
     const rounded = whole + (centValue >= 50 ? 1 : 0);
     const signed = negative && rounded > 0 ? -rounded : rounded;

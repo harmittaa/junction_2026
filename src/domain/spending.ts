@@ -1,4 +1,5 @@
 import { basketLabels, dateSchema, querySchema, scenarioSchema, type Basket, type Spending, type SpendingQuery, type Transaction } from "@/shared/contracts";
+import { formatDay } from "./dates";
 import { merchantTypes } from "@/domain/merchant-types";
 
 // Gross recorded spending: negative purchases and explicit bills, not transfers,
@@ -39,7 +40,7 @@ export function calculateSpending(
   const baskets = { regular: 0, unexpected: 0, everyday: 0 };
   for (const row of evidence) baskets[row.basket] += row.amountCents;
   const assumptions = ["Gross recorded spending counts negative purchases, housing and utilities payments; excludes income, transfers and refunds.",
-    `Payments from ${query.start} through ${query.end}, inclusive; current date ${referenceDate}.`,
+    `Payments from ${formatDay(query.start)} through ${formatDay(query.end)}, inclusive; current date ${formatDay(referenceDate)}.`,
     "Basket assignments are correctable interpretations, not changes to payment amounts."];
   if (!evidence.length) assumptions.push("No matching spending records in this period; this is not evidence of unavailable data or future activity.");
   if (query.merchantType) {
