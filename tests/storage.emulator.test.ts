@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { getFirestore } from "firebase-admin/firestore";
 import { beforeAll, describe, expect, it } from "vitest";
 import { readSession, updateSession, consumeBudget } from "@/server/storage/sessions";
 import { transition, toView } from "@/server/coach";
@@ -7,6 +8,14 @@ beforeAll(() => {
   if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.GOOGLE_CLOUD_PROJECT?.startsWith("demo-")) throw new Error("Tests require a disposable demo-* emulator");
 });
 describe("Firestore server persistence", () => {
+  it("rejects the previous demo customer without changing their saved records", async () => {
+    const id = randomUUID();
+    const state = { ...await readSession(id), customerId: "CUST00001" };
+    const ref = getFirestore().collection("demoSessionsV1").doc(id);
+    await ref.set({ state });
+    await expect(readSession(id)).rejects.toMatchObject({ status: 409 });
+    expect((await ref.get()).data()?.state).toEqual(state);
+  });
   it("isolates sessions, preserves reload state, and atomically credits one completion per date", async () => {
     const a = randomUUID(), b = randomUUID();
     const habit = { category: "Groceries", action: "Pause and review my groceries", goal: "More intentional shopping" };
