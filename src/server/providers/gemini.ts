@@ -27,7 +27,9 @@ async function generate(input: object, instruction: string, schema: z.ZodType, s
   const testURL = process.env.SPONKY_TEST_GEMINI_URL;
   if (testURL && (!process.env.FIRESTORE_EMULATOR_HOST || !env.GOOGLE_CLOUD_PROJECT.startsWith("demo-")
     || new URL(testURL).hostname !== "127.0.0.1")) throw new Error("Test transport is emulator-only");
-  const deadline = signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000);
+  const testTimeout = testURL ? Number(process.env.SPONKY_TEST_GEMINI_TIMEOUT_MS) : NaN;
+  const timeoutMs = Number.isFinite(testTimeout) && testTimeout > 0 ? testTimeout : 20000;
+  const deadline = signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs);
   // Bind cancellation at fetch: the SDK's cloned Request signal stopped
   // propagating the deadline during a stalled Node 22 transport test.
   const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY,
@@ -39,7 +41,7 @@ async function generate(input: object, instruction: string, schema: z.ZodType, s
     response_format: { type: "text", mime_type: "application/json", schema: z.toJSONSchema(schema) },
     // The cap includes thinking: a 700-token cap exhausted before JSON on follow-ups.
     generation_config: { thinking_level: env.GEMINI_THINKING_LEVEL, max_output_tokens: 2048 },
-  }, { signal: deadline, timeout_ms: 20000, retries: { strategy: "none" }, ...(testURL ? { server_url: testURL } : {}) });
+  }, { signal: deadline, timeout_ms: timeoutMs, retries: { strategy: "none" }, ...(testURL ? { server_url: testURL } : {}) });
   deadline.throwIfAborted();
   if (result.status !== "completed" || !result.output_text) {
     console.warn("Reasoning did not complete", { status: result.status, hasOutput: !!result.output_text });

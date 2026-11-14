@@ -1,9 +1,9 @@
 // Existing production resources only. No provider calls or IAM mutations.
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
-import { readFileSync, appendFileSync, readdirSync } from "node:fs";
+import { readFileSync, appendFileSync, readdirSync, existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
-import { applicationDefault } from "firebase-admin/app";
 
 const project = "sponky-junction-2026";
 const backend = `projects/${project}/locations/europe-west4/backends/sponky`;
@@ -49,10 +49,26 @@ async function deploy() {
   const sha = event.workflow_run.head_sha;
   assert.equal(execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), sha, "Checkout differs from checked commit");
   assert.ok(!readdirSync(".").some(name => /^gha-creds-.*\.json$/.test(name)), "Refusing to archive GitHub credentials; move them outside the source first");
-  const credential = applicationDefault();
+  async function getAccessToken() {
+    const runnerTemp = process.env.RUNNER_TEMP;
+    if (runnerTemp && existsSync(`${runnerTemp}/firebase-cli/node_modules/google-auth-library/package.json`)) {
+      const require = createRequire(`${runnerTemp}/firebase-cli/package.json`);
+      const { GoogleAuth } = require("google-auth-library");
+      const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
+      const client = await auth.getClient();
+      const tokenResponse = await client.getAccessToken();
+      const token = typeof tokenResponse === "string" ? tokenResponse : tokenResponse?.token;
+      assert.ok(token, "Failed to acquire Google access token");
+      return token;
+    }
+    const { applicationDefault } = await import("firebase-admin/app");
+    const { access_token } = await applicationDefault().getAccessToken();
+    assert.ok(access_token, "Failed to acquire Firebase access token");
+    return access_token;
+  }
   async function api(url) {
-    const { access_token } = await credential.getAccessToken();
-    const response = await fetch(url, { headers: { Authorization: `Bearer ${access_token}` }, signal: AbortSignal.timeout(30000) });
+    const token = await getAccessToken();
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(30000) });
     assert.ok(response.ok, `Cloud read failed: HTTP ${response.status} at ${url}`);
     return response.json();
   }
