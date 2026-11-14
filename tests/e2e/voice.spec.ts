@@ -212,3 +212,165 @@ test("hold cancels before connection or on lost focus, and keyboard release comm
   }
   await expect(page.getByRole("textbox", { name: "Message", exact: true })).toBeEnabled();
 });
+
+for (const width of [360, 390]) {
+for (const compact of [false, true]) {
+test(`expanded voice target holds, cancels and leaves the page usable (${width}px, ${compact ? "compact" : "full"})`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 844 });
+  let tokens = 0, commits = 0, chunks = 0, closed = 0;
+  const submitted: string[] = [];
+  const finalText = "How much did I spend on groceries last month?";
+  const interim = "Unfinished voice draft";
+  let finish: (() => void) | undefined;
+  await page.route("**/api/voice/token", route => {
+    tokens++;
+    return route.fulfill({ json: { token: "fixture-single-use", modelId: "scribe_v3_live" } });
+  });
+  await page.route("**/api/speech", route => route.fulfill({ contentType: "audio/mpeg", body: readFileSync("tests/fixtures/reply.mp3") }));
+  await page.routeWebSocket("wss://api.elevenlabs.io/**", socket => {
+    setTimeout(() => socket.send(JSON.stringify({ message_type: "session_started" })), 25);
+    socket.onClose(() => { closed++; });
+    socket.onMessage(message => {
+      if (JSON.parse(String(message)).commit) {
+        commits++;
+        finish = () => socket.send(JSON.stringify({ message_type: "committed_transcript", text: finalText }));
+      } else {
+        chunks++;
+        socket.send(JSON.stringify({ message_type: "partial_transcript", text: interim }));
+      }
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Talk to Sponky" }).tap();
+  const coach = page.locator(".sp-coach");
+  const trigger = page.locator(".sp-coach-trigger");
+  const orb = page.locator(".sp-coach-orb");
+  const draft = page.getByRole("textbox", { name: "Message", exact: true });
+  await expect(trigger).toBeEnabled();
+  // Neighbors above the enlarged region must still receive their own touches.
+  await page.getByRole("button", { name: "Sound on", exact: true }).tap();
+  await expect(page.getByRole("button", { name: "Sound off", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "History", exact: true }).tap();
+  await expect(page.getByRole("region", { name: "Conversation history" })).toBeVisible();
+  await page.getByRole("button", { name: "Close history", exact: true }).tap();
+  await expect(page.getByRole("region", { name: "Conversation history" })).toHaveCount(0);
+  if (compact) {
+    await draft.fill("October groceries");
+    await page.getByRole("button", { name: "Send", exact: true }).tap();
+    await expect(page.getByRole("button", { name: "Guess first", exact: true })).toBeVisible();
+  }
+  page.on("request", request => {
+    if (request.url().endsWith("/api/coach") && request.postDataJSON().action === "ask") submitted.push(request.postDataJSON().text);
+  });
+  await draft.fill("I've had a long day");
+  await trigger.scrollIntoViewIfNeeded();
+  await expect(coach).toHaveAttribute("data-compact", String(compact));
+  await expect(orb).toHaveCSS("width", compact ? "88px" : "168px");
+  await expect(orb).toHaveCSS("height", compact ? "88px" : "168px");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const regionBox = (await coach.boundingBox())!;
+  const targetBox = (await trigger.boundingBox())!;
+  expect(targetBox.x).toBeGreaterThanOrEqual(0);
+  expect(targetBox.x + targetBox.width).toBeLessThanOrEqual(width);
+  expect(targetBox.width).toBeGreaterThanOrEqual(regionBox.width - 1);
+  expect(tokens).toBe(0);
+
+  // Observe real microphone cleanup and browser gesture side effects, not just the label.
+  const probe = await page.evaluateHandle(() => {
+    const observed = { tracks: [] as MediaStreamTrack[], selected: false, canceled: 0, unhandledMenus: 0 };
+    const getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia = async constraints => {
+      const stream = await getUserMedia(constraints);
+      observed.tracks.push(...stream.getTracks());
+      return stream;
+    };
+    const region = document.querySelector(".sp-coach")!;
+    region.addEventListener("pointercancel", () => { observed.canceled++; });
+    document.addEventListener("contextmenu", event => {
+      if (region.contains(event.target as Node) && !event.defaultPrevented) observed.unhandledMenus++;
+    });
+    document.addEventListener("selectionchange", () => {
+      if (window.getSelection()?.toString()) observed.selected = true;
+    });
+    return observed;
+  });
+  const touch = await page.context().newCDPSession(page);
+  const label = page.locator(".sp-coach-label strong");
+  const labelBox = (await label.boundingBox())!;
+  const orbBox = (await orb.boundingBox())!;
+  expect(labelBox.y).toBeGreaterThan(orbBox.y + orbBox.height);
+  await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: labelBox.x + labelBox.width / 2, y: labelBox.y + labelBox.height / 2 }] });
+  await expect(coach).toHaveAttribute("data-state", "listening");
+  await expect.poll(() => chunks).toBeGreaterThan(0);
+  await page.waitForTimeout(1100); // Deliberately cross the browser's long-press threshold on text.
+  await expect(coach).toHaveAttribute("data-state", "listening");
+  expect(await probe.evaluate(value => ({ selected: value.selected, canceled: value.canceled, unhandledMenus: value.unhandledMenus })))
+    .toEqual({ selected: false, canceled: 0, unhandledMenus: 0 });
+  // Chromium cannot prove iOS's native callout; explicitly verify the context-menu guard too.
+  expect(await label.evaluate(element => element.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true })))).toBe(false);
+  await touch.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
+  await expect(coach).toHaveAttribute("data-state", "ready");
+  await expect.poll(() => closed).toBe(1);
+  await expect.poll(() => probe.evaluate(value => value.tracks.length > 0 && value.tracks.every(track => track.readyState === "ended"))).toBe(true);
+  expect(commits).toBe(0);
+  expect(submitted).toEqual([]);
+  await expect(draft).toHaveValue("I've had a long day");
+
+  // Start well to the left of the visible orb, but within the whole coach region.
+  const side = { x: regionBox.x + 12, y: orbBox.y + orbBox.height / 2 };
+  expect(orbBox.x - side.x).toBeGreaterThan(24);
+  expect(side.x).toBeGreaterThan(targetBox.x);
+  expect(side.y).toBeLessThan(targetBox.y + targetBox.height);
+  const scrollBefore = await page.evaluate(() => scrollY);
+  await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [side] });
+  await expect(coach).toHaveAttribute("data-state", "listening");
+  await page.waitForTimeout(1100);
+  await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: width - 4, y: Math.max(10, regionBox.y - 40) }] });
+  await expect(coach).toHaveAttribute("data-state", "listening");
+  expect(await page.evaluate(() => scrollY)).toBe(scrollBefore);
+  expect(await probe.evaluate(value => ({ selected: value.selected, canceled: value.canceled, unhandledMenus: value.unhandledMenus })))
+    .toEqual({ selected: false, canceled: 1, unhandledMenus: 0 });
+  expect(commits).toBe(0);
+  expect(submitted).toEqual([]);
+  await expect(page.locator("body")).not.toContainText(interim);
+  await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect.poll(() => commits).toBe(1);
+  await expect(coach).toHaveAttribute("data-state", "thinking");
+  expect(submitted).toEqual([]); // Release requests a final transcript; it cannot submit a partial.
+  finish!();
+  await expect(page.getByRole("button", { name: "Guess first", exact: true })).toBeVisible();
+  await expect(coach).toHaveAttribute("data-state", "ready");
+  await expect.poll(() => closed).toBe(2);
+  await expect.poll(() => probe.evaluate(value => value.tracks.length === 2 && value.tracks.every(track => track.readyState === "ended"))).toBe(true);
+  await expect(draft).toHaveValue("I've had a long day");
+  await expect(page.locator("body")).not.toContainText("752,75");
+  expect(submitted).toEqual([finalText]);
+  expect(tokens).toBe(2);
+  expect(commits).toBe(1);
+
+  // Controls below the region must remain touchable, including typing after cancellation.
+  await page.getByRole("button", { name: "Guess first", exact: true }).tap();
+  await expect(page.getByRole("button", { name: "Lock in my guess", exact: true })).toBeVisible();
+  await page.waitForTimeout(750); // Keep the production reasoning burst limit, and catch delayed duplicate sends.
+  expect(submitted).toEqual([finalText]);
+  await page.getByRole("button", { name: "Send", exact: true }).tap();
+  await expect(page.locator(".coach-message")).toContainText("We don't need to turn it into a money task");
+  expect(submitted).toEqual([finalText, "I've had a long day"]);
+  await page.getByText("About this demo & simulated date", { exact: true }).tap();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  // Swipe in the page gutter, outside the voice target: touch-action must not leak globally.
+  await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 4, y: 700 }] });
+  for (const y of [660, 610, 560, 510, 460]) {
+    await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 4, y }] });
+  }
+  await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(50);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(tokens).toBe(2);
+  expect(commits).toBe(1);
+  await expect(coach).toHaveAttribute("data-state", "ready");
+  await probe.dispose();
+  await touch.detach();
+});
+}
+}

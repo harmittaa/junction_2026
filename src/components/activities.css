@@ -1,13 +1,17 @@
 .sp-coach,.sp-activities,.sp-history{--sp-action:var(--primaryPressed);--sp-spring:cubic-bezier(.2,1.4,.4,1);color:var(--textPrimary)}
 [data-theme=dark] :is(.sp-coach,.sp-activities,.sp-history){--sp-action:var(--primary)}
-.sp-coach{--user:var(--primary);--coach:var(--brand-greenDeepest);display:flex;flex-direction:column;align-items:center;gap:16px;padding:16px 0 24px;text-align:center}
+.sp-coach{--user:var(--primary);--coach:var(--brand-greenDeepest);text-align:center}
 [data-theme=dark] .sp-coach{--user:var(--status-successText);--coach:var(--primary)}
-.sp-coach-trigger{position:relative;display:grid;place-items:center;flex:none;width:168px;height:168px;padding:0;margin:60px;border:0;border-radius:50%;background:var(--brand-greenMintSoft);color:var(--sp-action);transition:width .5s var(--sp-spring),height .5s var(--sp-spring),margin .5s var(--sp-spring),transform .3s var(--sp-spring);opacity:1!important}
-[data-theme=dark] .sp-coach-trigger{background:var(--surfaceAccent)}
-.sp-coach-trigger{touch-action:none;user-select:none;-webkit-touch-callout:none}
+/* The full coach area is the hold target; only the inner orb changes size. */
+.sp-coach-trigger{display:flex;flex-direction:column;align-items:center;gap:16px;width:100%;padding:16px 0 24px;margin:0;border:0;border-radius:16px;background:transparent;color:var(--sp-action);font:inherit;touch-action:none;opacity:1!important}
+.sp-coach-trigger,.sp-coach-trigger *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-user-drag:none}
+.sp-coach-trigger *{pointer-events:none}
 .sp-coach-trigger:disabled{cursor:default}
-.sp-coach-trigger:not(:disabled):active{transform:scale(.95)}
-.sp-coach[data-state=celebrate] .sp-coach-trigger::after{position:absolute;content:"";inset:-9px;border-radius:50%;border:3px solid var(--accentPlayful);pointer-events:none}
+.sp-coach-trigger:not(:disabled):active{transform:none}
+.sp-coach-orb{position:relative;display:grid;place-items:center;flex:none;width:168px;height:168px;margin:60px;border-radius:50%;background:var(--brand-greenMintSoft);transition:width .5s var(--sp-spring),height .5s var(--sp-spring),margin .5s var(--sp-spring),transform .3s var(--sp-spring)}
+[data-theme=dark] .sp-coach-orb{background:var(--surfaceAccent)}
+.sp-coach-trigger:not(:disabled):active .sp-coach-orb{transform:scale(.95)}
+.sp-coach[data-state=celebrate] .sp-coach-orb::after{position:absolute;content:"";inset:-9px;border-radius:50%;border:3px solid var(--accentPlayful);pointer-events:none}
 .sp-coach-motion{display:grid;place-items:center;width:100%;height:100%;animation:sp-settle .5s var(--sp-spring)}
 .sp-coach-motion svg{width:70%;height:70%;overflow:visible}
 /* Prototype dock diameter 116 in a 200-unit box. Even at 88px the 4-unit stroke is >2px. */
@@ -24,8 +28,8 @@
 .sp-coach[data-state=celebrate] .sp-coach-motion{animation:sp-celebrate .65s var(--sp-spring) 1}
 .sp-coach-label{display:grid;gap:2px;color:var(--textBrand)}
 .sp-coach-label span{font-size:14px;color:var(--textSecondary)}
-.sp-coach[data-compact=true]{padding:4px 0 16px;gap:8px}
-.sp-coach[data-compact=true] .sp-coach-trigger{width:88px;height:88px;margin:32px}
+.sp-coach[data-compact=true] .sp-coach-trigger{padding:4px 0 16px;gap:8px}
+.sp-coach[data-compact=true] .sp-coach-orb{width:88px;height:88px;margin:32px}
 .sp-activities,.sp-history{font-size:16px;line-height:1.5;min-width:0}
 .sp-activities *,.sp-history *{box-sizing:border-box}
 .sp-card,.sp-history{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin:16px 0;overflow-wrap:anywhere;animation:sp-enter .4s var(--sp-spring)}
@@ -93,5 +97,5 @@
 @keyframes sp-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @media(prefers-reduced-motion:reduce){
   :is(.sp-coach,.sp-activities,.sp-history),:is(.sp-coach,.sp-activities,.sp-history) *,:is(.sp-coach,.sp-activities,.sp-history) *::after{animation:none!important;transition:none!important}
-  .sp-coach .sp-ribbon,.sp-coach .sp-coach-trigger::after{transform:none!important}
+  .sp-coach .sp-ribbon,.sp-coach .sp-coach-orb::after{transform:none!important}
 }

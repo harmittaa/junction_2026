@@ -125,10 +125,12 @@ export function Coach({ state, readBands, onStart, onRelease, onCancel, connecti
   }, [state, readBands]);
 
   return <div ref={root} className="sp-coach" data-state={state} data-compact={compact}>
-    <button className="sp-coach-trigger" type="button"
+    <button className="sp-coach-trigger" type="button" draggable={false}
       disabled={disabled || !action} aria-label={`Sponky. ${action || label}`} aria-describedby={helpId}
       onPointerDown={event => {
         if (event.button !== 0 || !event.isPrimary) return;
+        event.preventDefault();
+        event.currentTarget.focus({ preventScroll: true });
         event.currentTarget.setPointerCapture(event.pointerId);
         startHold({ kind: "pointer", id: event.pointerId });
       }}
@@ -152,25 +154,28 @@ export function Coach({ state, readBands, onStart, onRelease, onCancel, connecti
         event.preventDefault();
         if (held.current?.kind === "key" && held.current.key === event.key) releaseHold();
       }}
-      onBlur={cancelHold} onContextMenu={event => event.preventDefault()}>
-      <svg className="sp-coach-bars" viewBox="0 0 200 200" aria-hidden="true">
-        {directions.map(({ x, y }, i) => <line key={i} ref={node => { lines.current[i] = node; }}
-          x1={100 + x * 66} y1={100 + y * 66} x2={100 + x * 70} y2={100 + y * 70}
-          opacity="0" strokeWidth="4" strokeLinecap="round" />)}
-      </svg>
-      <span className="sp-coach-motion" key={state}>
-        <svg viewBox="0 0 120 120" aria-hidden="true">
-          {[3, -23].map((offset, i) => <g key={offset} transform={`translate(${offset} 0)`}>
-            <g className={`sp-ribbon sp-ribbon-${i}`}>
-              <path className="sp-ribbon-base" pathLength="100" d="M66 10C104 34 36 80 74 110" />
-              <path className="sp-ribbon-highlight" pathLength="100" d="M66 10C104 34 36 80 74 110" />
-            </g>
-          </g>)}
+      onBlur={cancelHold} onContextMenu={event => event.preventDefault()}
+      onDragStart={event => event.preventDefault()}>
+      <span className="sp-coach-orb">
+        <svg className="sp-coach-bars" viewBox="0 0 200 200" aria-hidden="true">
+          {directions.map(({ x, y }, i) => <line key={i} ref={node => { lines.current[i] = node; }}
+            x1={100 + x * 66} y1={100 + y * 66} x2={100 + x * 70} y2={100 + y * 70}
+            opacity="0" strokeWidth="4" strokeLinecap="round" />)}
         </svg>
+        <span className="sp-coach-motion" key={state}>
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            {[3, -23].map((offset, i) => <g key={offset} transform={`translate(${offset} 0)`}>
+              <g className={`sp-ribbon sp-ribbon-${i}`}>
+                <path className="sp-ribbon-base" pathLength="100" d="M66 10C104 34 36 80 74 110" />
+                <path className="sp-ribbon-highlight" pathLength="100" d="M66 10C104 34 36 80 74 110" />
+              </g>
+            </g>)}
+          </svg>
+        </span>
       </span>
+      <span className="sp-coach-label"><strong role="status">{label}</strong>
+        {action && <span aria-hidden="true">{action}</span>}</span>
     </button>
-    <div className="sp-coach-label"><strong role="status">{label}</strong>
-      {action && <span aria-hidden="true">{action}</span>}</div>
     <span className="sp-sr" id={helpId}>Hold the button, Space or Enter to speak. Release to send. Escape cancels.</span>
   </div>;
 }
