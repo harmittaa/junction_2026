@@ -1,6 +1,6 @@
 # Sponky demo acceptance record
 
-The bounded demo is deployed and usable. Real typed questions, persisted check-ins and prerecorded real speech transport passed on the HTTPS app on 14 November 2026. Physical phone microphone and autoplay checks remain human acceptance work.
+The demo is deployed, but the latest exact-fixture acceptance at 06:29–06:35 UTC on 14 November 2026 found spending reasoning blocked at its 20-second deadline. Both supplied English recordings transcribed correctly through the real deployed microphone path. The spending invitation/reveal/spoken-reply chain did not complete in this run. Earlier typed, persisted check-in and eSpeak voice journeys passed; those earlier results do not establish current reasoning availability. Physical phone microphone and Safari checks remain human acceptance work.
 
 - Demo: https://sponky--sponky-junction-2026.europe-west4.hosted.app
 - Deployed source: [036b277](https://github.com/harmittaa/junction_2026/commit/036b27701081e3eeee12d6269166e5359c0acf62). Application checks ran on [c6a55e6](https://github.com/harmittaa/junction_2026/commit/c6a55e68f9d2a3171c62183293d57096e139640d); the only subsequent deployment change pins existing secret versions, validated separately.
@@ -19,7 +19,7 @@ The bounded demo is deployed and usable. Real typed questions, persisted check-i
 - Gemini selects validated operations and reply intents; application code writes every displayed/spoken financial sentence. Chat uses deliberately bounded empathetic wording, not unchecked model prose. Arbitrary user/provider text cannot be sent to synthesis.
 - Daily provider ceilings are enforced per session and globally. They are not billing caps. App Hosting configuration and the deployed revision have minimum 0 / maximum 1 instance; Cloud Run's service-level ceiling remains its existing 20, while the serving revision is limited to 1. The owner's configured €25 Cloud Run spend cap and €30 project alerts do not guarantee a €30 total ceiling or cover external providers.
 
-## Acceptance evidence
+## Earlier acceptance and deterministic evidence
 
 | Requirement | Executed evidence |
 | --- | --- |
@@ -42,11 +42,38 @@ Final combined commands passed: `npm run check` (type generation, TypeScript, ES
 
 One independent final review found automatic rebasing of confirmed retries could complete/advance a later date after a lost response. Fixed by retaining the original revision and clearing retryable actions on conflict. Both lost-response regressions passed. No other concrete blockers were reported.
 
-Live acceptance used ten short reasoning invocations, three prerecorded transcription sessions and three speech outputs. Early scenario calls exhausted the thought/output budget; low thinking with a 2,048-token cap passed the scenario and day-chat rechecks. One slow call exposed SDK cancellation propagation; the real-socket regression now verifies the fix. Provider variability remains; the UI offers retry/typing without losing saved activity.
+The earlier live acceptance used ten short reasoning invocations, three prerecorded transcription sessions and three speech outputs. Early scenario calls exhausted the thought/output budget; low thinking with a 2,048-token cap passed the scenario and day-chat rechecks. One slow call exposed SDK cancellation propagation; the real-socket regression verifies the fix. Provider variability remains; the UI offers retry/typing without losing saved activity.
 
-All three owner-supplied WAVs are preserved with hashes, transcripts and synthetic macOS voice provenance in `tests/fixtures/README.md`. The mixed-language recreation passed live browser activation; the supplied English benchmark and spending recreations have **not** been live-tested because the three-session allowance is now exhausted. Earlier live spending acceptance used eSpeak speech, not these exact files. Completing the two remaining exact-fixture live checks needs explicit additional allowance: two transcription sessions, one reasoning call and up to two speech outputs. No billing or cap changes are requested. This follow-up changes tests/documentation only, so the deployed application remains unchanged and does not need another rollout.
+All three owner-supplied WAVs are preserved with hashes, transcripts and synthetic macOS voice provenance in `tests/fixtures/README.md`. The mixed-language recreation passed live browser activation in the earlier run. The owner subsequently authorized a separate bounded run for the two exact English recordings, superseding the original three-session testing allowance; its actual outcomes follow.
+
+## Exact English fixtures: transcription passes, reasoning times out
+
+Tested the existing deployed source [036b277](https://github.com/harmittaa/junction_2026/commit/036b27701081e3eeee12d6269166e5359c0acf62) and ready revision `sponky-build-2026-11-14-002` at 06:29–06:35 UTC (08:29–08:35 Europe/Helsinki), 14 November. Read-only App Hosting/Cloud Run checks confirmed the successful rollout and unchanged revision. No code, runtime configuration, billing, IAM, quota, spend-cap or scaling changes were made; no redeployment was needed.
+
+The run used **4 transcription sessions, 3 reasoning attempts and 0 speech outputs**, within the explicitly authorized maximum of 4/3/4. The English benchmark ran once; only the failed spending journey used the two contingency attempts. Cumulative implementation acceptance is now 7 transcription sessions, 13 reasoning attempts and 3 speech outputs. Paid testing stopped at this run's transcription/reasoning ceilings.
+
+| Exact supplied fixture | Live result |
+| --- | --- |
+| `4256f8e6-en.wav` | PASS: token HTTP 200, real `getUserMedia`/AudioWorklet PCM, nonzero microphone level, exactly one manual commit, final transcript after commit, closed WebSocket, ended track and closed AudioContext. Punctuation-normalized transcript matches every expected word. The harness intercepted banking submission with a clearly labeled test-only error; no Gemini/TTS request or saved-state change. |
+| `da4f2408-spending_en.wav` | Transcription PASS on all three attempts, including one full-width question mark that normalizes identically. Real token/Scribe transport and one commit each. The actual `/api/coach` request then returned HTTP 503 on every attempt. No speech request was made and no invitation/reveal was returned. On the final two attempts the captured session remained at revision 0 with no habit/check-in, tracks ended, AudioContexts closed and WebSockets closed. |
+
+Exact final transcripts:
+
+> Hello. This is a real-time speech transcription test. Today is Friday, and we are measuring how fast Gemini 3.5 Transcribe responds to live audio.
+
+> How much did I spend on groceries last month?
+
+Normalization is NFC, lowercase, punctuation/whitespace runs replaced by a space, then trim; it does not drop words, accents or digits. Both fixtures used only a 6-second silent prefix, 1-second silent suffix and conversion to 48 kHz for Chromium; the original files and their recorded hashes remain unchanged. Chromium used the Pixel 7 touch profile at 390 px / 2× and **no autoplay bypass**. No live input was replaced by an injected transcript. The spending path had no mocked API/provider response.
+
+**Identified failure boundary:** the application's existing 20-second Gemini transport deadline. Cloud Run logged `/api/coach` HTTP 503 after **20.117887 s, 20.095184 s and 20.102003 s**, each with `Reasoning failed { type: 'transport', status: undefined }`. There was no upstream HTTP status, `Retry-After` or reset time to report. This was not an ElevenLabs error or the application's HTTP 429 daily/burst limit. The old testing allowance was not used as a blocker. The evidence does **not** establish exhausted Gemini credits/quota, a coding-subscription limit, or a paused Cloud Run spend cap. A non-generation Gemini model-metadata GET from the Orb returned HTTP 200; this establishes reachability/authentication there, not successful inference from Cloud Run. The underlying provider-versus-network cause remains unresolved.
+
+The deterministic real-SDK stalled-socket test was rerun and passed: cancellation occurs at the deadline without retries. The deadline was not increased or bypassed. Inspected screenshots/recording show the finalized grocery question retained, Ready/Tap to talk restored, safe error/Retry and no leaked amount. The spending **transcription → Gemini → grounded invitation/reveal → output graph remains unverified in this run**. Earlier real MP3 playback and deterministic natural-completion evidence must not be substituted for it.
+
+Evidence is retained in this thread's `.amp/in/artifacts/sponky/`: `owner-exact-fixture-acceptance.json`, per-run `owner-en-live-20261114*` / `owner-spending-live-20261114*` reports/screenshots/videos, sanitized `owner-spending-reasoning*-failure.json` server logs, `owner-gemini-metadata.json`, and `owner-fixture-deployed-version.json`. The replay harness is under the worktree's `.amp/in/orb-backup/check-english-fixtures.mjs`; live mode requires explicit `SPONKY_LIVE_ACCEPTANCE=1`. Offline preflight repaired the harness's missing Playwright video encoder and video-save ordering before paid calls; those were tooling issues, not app/provider failures.
 
 ## Morning test, about two minutes plus optional exploration
+
+The latest reasoning checks failed as described above. These are the intended success steps, not a claim that a new question will currently succeed; do not repeatedly consume paid calls if the same error persists.
 
 1. Open the demo in a fresh browser/private tab. Tap **Talk to Sponky**. Check **Historical demo · Simulated 2024-11-04**. **Sound on** toggles output mute.
 2. Type “How much did I spend on groceries last month?” Choose **Guess first** or **Show me**. Expect **752,75 €**, 11 October transactions. “Just show me” bypasses guessing. The 0–200 € slider has a separate numeric input for larger estimates.
