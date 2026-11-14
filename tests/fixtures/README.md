@@ -57,7 +57,7 @@ The deterministic browser test additionally waits for the 3.5-second MP3 to fini
 
 ## Reusable opt-in runner
 
-[`scripts/check-live-voice.mjs`](../../scripts/check-live-voice.mjs) preserves the English-fixture harness used above. It is not part of any npm test command or CI. It has no default mode or target: `--live` requires both `SPONKY_LIVE_ACCEPTANCE=1` and an explicit HTTPS origin/deployed source commit. A new live run needs its own paid-call allowance; these commands do not grant one. The recorded allowance above is exhausted.
+[`scripts/check-live-voice.mjs`](../../scripts/check-live-voice.mjs) preserves the fixture harness used above, including the `fi_en` mixed-language transcription check. It is not part of any npm test command or CI. It has no default mode or target: `--live` requires both `SPONKY_LIVE_ACCEPTANCE=1` and an explicit HTTPS origin/deployed source commit. A new live run needs its own paid-call allowance; these commands do not grant one. The recorded allowance above is exhausted.
 
 Prerequisites: `npm ci`, system FFmpeg on `PATH`, and Playwright's video encoder/browser (`npx playwright install chromium ffmpeg`). The runner reuses Orb Chrome when installed; otherwise it uses Playwright Chromium. Run from the repository root. It prepares the silence-padded 48 kHz derivative automatically without changing the original WAV.
 
@@ -65,6 +65,7 @@ For a provider-free harness check, first start the emulator-backed app using the
 
 ```sh
 node scripts/check-live-voice.mjs --offline en http://localhost:3000
+node scripts/check-live-voice.mjs --offline fi_en http://localhost:3000
 node scripts/check-live-voice.mjs --offline spending http://localhost:3000
 ```
 
@@ -74,9 +75,10 @@ After separately verifying the currently deployed source commit and obtaining a 
 
 ```sh
 SPONKY_LIVE_ACCEPTANCE=1 node scripts/check-live-voice.mjs --live en "$SPONKY_DEMO_ORIGIN" "$SPONKY_DEPLOYED_COMMIT"
+SPONKY_LIVE_ACCEPTANCE=1 node scripts/check-live-voice.mjs --live fi_en "$SPONKY_DEMO_ORIGIN" "$SPONKY_DEPLOYED_COMMIT"
 SPONKY_LIVE_ACCEPTANCE=1 node scripts/check-live-voice.mjs --live spending "$SPONKY_DEMO_ORIGIN" "$SPONKY_DEPLOYED_COMMIT"
 ```
 
-Each invocation uses a fresh browser session and makes at most one transcription attempt, with no harness retries. `en` intercepts banking submission: one STT, zero reasoning/TTS, no habit/check-in mutations. `spending` uses real APIs: at most one STT, one reasoning call and two speech outputs. It checks the hidden invitation before revealing 75,275 cents/11 source rows, natural decoded playback into the audio destination, and microphone/context cleanup without an autoplay bypass. A failed assertion exits nonzero; stop and inspect it rather than rerunning paid checks automatically.
+Each invocation uses a fresh browser session and makes at most one transcription attempt, with no harness retries. `en` and `fi_en` intercept banking submission: one STT, zero reasoning/TTS, no habit/check-in mutations. `fi_en` proves mixed-language transcription only; the current demo's interface and application-owned replies remain English. `spending` uses real APIs: at most one STT, one reasoning call and two speech outputs. It checks the hidden invitation before revealing 75,275 cents/11 source rows, natural decoded playback into the audio destination, and microphone/context cleanup without an autoplay bypass. A failed assertion exits nonzero; stop and inspect it rather than rerunning paid checks automatically.
 
 Reports, screenshots, video and successful MP3 outputs go into a unique ignored `test-results/live-voice/` directory printed at exit. Reports include fixture hashes, exact/normalized transcripts, HTTP/error status, commit/final ordering and resource state; token responses, cookies and permanent credentials are not retained. Review/sanitize evidence before sharing. Copy evidence you need to preserve out of `test-results` before another test run clears it. No fixture injection can establish physical microphone permissions or audible speaker quality.

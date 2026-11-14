@@ -5,10 +5,10 @@ import { execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
-const usage = 'Usage: node scripts/check-live-voice.mjs --offline|--live en|spending APP_ORIGIN [DEPLOYED_COMMIT]\nLive mode also requires SPONKY_LIVE_ACCEPTANCE=1 and a verified 40-character deployed commit. See tests/fixtures/README.md.';
+const usage = 'Usage: node scripts/check-live-voice.mjs --offline|--live en|fi_en|spending APP_ORIGIN [DEPLOYED_COMMIT]\nLive mode also requires SPONKY_LIVE_ACCEPTANCE=1 and a verified 40-character deployed commit. See tests/fixtures/README.md.';
 if (process.argv[2] === '--help') { console.log(usage); process.exit(0); }
 const [mode, name, origin, deployedCommit, ...extra] = process.argv.slice(2);
-assert.ok(['--offline', '--live'].includes(mode) && ['en', 'spending'].includes(name) && origin && !extra.length, usage);
+assert.ok(['--offline', '--live'].includes(mode) && ['en', 'fi_en', 'spending'].includes(name) && origin && !extra.length, usage);
 const live = mode === '--live';
 assert.ok(!live || process.env.SPONKY_LIVE_ACCEPTANCE === '1', 'Paid calls refused: set SPONKY_LIVE_ACCEPTANCE=1 only with an authorized allowance.');
 assert.ok(live ? /^[a-f0-9]{40}$/.test(deployedCommit ?? '') : !deployedCommit, usage);
@@ -20,8 +20,9 @@ const repo = fileURLToPath(new URL('../', import.meta.url));
 const require = createRequire(import.meta.url);
 const { chromium, expect, devices } = require('@playwright/test');
 const spending = name === 'spending';
-const fixture = spending ? 'da4f2408-spending_en.wav' : '4256f8e6-en.wav';
+const fixture = spending ? 'da4f2408-spending_en.wav' : name === 'fi_en' ? '1938a13a-fi_en.wav' : '4256f8e6-en.wav';
 const expected = spending ? 'How much did I spend on groceries last month?'
+  : name === 'fi_en' ? 'Moi! Haluaisin aloittaa uuden tavan joka aamu. Käyn kävelyllä kello kahdeksan. And if it rains, I will do ten minutes of stretching at home.'
   : 'Hello, this is a real-time speech transcription test. Today is Friday, and we are measuring how fast Gemini 3.5 Transcribe responds to live audio.';
 const normalize = text => text.normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 const label = `${name}-${live ? 'live' : 'offline'}`;
