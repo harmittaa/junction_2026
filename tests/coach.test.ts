@@ -4,13 +4,24 @@ import { once } from "node:events";
 import { transition, toView } from "@/server/coach";
 import { changeGoalText } from "@/domain/replies";
 import { euros } from "@/domain/spending";
+import { dataset } from "@/server/data";
 import { initialState } from "@/server/storage/state";
 import { type Interpretation, interpret } from "@/server/providers/gemini";
 import { signSession, verifySession } from "@/server/session";
+import { type Analysis } from "@/shared/contracts";
 
 const query = { categories: ["Groceries"], baskets: [], merchantType: null, start: "2026-08-01", end: "2026-08-31" };
 const operation: Interpretation = { kind: "spending", query, direct: false, percent: null, reply: "none", comparePeriod: null, by: null, top: null, concept: null };
 const ask = { action: "ask", text: "Groceries last month?", revision: 0 } as const;
+function analysisOf(state: ReturnType<typeof transition>): Analysis {
+  const view = toView(state);
+  if (view.activity.kind !== "analysis") throw new Error("Expected an analysis");
+  return view.activity.analysis;
+}
+// Basket label -> [payment count, amount in cents], from the calculated basket shares.
+function sharesOf(analysis: Analysis) {
+  return Object.fromEntries(analysis.sections[0].rows.map(row => [row.label, [row.count, row.amountCents]]));
+}
 describe("coordinator boundaries", () => {
   it("reflects on a merchant note without calculating an unrelated total or changing saved state", () => {
     const state = transition(initialState(), ask, { ...operation, kind: "profile", query: null });
@@ -59,6 +70,43 @@ describe("coordinator boundaries", () => {
     expect(result.message).toContain("hypothetical");
     expect(changed.habit).toBeNull();
     expect(changed.completedDates).toEqual([]);
+  });
+  it("lists every selected-month profile payment, reconciled to source rows, and keeps other analysis bounded", () => {
+    const profileState = transition(initialState(), ask, { ...operation, kind: "profile", query: null });
+    const profile = analysisOf(profileState);
+    const sourcePayments = dataset.transactions.filter(row => row.customerId === dataset.customerId && row.date.startsWith("2026-08")
+      && row.amountCents < 0 && ["purchase", "housing_payment", "utilities_payment"].includes(row.transactionType));
+    expect(sourcePayments).toHaveLength(59);
+    expect(profile.query).toMatchObject({ start: "2026-08-01", end: "2026-08-31" });
+    expect(profile.evidenceCount).toBe(59);
+    expect(profile.evidence).toHaveLength(59);
+    expect(profile.evidence.reduce((sum, row) => sum + row.amountCents, 0)).toBe(444878);
+    const source = new Map(sourcePayments.map(row => [row.id, row]));
+    expect(new Set(profile.evidence.map(row => row.id))).toEqual(new Set(source.keys()));
+    for (const row of profile.evidence) {
+      expect(source.get(row.id)).toMatchObject({ sourceRow: row.sourceRow, date: row.date, amountCents: -row.amountCents });
+    }
+    const original = sharesOf(profile);
+    expect(original).toEqual({ "Regular essentials": [4, 98719], "Unexpected necessities": [3, 12507], "Everyday spending": [52, 333652] });
+    expect(profile.evidence.filter(row => row.basket === "everyday")).toHaveLength(52);
+
+    // A payment past the old 40-row cap is still correctable, and the full total stays put.
+    const late = profile.evidence.slice(40).find(row => row.basket === "everyday");
+    if (!late) throw new Error("Expected a late everyday payment");
+    const corrected = transition(profileState, { action: "correct", revision: 0, transactionId: late.id, basket: "regular", confirmed: true });
+    const moved = analysisOf(corrected);
+    expect(moved.evidence.find(row => row.id === late.id)).toMatchObject({ basket: "regular", amountCents: late.amountCents });
+    expect(moved.evidenceCount).toBe(59);
+    expect(sharesOf(moved)).toEqual({ "Regular essentials": [5, 98719 + late.amountCents], "Unexpected necessities": [3, 12507],
+      "Everyday spending": [51, 333652 - late.amountCents] });
+    const undone = transition(corrected, { action: "undo-move", revision: 0 });
+    expect(sharesOf(analysisOf(transition(undone, ask, { ...operation, kind: "profile", query: null })))).toEqual(original);
+
+    // Other analysis cards keep the 40-row response bound.
+    const trend = analysisOf(transition(initialState(), ask, { ...operation, kind: "trend",
+      query: { categories: [], baskets: [], merchantType: null, start: "2026-01-01", end: "2026-08-31" } }));
+    expect(trend.evidenceCount).toBeGreaterThan(40);
+    expect(trend.evidence).toHaveLength(40);
   });
   it("formats every coach reply template with at most one euro amount", () => {
     const euroCount = (text: string) => (text.match(/€/g) ?? []).length;
