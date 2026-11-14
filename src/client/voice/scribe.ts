@@ -12,7 +12,7 @@ export class ScribeSession {
   private committed: string[] = [];
   private timer: ReturnType<typeof setTimeout>;
 
-  constructor(private socket: WebSocket, private partial: (text: string) => void, private onError: () => void) {
+  constructor(private socket: WebSocket, private onError: () => void) {
     this.ready = new Promise((resolve, reject) => { this.readyResolve = resolve; this.readyReject = reject; });
     this.timer = setTimeout(() => this.fail(), 10_000);
     socket.addEventListener("message", this.message);
@@ -28,8 +28,6 @@ export class ScribeSession {
       if (data.message_type === "session_started") {
         clearTimeout(this.timer);
         this.readyResolve();
-      } else if (data.message_type === "partial_transcript" && typeof data.text === "string") {
-        this.partial(data.text.slice(0, 2000));
       } else if (data.message_type === "committed_transcript" && typeof data.text === "string") {
         this.committed.push(data.text);
         if (this.committed.join(" ").length > 2000) return this.fail();

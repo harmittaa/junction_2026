@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { VoiceController, type VoiceCallbacks, type VoiceSnapshot } from "./voice/controller";
 
 export function useVoice(callbacks: VoiceCallbacks) {
-  const [snapshot, setSnapshot] = useState<VoiceSnapshot>({ state: "ready", partial: "", muted: false });
+  const [snapshot, setSnapshot] = useState<VoiceSnapshot>({ state: "ready", muted: false });
   const [controller] = useState(() => new VoiceController(callbacks, setSnapshot));
   useEffect(() => { controller.setCallbacks(callbacks); }, [controller, callbacks]);
   useEffect(() => () => controller.cancel(), [controller]);

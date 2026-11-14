@@ -13,6 +13,8 @@ test(`prerecorded voice, interruption and typing recovery (${reducedMotion})`, a
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   let pcmBytes = 0, nonzero = false, committed = false, coachRequests = 0;
+  const interim = "Keskeneräinen — unfinished — 未確定";
+  const sentTexts: string[] = [];
   let finish: (() => void) | undefined;
   const speechRevisions: unknown[] = [];
   await page.route("**/api/voice/token", route => route.fulfill({ json: { token: "fixture-single-use", modelId: "scribe_v3_live" } }));
@@ -32,13 +34,17 @@ test(`prerecorded voice, interruption and typing recovery (${reducedMotion})`, a
         const pcm = Buffer.from(chunk.audio_base_64, "base64");
         pcmBytes += pcm.length;
         nonzero ||= pcm.some(byte => byte !== 0);
-        socket.send(JSON.stringify({ message_type: "partial_transcript", text: "How much did I spend" }));
+        socket.send(JSON.stringify({ message_type: "partial_transcript", text: interim }));
       }
     });
   });
-  page.on("request", request => { if (request.url().endsWith("/api/coach")) coachRequests++; });
+  page.on("request", request => {
+    if (request.url().endsWith("/api/coach")) { coachRequests++; sentTexts.push(request.postDataJSON().text); }
+  });
   await page.goto("/");
   await page.getByRole("button", { name: "Talk to Sponky" }).click();
+  const draft = page.getByRole("textbox", { name: "Message", exact: true });
+  await draft.fill("My unsent typed draft");
   const trigger = page.locator(".sp-coach-trigger");
   const touch = await page.context().newCDPSession(page);
   await expect(trigger).toBeEnabled();
@@ -46,6 +52,9 @@ test(`prerecorded voice, interruption and typing recovery (${reducedMotion})`, a
   await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }] });
   await expect(page.getByRole("button", { name: "Sponky. Release to send", exact: true })).toBeVisible();
   await expect.poll(() => nonzero && pcmBytes > 8000).toBe(true);
+  await expect(page.locator("body")).not.toContainText(interim);
+  expect(await page.locator("body").ariaSnapshot()).not.toContain(interim);
+  await expect(draft).toHaveValue("My unsent typed draft");
   await expect(bars).toHaveCount(32);
   await expect(page.locator(".sp-coach-bars")).toHaveAttribute("aria-hidden", "true");
   await expect.poll(async () => Math.max(...await barLengths())).toBeGreaterThan(5);
@@ -76,6 +85,8 @@ test(`prerecorded voice, interruption and typing recovery (${reducedMotion})`, a
   finish!();
   await expect(page.getByRole("button", { name: "Sponky. Hold to interrupt", exact: true })).toBeVisible();
   expect(coachRequests).toBe(1);
+  expect(sentTexts).toEqual(["How much did I spend on groceries last month?"]);
+  await expect(draft).toHaveValue("My unsent typed draft");
   expect(speechRevisions).toEqual([{ revision: 1 }]);
   await expect(page.locator(".coach-message")).not.toContainText("752,75");
   await expect.poll(async () => Math.max(...await barLengths())).toBeGreaterThan(5);
@@ -96,6 +107,10 @@ test(`prerecorded voice, interruption and typing recovery (${reducedMotion})`, a
     observer.observe(element, { attributes: true, subtree: true });
     setTimeout(() => { observer.disconnect(); resolve(writes); }, 200);
   }))).toBe(0);
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Conversation history" })).toContainText("How much did I spend on groceries last month?");
+  await expect(page.getByRole("region", { name: "Conversation history" })).not.toContainText(interim);
+  await page.getByRole("button", { name: "Close history", exact: true }).click();
   await page.getByRole("button", { name: "Play reply", exact: true }).click();
   await expect(page.getByRole("button", { name: "Sponky. Hold to interrupt", exact: true })).toBeVisible();
   await trigger.focus();
@@ -116,6 +131,7 @@ test(`prerecorded voice, interruption and typing recovery (${reducedMotion})`, a
   await trigger.focus();
   await page.keyboard.down("Enter");
   await expect(page.getByRole("main").getByRole("alert")).toContainText("Typing is always available");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Could not connect to voice transcription");
   await page.keyboard.up("Enter");
   await expect(page.getByRole("textbox", { name: "Message", exact: true })).toBeEnabled();
   await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "ready");

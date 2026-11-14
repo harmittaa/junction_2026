@@ -115,8 +115,7 @@ class Socket extends EventTarget {
 describe("manual Scribe wire transport", () => {
   it("sends PCM then commits, waits for committed text (not partial/final), and closes once", async () => {
     const socket = new Socket();
-    const partial = vi.fn();
-    const session = new ScribeSession(socket.asWebSocket(), partial, vi.fn());
+    const session = new ScribeSession(socket.asWebSocket(), vi.fn());
     socket.receive({ message_type: "session_started" });
     await session.ready;
     session.send(new Uint8Array([0, 128, 255, 127]));
@@ -131,13 +130,13 @@ describe("manual Scribe wire transport", () => {
     await expect(result).resolves.toBe("How much did I spend?");
     expect(socket.closed).toBe(true);
     socket.receive({ message_type: "partial_transcript", text: "stale" });
-    expect(partial).toHaveBeenCalledExactlyOnceWith("How much");
+    await expect(result).resolves.toBe("How much did I spend?");
   });
 
   it.each(["cancel", "error", "timeout", "close"])("settles pending commit safely on %s", async mode => {
     const socket = new Socket();
     const error = vi.fn();
-    const session = new ScribeSession(socket.asWebSocket(), vi.fn(), error);
+    const session = new ScribeSession(socket.asWebSocket(), error);
     socket.receive({ message_type: "session_started" });
     await session.ready;
     const result = expect(session.commit()).rejects.toThrow("Transcription failed.");
@@ -203,6 +202,7 @@ describe("browser voice lifecycle", () => {
   let track: { stop: ReturnType<typeof vi.fn> };
   let microphone: ReturnType<typeof vi.fn>;
   let changed: ReturnType<typeof vi.fn>;
+  let warning: ReturnType<typeof vi.spyOn>;
   const bands = new Float32Array(32);
   function expectInactiveBands() {
     bands.fill(1);
@@ -211,6 +211,7 @@ describe("browser voice lifecycle", () => {
   }
   beforeEach(() => {
     Socket.instances = []; Context.instances = []; Worklet.instances = [];
+    warning = vi.spyOn(console, "warn").mockImplementation(() => {});
     transcript = vi.fn(); error = vi.fn(); track = { stop: vi.fn() };
     microphone = vi.fn(async () => ({ getTracks: () => [track] }));
     vi.stubGlobal("AudioContext", Context);
@@ -225,7 +226,7 @@ describe("browser voice lifecycle", () => {
     changed = vi.fn(value => { snapshot = value; });
     controller = new VoiceController({ onTranscript: transcript, onError: error }, changed);
   });
-  afterEach(() => controller.cancel());
+  afterEach(() => { controller.cancel(); warning.mockRestore(); });
 
   async function listen() {
     const starting = controller.start();
@@ -242,8 +243,11 @@ describe("browser voice lifecycle", () => {
     expect(snapshot!.state).toBe("listening");
     expect(controller.readBands(bands)).toBe(true);
     expect([...bands]).toEqual(Array(32).fill(Math.fround(64 / 255)));
+    const notifications = changed.mock.calls.length;
     socket.receive({ message_type: "partial_transcript", text: "Groceries" });
-    expect(snapshot!.partial).toBe("Groceries");
+    socket.receive({ message_type: "final_transcript", text: "not committed" });
+    expect(changed).toHaveBeenCalledTimes(notifications);
+    expect(snapshot!).toEqual({ state: "listening", muted: false });
     expect(transcript).not.toHaveBeenCalled();
     const stopping = controller.stop();
     await drain();
@@ -255,7 +259,7 @@ describe("browser voice lifecycle", () => {
     socket.receive({ message_type: "committed_transcript", text: "Groceries last October?" });
     await stopping;
     expect(transcript).toHaveBeenCalledExactlyOnceWith("Groceries last October?");
-    expect(snapshot!).toMatchObject({ state: "ready", partial: "" });
+    expect(snapshot!).toEqual({ state: "ready", muted: false });
     expectInactiveBands();
     expect(Context.instances[0].state).toBe("closed");
     expect(error).not.toHaveBeenCalled();
@@ -267,7 +271,7 @@ describe("browser voice lifecycle", () => {
     await vi.advanceTimersByTimeAsync(29_999);
     expect(snapshot!.state).toBe("listening");
     await vi.advanceTimersByTimeAsync(1);
-    expect(snapshot!).toMatchObject({ state: "ready", partial: "" });
+    expect(snapshot!).toEqual({ state: "ready", muted: false });
     expect(error).toHaveBeenCalledExactlyOnceWith("Recording reached 30 seconds and was canceled. Hold again for a shorter question, then release to send.");
     expect(track.stop).toHaveBeenCalled();
     expect(socket.closed).toBe(true);
@@ -348,11 +352,12 @@ describe("browser voice lifecycle", () => {
     const socket = await listen();
     socket.receive({ message_type: "partial_transcript", text: "unfinished" });
     socket.dispatchEvent(new Event("error"));
-    expect(snapshot!).toMatchObject({ state: "ready", partial: "" });
+    expect(snapshot!).toEqual({ state: "ready", muted: false });
     expectInactiveBands();
     expect(track.stop).toHaveBeenCalled();
     expect(transcript).not.toHaveBeenCalled();
-    expect(error).toHaveBeenCalledOnce();
+    expect(error).toHaveBeenCalledExactlyOnceWith("Voice transcription was interrupted. Please try again or type your question.");
+    expect(warning).toHaveBeenCalledExactlyOnceWith("Voice failed", { phase: "transcription" });
     await listen();
     expect(snapshot!.state).toBe("listening");
   });
@@ -380,11 +385,78 @@ describe("browser voice lifecycle", () => {
     resume.mockRestore();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ error: "private", retryable: true }, { status: 503 })));
     await controller.speak(2);
-    expect(error).toHaveBeenCalledTimes(3);
-    for (const [message] of error.mock.calls) expect(message).toBe("Voice is unavailable. Please try again or type your question.");
+    await controller.start();
+    expect(error.mock.calls.map(([message]) => message)).toEqual([
+      "Could not start the microphone. Check microphone permission, then hold again or type your question.",
+      "Could not play the spoken reply. Try Play reply or continue typing.",
+      "Could not load the spoken reply. Read the reply or try Play reply.",
+      "Could not connect to voice transcription. Please try again or type your question.",
+    ]);
+    expect(warning.mock.calls).toEqual(["microphone", "playback", "speech", "token"].map(phase => ["Voice failed", { phase }]));
     expect(snapshot!.state).toBe("ready");
     expectInactiveBands();
     expect(Context.instances.every(context => context.state === "closed")).toBe(true);
+  });
+
+  it("bounds suspended reply startup, makes no speech request, and allows a later replay", async () => {
+    let resumeLate!: () => void;
+    const resume = vi.spyOn(Context.prototype, "resume").mockImplementationOnce(function (this: Context) {
+      this.state = "suspended";
+      return new Promise<void>(resolve => { resumeLate = resolve; });
+    });
+    try {
+      const speaking = controller.speak(3);
+      await drain();
+      expect(snapshot!.state).toBe("loading");
+      expect(fetch).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(snapshot!.state).toBe("ready");
+      expect(error).toHaveBeenCalledExactlyOnceWith("Could not play the spoken reply. Try Play reply or continue typing.");
+      expect(warning).toHaveBeenCalledExactlyOnceWith("Voice failed", { phase: "playback" });
+      expect(Context.instances[0].state).toBe("closed");
+      resumeLate();
+      await speaking;
+      expect(fetch).not.toHaveBeenCalled();
+      await controller.speak(3);
+      expect(snapshot!.state).toBe("speaking");
+      expect(fetch).toHaveBeenCalledOnce();
+      Context.instances[1].source.onended!();
+      expect(Context.instances.every(context => context.state === "closed")).toBe(true);
+    } finally { resume.mockRestore(); }
+  });
+
+  it.each([
+    ["capture", "Could not capture microphone audio"],
+    ["flush", "Could not finish recording"],
+    ["transcript", "Could not finish transcription"],
+    ["playback", "Could not play the spoken reply"],
+  ])("identifies %s failure without exposing data and releases resources", async (phase, message) => {
+    const source = vi.spyOn(Context.prototype, "createMediaStreamSource");
+    const decode = vi.spyOn(Context.prototype, "decodeAudioData");
+    try {
+      if (phase === "capture") source.mockImplementationOnce(() => { throw new Error("private device data"); });
+      if (phase === "playback") {
+        decode.mockRejectedValueOnce(new Error("private audio data"));
+        await controller.speak(2);
+      } else {
+        const socket = await listen();
+        if (phase !== "capture") {
+          if (phase === "flush") Worklet.instances[0].port.postMessage = () => {};
+          const stopping = controller.stop();
+          await vi.advanceTimersByTimeAsync(phase === "flush" ? 1001 : 10_001);
+          await stopping;
+        }
+        expect(socket.closed).toBe(true);
+        expect(track.stop).toHaveBeenCalled();
+      }
+      expect(error).toHaveBeenCalledOnce();
+      expect(error.mock.calls[0][0]).toContain(message);
+      expect(warning).toHaveBeenCalledExactlyOnceWith("Voice failed", { phase });
+      expect(transcript).not.toHaveBeenCalled();
+      expect(snapshot!.state).toBe("ready");
+      expectInactiveBands();
+      expect(Context.instances.every(context => context.state === "closed")).toBe(true);
+    } finally { source.mockRestore(); decode.mockRestore(); }
   });
 
   it("reads changing audio without publishing per-frame snapshots, then clears on playback end", async () => {

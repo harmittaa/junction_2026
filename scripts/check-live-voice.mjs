@@ -154,6 +154,8 @@ try {
   await page.getByRole('button', { name: 'Talk to Sponky', exact: true }).tap();
   const ready = page.getByRole('button', { name: 'Sponky. Hold to talk', exact: true });
   await expect(ready).toBeEnabled();
+  const draft = page.getByRole('textbox', { name: 'Message', exact: true });
+  await draft.fill('Unsent typed draft');
   report.before = await (await page.request.get(`${base}/api/session`)).json();
   if (!spending) await page.getByRole('button', { name: 'Sound on', exact: true }).tap();
   const touch = await page.context().newCDPSession(page);
@@ -169,6 +171,8 @@ try {
   await page.screenshot({ path: `${out}/${label}-listening.png`, fullPage: true });
   await page.waitForTimeout(spending ? 3800 : 10800);
   assert.equal(report.coachRequests.length, 0, 'No banking request before manual stop');
+  await expect(draft).toHaveValue('Unsent typed draft');
+  await expect(page.locator('.caption-bubble')).toHaveCount(0);
   await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await expect.poll(() => report.coachRequests.length, { timeout: 15000 }).toBe(1);
   report.finalText = report.coachRequests[0].text;
@@ -201,10 +205,11 @@ try {
     assert.deepEqual(report.speechRequests, [{ revision: 1 }, { revision: 2 }]);
   } else {
     await expect(ready).toBeVisible();
-    await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toHaveValue(report.finalText);
-    await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeEnabled();
+    await expect(draft).toBeEnabled();
     assert.equal(report.speechRequests.length, 0);
   }
+  await expect(draft).toHaveValue('Unsent typed draft');
+  report.typedDraftPreserved = true;
   report.after = await (await page.request.get(`${base}/api/session`)).json();
   assert.deepEqual(report.after.habit, report.before.habit);
   assert.deepEqual(report.after.completedDates, report.before.completedDates);

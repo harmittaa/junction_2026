@@ -28,11 +28,10 @@ export function Sponky() {
   const [dark, setDark] = useState(false);
   const activeRequest = useRef<AbortController | null>(null);
   const requestId = useRef(0);
-  const lastRequest = useRef<CoachRequest | null>(null);
+  const lastRequest = useRef<{ request: CoachRequest; draft?: number } | null>(null);
   const draftVersion = useRef(0);
   const voice = useVoice({
     onTranscript: transcript => {
-      setText(transcript);
       if (view) void send({ action: "ask", revision: view.revision, text: transcript });
     },
     onError: message => setVoiceError(message),
@@ -65,15 +64,14 @@ export function Sponky() {
     activeRequest.current = null;
     setRequestState({ kind: "idle" });
   }
-  async function send(request: CoachRequest) {
+  async function send(request: CoachRequest, submittedDraft?: number) {
     cancelRequest();
     voice.cancel();
     setVoiceError("");
     const controller = new AbortController();
     activeRequest.current = controller;
     const current = ++requestId.current;
-    const submittedDraft = draftVersion.current;
-    lastRequest.current = request;
+    lastRequest.current = { request, draft: submittedDraft };
     setRequestState({ kind: "sending" });
     try {
       const response = await fetch("/api/coach", {
@@ -133,14 +131,13 @@ export function Sponky() {
     {voice.state === "connecting" && <p className="meta" role="status">Connecting microphone…</p>}
     {voice.state === "transcribing" && <p className="meta" role="status">Finishing your words…</p>}
     {["connecting", "transcribing", "loading"].includes(voice.state) && <button className="text-button replay" onClick={voice.cancel}>Cancel voice</button>}
-    {voice.partial && <p className="caption-bubble">{voice.partial}</p>}
     <p className="coach-message" aria-live="polite">{view?.message ?? "Opening your coach…"}</p>
-    <form className="typing" onSubmit={event => { event.preventDefault(); if (view && text.trim()) void send({ action: "ask", revision: view.revision, text }); }}><label><span className="sr-only">Message</span><input value={text} maxLength={600} onChange={event => { draftVersion.current++; setText(event.target.value); }} placeholder="Or type here" /></label><button disabled={!view || busy || !text.trim()}>Send</button></form>
+    <form className="typing" onSubmit={event => { event.preventDefault(); if (view && text.trim()) void send({ action: "ask", revision: view.revision, text }, draftVersion.current); }}><label><span className="sr-only">Message</span><input value={text} maxLength={600} onChange={event => { draftVersion.current++; setText(event.target.value); }} placeholder="Or type here" /></label><button disabled={!view || busy || !text.trim()}>Send</button></form>
     {!view?.habit && view?.activity.kind === "none" && <div className="starters"><button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "How much did I spend on groceries last month?" })}>My October groceries ↗</button><button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "I've had a long day." })}>Talk about my day ↗</button></div>}
     {view && <Activities view={view} busy={busy} onAction={request => void send(request)} />}
     {view?.habit && view.activity.kind !== "checkin" && <button className="checkin-entry" disabled={busy} onClick={() => void send({ action: "checkin", revision: view.revision })}>Daily check-in <span aria-hidden="true">↗</span></button>}
     {requestState.kind === "error" && <div className="error" role="alert"><p>{requestState.message}</p><button className="text-button" onClick={() => {
-      if (lastRequest.current) void send(lastRequest.current);
+      if (lastRequest.current) void send(lastRequest.current.request, lastRequest.current.draft);
       else void refresh().then(() => setRequestState({ kind: "idle" })).catch(() => setRequestState({ kind: "error", message: "Still unavailable. Please try again shortly." }));
     }}>Retry</button></div>}
     {voiceError && <div className="error" role="alert"><p>{voiceError}</p><p>Typing is always available.</p><button className="text-button" onClick={() => setVoiceError("")}>Dismiss</button></div>}

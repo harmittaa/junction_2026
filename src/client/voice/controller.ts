@@ -4,9 +4,20 @@ import { toBands } from "./bands";
 
 type Capture = "ready" | "connecting" | "listening" | "transcribing";
 type Playback = "ready" | "loading" | "speaking";
-export type VoiceSnapshot = { state: Capture | Playback; partial: string; muted: boolean };
+export type VoiceSnapshot = { state: Capture | Playback; muted: boolean };
 export type VoiceCallbacks = { onTranscript: (text: string) => void; onError: (message: string) => void };
+const failures = {
+  microphone: "Could not start the microphone. Check microphone permission, then hold again or type your question.",
+  token: "Could not connect to voice transcription. Please try again or type your question.",
+  transcription: "Voice transcription was interrupted. Please try again or type your question.",
+  capture: "Could not capture microphone audio. Please try again or type your question.",
+  flush: "Could not finish recording. Please try again or type your question.",
+  transcript: "Could not finish transcription. Please try again or type your question.",
+  speech: "Could not load the spoken reply. Read the reply or try Play reply.",
+  playback: "Could not play the spoken reply. Try Play reply or continue typing.",
+};
 type Turn = {
+  phase: keyof typeof failures;
   abort: AbortController;
   context: AudioContext;
   stream?: MediaStream;
@@ -54,7 +65,7 @@ export class VoiceController {
   private capture: Capture = "ready";
   private playback: Playback = "ready";
   private current?: Turn;
-  private snapshot: VoiceSnapshot = { state: "ready", partial: "", muted: false };
+  private snapshot: VoiceSnapshot = { state: "ready", muted: false };
 
   constructor(private callbacks: VoiceCallbacks, private changed: (snapshot: VoiceSnapshot) => void) {}
 
@@ -83,13 +94,16 @@ export class VoiceController {
     }
     this.capture = "ready";
     this.playback = "ready";
-    this.update({ partial: "" });
+    this.update();
   };
 
-  private failed(turn: Turn) {
-    if (this.current !== turn) return;
+  private failed(turn: Turn | undefined, fallback: "microphone" | "playback" = "microphone") {
+    if (turn && this.current !== turn) return;
+    const phase = turn?.phase ?? fallback;
     this.cancel();
-    this.callbacks.onError(failure);
+    // Deliberately log only an application-owned phase, never provider/browser errors or user data.
+    console.warn("Voice failed", { phase });
+    this.callbacks.onError(failures[phase]);
   }
 
   private meter(turn: Turn, source: AudioNode) {
@@ -121,7 +135,7 @@ export class VoiceController {
     this.cancel(); // Explicit interruption: playback is released before microphone access.
     let turn: Turn | undefined;
     try {
-      turn = { abort: new AbortController(), context: new AudioContext({ sampleRate: 16000 }), nodes: [] };
+      turn = { phase: "microphone", abort: new AbortController(), context: new AudioContext({ sampleRate: 16000 }), nodes: [] };
       const active = turn;
       this.current = active;
       this.capture = "connecting";
@@ -144,14 +158,16 @@ export class VoiceController {
       });
       if (this.current !== active) { stream.getTracks().forEach(track => track.stop()); return; }
       active.stream = stream;
+      active.phase = "token";
       const bytes = await post("/api/voice/token", {}, 8192, active.abort.signal);
       if (this.current !== active) return;
       const token = voiceTokenSchema.parse(JSON.parse(new TextDecoder().decode(bytes)));
       const query = new URLSearchParams({ token: token.token, model_id: token.modelId, audio_format: "pcm_16000", commit_strategy: "manual" });
-      active.session = new ScribeSession(new WebSocket(`wss://api.elevenlabs.io/v1/speech-to-text/realtime?${query}`),
-        partial => { if (this.current === active) this.update({ partial }); }, () => this.failed(active));
+      active.phase = "transcription";
+      active.session = new ScribeSession(new WebSocket(`wss://api.elevenlabs.io/v1/speech-to-text/realtime?${query}`), () => this.failed(active));
       await active.session.ready;
       if (this.current !== active) return;
+      active.phase = "capture";
       await active.context.audioWorklet.addModule("/pcm-capture.js");
       if (this.current !== active) return;
       const source = active.context.createMediaStreamSource(stream);
@@ -170,6 +186,7 @@ export class VoiceController {
       source.connect(worklet);
       worklet.connect(active.context.destination);
       this.meter(active, source);
+      active.phase = "transcription";
       this.capture = "listening";
       this.update();
       clearTimeout(active.timer);
@@ -185,8 +202,7 @@ export class VoiceController {
         worklet.port.postMessage({ stop: true });
       });
     } catch {
-      if (turn) this.failed(turn);
-      else this.callbacks.onError(failure);
+      this.failed(turn);
     }
   };
 
@@ -198,10 +214,12 @@ export class VoiceController {
     clearTimeout(turn.timer);
     this.update();
     try {
+      turn.phase = "flush";
       await turn.flushCapture?.();
       if (this.current !== turn) return;
       turn.stream?.getTracks().forEach(track => track.stop());
       turn.nodes.forEach(node => node.disconnect());
+      turn.phase = "transcript";
       const text = await turn.session!.commit();
       if (this.current !== turn) return;
       this.cancel();
@@ -216,7 +234,7 @@ export class VoiceController {
     let turn: Turn | undefined;
     try {
       const request = speechRequestSchema.parse({ revision });
-      turn = { abort: new AbortController(), context: new AudioContext(), nodes: [] };
+      turn = { phase: "playback", abort: new AbortController(), context: new AudioContext(), nodes: [] };
       const active = turn;
       this.current = active;
       this.playback = "loading";
@@ -225,8 +243,10 @@ export class VoiceController {
       await active.context.resume();
       if (this.current !== active) return;
       if (active.context.state !== "running") throw new Error(failure);
+      active.phase = "speech";
       const bytes = await post("/api/speech", request, 1_048_576, active.abort.signal);
       if (this.current !== active) return;
+      active.phase = "playback";
       const audio = await active.context.decodeAudioData(bytes.buffer);
       if (this.current !== active) return;
       const source = active.context.createBufferSource();
@@ -242,8 +262,7 @@ export class VoiceController {
       active.timer = setTimeout(() => { if (this.current === active) this.cancel(); }, 30_000);
       this.update();
     } catch {
-      if (turn) this.failed(turn);
-      else this.callbacks.onError(failure);
+      this.failed(turn, "playback");
     }
   };
 
