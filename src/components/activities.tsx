@@ -62,11 +62,13 @@ export function GuessCard({ query, busy, revision, onAction }: Actions & { query
   </Card>;
 }
 
-function CountAmount({ cents }: { cents: number }) {
+function CountAmount({ cents, active = true }: { cents: number; active?: boolean }) {
   const reduced = useSyncExternalStore(subscribeMotion, reducedMotion, serverMotion);
+  const [started, setStarted] = useState(active);
   const [animated, setAnimated] = useState(0);
+  if (active && !started) setStarted(true);
   useEffect(() => {
-    if (reduced) return;
+    if (reduced || !started) return;
     let frame: number;
     let start: number | undefined;
     const tick = (time: number) => {
@@ -77,17 +79,22 @@ function CountAmount({ cents }: { cents: number }) {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [cents, reduced]);
-  return <><span aria-hidden="true">{euros(reduced ? cents : animated)}</span><span className="sp-sr">{euros(cents)}</span></>;
+  }, [cents, reduced, started]);
+  return <><span aria-hidden="true">{euros(reduced ? cents : started ? animated : 0)}</span><span className="sp-sr">{euros(cents)}</span></>;
 }
 
-export function RevealCard({ spending, guessCents, children }: {
-  spending: Spending; guessCents: number | null; children?: ReactNode;
+export function RevealCard({ spending, guessCents, countActive = true, children }: {
+  spending: Spending; guessCents: number | null; countActive?: boolean; children?: ReactNode;
 }) {
   const maximum = Math.max(spending.totalCents, guessCents ?? 0, 1);
+  const gapLabel = guessCents === null ? null
+    : spending.totalCents === guessCents ? "Exact match"
+    : `${spending.totalCents > guessCents ? "+" : "-"}${euros(Math.abs(spending.totalCents - guessCents))} vs. your guess`;
+  const gapStatus = guessCents !== null && spending.totalCents > guessCents ? "over" : "under";
   return <Card title={queryLabel(spending.query)}>
     <Period query={spending.query} count={spending.evidenceCount} />
-    <p className="sp-amount"><CountAmount key={spending.totalCents} cents={spending.totalCents} /></p>
+    <p className="sp-amount"><CountAmount key={spending.totalCents} cents={spending.totalCents} active={countActive} /></p>
+    {gapLabel && <p className="sp-gap-wrap"><span className="sp-gap-chip" data-status={gapStatus}>{gapLabel}</span></p>}
     <Assumptions assumptions={spending.assumptions} />
     {guessCents !== null && <div className="sp-comparison">
       <div className="sp-bar-label"><span>Your guess</span><strong>{euros(guessCents)}</strong></div>
@@ -234,11 +241,11 @@ export function CheckinCard({ spending, completed, habit, completedDates, demoDa
   </Card>;
 }
 
-export function Activities({ view, busy, onAction }: { view: CoachView; busy: boolean; onAction: (request: CoachRequest) => void }) {
+export function Activities({ view, busy, countActive = true, onAction }: { view: CoachView; busy: boolean; countActive?: boolean; onAction: (request: CoachRequest) => void }) {
   const { activity, jar } = view;
   const actions = { busy, onAction, revision: view.revision };
   return <div className="sp-activities" aria-busy={busy}>
-    {activity.kind === "reveal" && <RevealCard spending={activity.spending} guessCents={null}>
+    {activity.kind === "reveal" && <RevealCard spending={activity.spending} guessCents={activity.guessCents} countActive={countActive}>
       <Evidence evidence={activity.spending.evidence} evidenceCount={activity.spending.evidenceCount} correctable={false} {...actions} />
     </RevealCard>}
     {activity.kind === "analysis" && <AnalysisCard analysis={activity.analysis} {...actions} />}

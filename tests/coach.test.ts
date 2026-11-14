@@ -52,6 +52,67 @@ describe("coordinator boundaries", () => {
     expect(changed.habit).toBeNull();
     expect(changed.completedDates).toEqual([]);
   });
+  it("formats every coach reply template with at most one euro amount", () => {
+    const euroCount = (text: string) => (text.match(/€/g) ?? []).length;
+    const revealedSkip = transition(initialState(), ask, operation);
+    expect(euroCount(revealedSkip.message)).toBeLessThanOrEqual(1);
+
+    const invitation = { ...initialState(), mode: "invitation" as const, query };
+    const revealedClose = transition(invitation, { action: "reveal", revision: 0, guessCents: 110000 });
+    expect(euroCount(revealedClose.message)).toBeLessThanOrEqual(1);
+    const revealedLow = transition(invitation, { action: "reveal", revision: 0, guessCents: 50000 });
+    expect(euroCount(revealedLow.message)).toBeLessThanOrEqual(1);
+    const revealedHigh = transition(invitation, { action: "reveal", revision: 0, guessCents: 200000 });
+    expect(euroCount(revealedHigh.message)).toBeLessThanOrEqual(1);
+
+    const scen = transition(revealedSkip, { action: "scenario", revision: 0, percent: 20 });
+    expect(euroCount(scen.message)).toBeLessThanOrEqual(1);
+
+    const jarState = transition(initialState(), ask, { ...operation, kind: "jar", query: null });
+    expect(euroCount(jarState.message)).toBeLessThanOrEqual(1);
+
+    const paceState = transition(initialState(), ask, { ...operation, kind: "pace", query: null });
+    expect(euroCount(paceState.message)).toBeLessThanOrEqual(1);
+
+    const usualState = transition(initialState(), ask, { ...operation, kind: "usual", query: null });
+    expect(euroCount(usualState.message)).toBeLessThanOrEqual(1);
+
+    const nextWeek = transition(initialState(), { action: "next-week", revision: 0 });
+    const overspendState = transition(nextWeek, ask, { ...operation, kind: "overspend", query: null });
+    expect(euroCount(overspendState.message)).toBeLessThanOrEqual(1);
+
+    const quote = "The 177,96 € Home & Tech payment on 2026-09-21 at MRC-HMT-0049 was necessary.";
+    const movePlan: Interpretation = {
+      ...operation, kind: "move", reply: "none",
+      correction: { amountCents: 17796, date: "2026-09-21", merchant: "MRC-HMT-0049", category: "Home & Tech", necessityQuote: quote },
+    };
+    const moved = transition(nextWeek, { action: "ask", revision: 0, text: quote }, movePlan);
+    expect(euroCount(moved.message)).toBeLessThanOrEqual(1);
+
+    const weeklyCheckup = transition(initialState(), { action: "weekly-checkup", revision: 0 });
+    expect(euroCount(weeklyCheckup.message)).toBeLessThanOrEqual(1);
+
+    const undone = transition(moved, { action: "undo-move", revision: 0 });
+    expect(euroCount(undone.message)).toBeLessThanOrEqual(1);
+
+    const breakdown = transition(initialState(), ask, { ...operation, kind: "breakdown", by: "category", top: 5 });
+    expect(euroCount(breakdown.message)).toBeLessThanOrEqual(1);
+
+    const comparison = transition(initialState(), ask, { ...operation, kind: "comparison", comparePeriod: { start: "2026-07-01", end: "2026-07-31" } });
+    expect(euroCount(comparison.message)).toBeLessThanOrEqual(1);
+
+    const trend = transition(initialState(), ask, { ...operation, kind: "trend", query: { ...query, start: "2026-06-01", end: "2026-08-31" } });
+    expect(euroCount(trend.message)).toBeLessThanOrEqual(1);
+
+    const cashflow = transition(initialState(), ask, { ...operation, kind: "cashflow", query: { ...query, categories: [] } });
+    expect(euroCount(cashflow.message)).toBeLessThanOrEqual(1);
+
+    const whatif = transition(initialState(), ask, { ...operation, kind: "whatif", percent: 20 });
+    expect(euroCount(whatif.message)).toBeLessThanOrEqual(1);
+
+    const profile = transition(initialState(), ask, { ...operation, kind: "profile", query: null });
+    expect(euroCount(profile.message)).toBeLessThanOrEqual(1);
+  });
   it("does not save a model-proposed habit or complete reflection through ordinary text", () => {
     const current = initialState();
     const proposed = transition(current, ask, { ...operation, kind: "habit", query: null });

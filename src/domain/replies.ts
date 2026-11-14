@@ -70,14 +70,23 @@ function spokenInteger(value: number): string {
 }
 
 export function speechText(text: string): string {
-  return text.replace(/([−-]?\d(?:[\d \u00a0\u202f]*\d)?),(\d{2})\s*€/g,
-    (_match, euros: string, cents: string) => `${spokenInteger(Number(euros.replace(/[\s\u00a0\u202f]/g, "").replace("−", "-")))} euros and ${spokenInteger(Number(cents))} cents`);
+  return text.replace(/([−-]?\d(?:[\d \u00a0\u202f]*\d)?),(\d{2})\s*€/g, (_match, euros: string, cents: string) => {
+    const negative = euros.startsWith("-") || euros.startsWith("−");
+    const whole = Number(euros.replace(/[\s\u00a0\u202f−-]/g, ""));
+    const centValue = Number(cents);
+    const rounded = whole + (centValue >= 50 ? 1 : 0);
+    const signed = negative && rounded > 0 ? -rounded : rounded;
+    const unit = Math.abs(signed) === 1 ? "euro" : "euros";
+    if (centValue === 0) return `${spokenInteger(signed)} ${unit}`;
+    return `about ${spokenInteger(signed)} ${unit}`;
+  });
 }
 
 export function verifyReply(text: string, facts: ReplyFacts): boolean {
   if (!replySchema.shape.text.safeParse(text).success || speechText(text).length > 600) return false;
   if (/\b(?:demo|simulated|historical|assumptions?)\b/i.test(text)) return false;
   if (/\b(?:was any|were any|was that|was this)\b.{0,50}\b(?:must|necessity|necessary|essential)\b/i.test(text)) return false;
+  if (quantities(text).filter(value => value.startsWith("money:")).length > 1) return false;
   if (["jar", "pace", "usual", "overspend"].includes(facts.kind)) {
     if (!facts.required?.length || facts.required.some(note => text.split(note).length !== 2)) return false;
     const extra = facts.required.reduce((rest, note) => rest.replace(note, ""), text).trim();
