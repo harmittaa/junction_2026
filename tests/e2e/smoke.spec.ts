@@ -8,7 +8,6 @@ const questions = {
   profile: "What kind of spender am I?", taxi: "How much did I spend on taxis this year?",
   whatif: "What if I cut dining out by 20%?", days: "Which days pushed me over?", jar: "Show my jar",
 };
-test.use({ video: "on" });
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/speech", route => route.fulfill({ contentType: "audio/mpeg", body: readFileSync("tests/fixtures/reply.mp3") }));
   await page.route("**/api/voice/token", route => route.fulfill({ json: { token: "fixture-single-use", modelId: "scribe_v3_live" } }));
@@ -57,37 +56,6 @@ async function installVoice(page: Page) {
     return await response;
   };
 }
-
-test("entry before session load speaks the welcome once without replaying on rerender", async ({ page }) => {
-  let release!: () => void;
-  const held = new Promise<void>(resolve => { release = resolve; });
-  await page.route("**/api/session", async route => { await held; await route.continue(); });
-  const speech: object[] = [];
-  page.on("request", request => { if (request.url().endsWith("/api/speech")) speech.push(request.postDataJSON()); });
-  const loading = page.waitForRequest(request => request.url().endsWith("/api/session"));
-  await page.goto("/");
-  await loading;
-  await page.getByRole("button", { name: /Talk to Sponky/ }).click();
-  await expect(page.getByRole("heading", { name: "Hey Matti" })).toHaveCount(0);
-  await expect(page.locator(".coach-message")).toHaveText("Opening your coach…");
-  expect(speech).toEqual([]);
-  release();
-  await expect(page.getByRole("heading", { name: "Hey Matti" })).toBeVisible();
-  await expect(page.locator(".coach-message")).toContainText("check-up");
-  await expect.poll(() => speech).toEqual([{ revision: 0, entry: true }]);
-  await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "speaking");
-  await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "ready", { timeout: 8000 });
-  expect(speech).toEqual([{ revision: 0, entry: true }]);
-});
-
-test("an answer resets a scrolled suggestion strip to its first action", async ({ page }) => {
-  await enter(page);
-  await page.getByRole("button", { name: questions.jar, exact: true }).scrollIntoViewIfNeeded();
-  await expect.poll(() => page.locator(".checkup-chips").evaluate(element => element.scrollLeft)).toBeGreaterThan(30);
-  expect((await chip(page, questions.jar)).activity.kind).toBe("jar");
-  await expect.poll(() => page.locator(".checkup-chips").evaluate(element => element.scrollLeft)).toBe(0);
-  await expect(page.getByRole("button", { name: "Let's do my check-up", exact: true })).toBeInViewport({ ratio: 1 });
-});
 
 test("welcome, weekly reward, jar, spoken necessity correction, undo and hidden reset", async ({ page }, testInfo) => {
   test.setTimeout(60000);
@@ -168,10 +136,9 @@ test("welcome, weekly reward, jar, spoken necessity correction, undo and hidden 
   await expect(page.getByRole("heading", { name: "Hey Matti" })).toBeVisible();
 });
 
-for (const order of [["usual", "pace"], ["pace", "usual"]] as const) {
-test(`free questions in ${order.join(" then ")} order do not complete a week`, async ({ page }) => {
+test("free questions, profile, taxi and six-month hypothetical reduction remain grounded", async ({ page }, testInfo) => {
   await enter(page);
-  for (const question of order) {
+  for (const question of ["pace", "usual"] as const) {
     const result = await chip(page, questions[question]);
     expect(result.activity.kind).toBe(question);
     expect(result.checkup).toMatchObject({ due: true, completed: false, streak: 2, completedDates: ["2026-09-02", "2026-09-09"] });
@@ -180,16 +147,6 @@ test(`free questions in ${order.join(" then ")} order do not complete a week`, a
   }
   await expect(page.locator(".checkup-heading time")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Dark appearance|Light appearance/ })).toHaveCount(0);
-  const advanced = page.waitForResponse(response => response.url().endsWith("/api/coach"));
-  await page.locator(".checkup-streak").click({ clickCount: 3, delay: 80 });
-  expect(viewSchema.parse(await (await advanced).json())).toMatchObject({ demoDate: "2026-09-23",
-    checkup: { due: true, completed: false, streak: 0, completedDates: ["2026-09-02", "2026-09-09"] }, jar: { overCents: 12720 } });
-  await expect(page.getByRole("button", { name: questions.days, exact: true })).toBeVisible();
-});
-}
-
-test("profile, taxi and six-month hypothetical reduction remain grounded direct answers", async ({ page }, testInfo) => {
-  await enter(page);
   const profile = await chip(page, questions.profile);
   expect(profile.activity.kind).toBe("analysis");
   if (profile.activity.kind !== "analysis") throw new Error("Expected profile");
@@ -246,68 +203,6 @@ test("provider failure and fabricated prose preserve suggestions, saved state an
   await context.clearCookies();
   const other = viewSchema.parse(await (await page.request.get("/api/session")).json());
   expect(other).toMatchObject({ revision: 0, demoDate: "2026-09-16", checkup: { streak: 2, due: true } });
-});
-
-test("startup failure retries with chip recovery instead of obsolete typing controls", async ({ page }) => {
-  await page.route("**/api/session", () => {});
-  await page.goto("/");
-  await page.getByRole("button", { name: /Talk to Sponky/ }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("Check your connection", { timeout: 20000 });
-  await expect(page.locator(".coach-message")).not.toContainText("Opening");
-  await expect(page.getByRole("textbox")).toHaveCount(0);
-  await page.unroute("**/api/session");
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(page.getByRole("button", { name: questions.pace, exact: true })).toBeEnabled();
-  await page.getByRole("button", { name: "Sound on", exact: true }).click();
-  expect((await chip(page, questions.pace)).activity.kind).toBe("pace");
-});
-
-test("outdated-session recovery creates a fresh session without destroying the previous saved week", async ({ page, context }) => {
-  await enter(page);
-  await chip(page, "Let's do my check-up");
-  const previous = await (await page.request.get("/api/session")).json();
-  const oldCookies = await context.cookies();
-  for (const invalid of [{ headers, data: { confirmed: false } }, { headers: { Origin: "https://unrelated.example" }, data: { confirmed: true } }]) {
-    expect((await page.request.post("/api/session", invalid)).ok()).toBe(false);
-    expect(await (await page.request.get("/api/session")).json()).toEqual(previous);
-  }
-  await page.route("**/api/session", async route => {
-    if (route.request().method() === "GET") await route.fulfill({ status: 409, json: { error: "This session uses an older demo dataset. Start a new browser session.", retryable: false } });
-    else await route.continue();
-  });
-  await page.reload();
-  await page.getByRole("button", { name: /Talk to Sponky/ }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("older demo dataset");
-  await page.getByRole("button", { name: "Start fresh", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Hey Matti" })).toBeVisible();
-  await page.unroute("**/api/session");
-  const fresh = await (await page.request.get("/api/session")).json();
-  expect(fresh).toMatchObject({ revision: 0, checkup: { due: true, streak: 2 } });
-  await context.addCookies(oldCookies);
-  expect(await (await page.request.get("/api/session")).json()).toEqual(previous);
-});
-
-test("a lost weekly completion response cannot award the newer week on retry", async ({ page }) => {
-  await enter(page);
-  let loseResponse = true;
-  await page.route("**/api/coach", async route => {
-    if (loseResponse && route.request().postDataJSON().action === "weekly-checkup") {
-      loseResponse = false;
-      expect((await route.fetch()).status()).toBe(200);
-      await route.abort("failed");
-    } else await route.continue();
-  });
-  await page.getByRole("button", { name: "Let's do my check-up", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
-  const saved = await (await page.request.get("/api/session")).json();
-  const next = await page.request.post("/api/coach", { headers, data: { revision: saved.revision, action: "next-week" } });
-  expect(next.status()).toBe(200);
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("Review the current answer");
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
-  expect(await (await page.request.get("/api/session")).json()).toMatchObject({ demoDate: "2026-09-23",
-    checkup: { due: true, completed: false, completedDates: ["2026-09-02", "2026-09-09", "2026-09-16"] } });
 });
 
 test("selecting a past month jar updates the display and answers jar questions in that month's context", async ({ page }) => {

@@ -1,10 +1,10 @@
 # Automatic deployment
 
-`.github/workflows/deploy.yml` runs only after successful **push-to-main** CI. PR checks and manually dispatched CI never deploy. It checks out the exact tested SHA, then checks the current main head again immediately before starting the rollout. Superseded or out-of-order CI completions skip deployment.
+`.github/workflows/deploy.yml` runs only after successful **push-to-main** CI. PR checks and manually dispatched CI never deploy. CI on a `push` to `main` runs `npm run check`. `pull_request` and `workflow_dispatch` runs execute the full test suite. It checks out the exact tested SHA, then checks the current main head again immediately before starting the rollout. Superseded or out-of-order CI completions skip deployment.
 
 Deployments share one concurrency group with cancellation disabled. An in-progress rollout finishes before another deployment starts; queued runs recheck main before deploying. The script also refuses to start while another App Hosting rollout is active. Manual deployments must not overlap this workflow.
 
-The workflow installs deployment-only Firebase CLI **15.36.0** outside the source directory; application dependencies and the test CLI remain on their lockfile versions. Unlike the test CLI's 14.x release, this version checks for the existing runtime account and tolerates denied re-grant attempts for its already-provisioned roles. The deployment identity must not receive project IAM administration.
+The deploy workflow skips `npm ci`. It installs deployment-only Firebase CLI **15.36.0** and `google-auth-library` outside the source directory. Application dependencies and the test CLI remain on their lockfile versions. Unlike the test CLI's 14.x release, this version checks for the existing runtime account and tolerates denied re-grant attempts for its already-provisioned roles. The deployment identity must not receive project IAM administration.
 
 It deploys only `apphosting:sponky`, then `hosting`, in `sponky-junction-2026`. It does not deploy Firestore rules or change IAM, billing, secrets, runtime scaling or other services. The existing Hosting rewrite targets Cloud Run service `sponky` in `europe-west4` without `pinTag`; keep its service-only public invoker binding and the application's `__session` cookie.
 

@@ -207,6 +207,7 @@ describe("coordinator boundaries", () => {
     const address = server.address();
     if (!address || typeof address === "string") throw new Error("Missing fixture port");
     vi.stubEnv("SPONKY_TEST_GEMINI_URL", `http://127.0.0.1:${address.port}`);
+    vi.stubEnv("SPONKY_TEST_GEMINI_TIMEOUT_MS", "300");
     vi.stubEnv("FIRESTORE_EMULATOR_HOST", "127.0.0.1:8180");
     vi.stubEnv("GOOGLE_CLOUD_PROJECT", "demo-sponky-tests");
     vi.stubEnv("GEMINI_API_KEY", "fixture-only");
@@ -218,7 +219,7 @@ describe("coordinator boundaries", () => {
     try {
       const started = Date.now();
       await expect(interpret("Groceries last month?", context)).rejects.toThrow("saved activity is safe");
-      expect(Date.now() - started).toBeLessThan(22000);
+      expect(Date.now() - started).toBeLessThan(5000);
       expect(warn).toHaveBeenLastCalledWith("Reasoning failed", expect.objectContaining({ type: "deadline", status: undefined }));
       await expect(interpret("Groceries last month?", context, caller.signal)).rejects.toThrow("saved activity is safe");
       expect(warn).toHaveBeenLastCalledWith("Reasoning failed", expect.objectContaining({ type: "cancelled", status: undefined }));
@@ -230,5 +231,5 @@ describe("coordinator boundaries", () => {
       server.closeAllConnections();
       await new Promise<void>(resolve => server.close(() => resolve()));
     }
-  }, 25000);
+  }, 5000);
 });
