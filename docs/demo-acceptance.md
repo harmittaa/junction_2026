@@ -33,6 +33,8 @@ The bounded demo is deployed and usable. Real typed questions, persisted check-i
 | Failure/cancellation recovery | Phone tests preserve typing and saved state after provider failure; stale/lost complete and advance responses cannot confirm against a new date. Actual stalled SDK socket closes at the 20-second deadline and immediately on cancellation, without retries. |
 | Real speech transport | Deployed fake microphone WAV → real AudioWorklet PCM → single-use ElevenLabs token/Scribe → committed exact transcript → Gemini → real MP3 reply. Stop-to-spoken-invitation was 5,003 ms on this sample; playback energy was nonzero and mute stopped it. |
 | Hidden and revealed speech | Inspected real invitation audio contains no total. After reveal, inspected audio says “752 euros and 75 cents across 11 groceries transactions… historical records, not money saved.” |
+| Supplied mixed-language fixture | Deployed tap-to-start/tap-to-stop with the owner's recreated Finnish/English WAV: token 200, real capture/PCM, one commit, final transcript matching both segments after punctuation normalization, ended microphone track. The harness blocked banking interpretation; no Gemini/TTS calls or saved-state changes. |
+| Natural playback completion | Extended deterministic phone test checks nonzero MP3 playback energy, natural completion of the 3.5-second fixture within 8 seconds (not the 30-second cap), return to ready/zero level, replay, Speak instead interruption and typing recovery. |
 | Mobile UI and accessibility | Chromium phone profile at 390/360 px; light/dark, reduced motion, empty spending, controls and reload checked. No horizontal overflow; coarse pointer verified; reduced-motion animation is none. Inspected screenshots and a real-pointer deployed recording. This is browser emulation, not physical-device proof. |
 | S-mobiili feasibility | Clearly labeled entry concept leads to reusable coach/activity/history components. No claimed banking connection, account access or money movement. |
 
@@ -40,7 +42,9 @@ Final combined commands passed: `npm run check` (type generation, TypeScript, ES
 
 One independent final review found automatic rebasing of confirmed retries could complete/advance a later date after a lost response. Fixed by retaining the original revision and clearing retryable actions on conflict. Both lost-response regressions passed. No other concrete blockers were reported.
 
-Live acceptance used ten short reasoning invocations, two prerecorded transcription sessions and three speech outputs. Early scenario calls exhausted the thought/output budget; low thinking with a 2,048-token cap passed the scenario and day-chat rechecks. One slow call exposed SDK cancellation propagation; the real-socket regression now verifies the fix. Provider variability remains; the UI offers retry/typing without losing saved activity.
+Live acceptance used ten short reasoning invocations, three prerecorded transcription sessions and three speech outputs. Early scenario calls exhausted the thought/output budget; low thinking with a 2,048-token cap passed the scenario and day-chat rechecks. One slow call exposed SDK cancellation propagation; the real-socket regression now verifies the fix. Provider variability remains; the UI offers retry/typing without losing saved activity.
+
+All three owner-supplied WAVs are preserved with hashes, transcripts and synthetic macOS voice provenance in `tests/fixtures/README.md`. The mixed-language recreation passed live browser activation; the supplied English benchmark and spending recreations have **not** been live-tested because the three-session allowance is now exhausted. Earlier live spending acceptance used eSpeak speech, not these exact files. Completing the two remaining exact-fixture live checks needs explicit additional allowance: two transcription sessions, one reasoning call and up to two speech outputs. No billing or cap changes are requested. This follow-up changes tests/documentation only, so the deployed application remains unchanged and does not need another rollout.
 
 ## Morning test, about two minutes plus optional exploration
 
@@ -52,7 +56,7 @@ Live acceptance used ten short reasoning invocations, two prerecorded transcript
 
 ## Limitations and where to change the product
 
-- Physical microphone/speaker quality, permission prompts, noisy venues, real mobile Safari and ordinary autoplay policy were not tested. Chromium audio automation used a prerecorded WAV and autoplay bypass. Deterministic tests exercise interruption and resource cleanup; real-device interruption remains a human check.
+- Physical microphone/speaker quality, permission prompts, noisy venues, real mobile Safari and ordinary autoplay policy were not tested. Chromium speech-playback automation used a prerecorded WAV and autoplay bypass; the mixed-language transcription-only check did not use an autoplay bypass. Deterministic tests exercise interruption and resource cleanup; real-device interruption remains a human check.
 - English bounded demo, one synthetic customer and two historical months. Day conversation is template-bounded. The invitation voice reads ISO dates literally. History is a small client-side session list; saved habit/corrections/check-ins are server-owned. Clearing/expiring the cookie starts a separate demo; this is not bank authentication.
 - No live banking, native app, transfers, points economy, weekly recap, notifications, demographics/population comparisons, or safe-to-spend forecasting. These stay outside the approved slice.
 

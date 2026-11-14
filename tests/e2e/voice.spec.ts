@@ -43,6 +43,14 @@ test("prerecorded microphone PCM commits once, plays a reply, interrupts, and re
   expect(coachRequests).toBe(1);
   expect(speechRevisions).toEqual([{ revision: 1 }]);
   await expect(page.locator(".coach-message")).not.toContainText("752,75");
+  await expect.poll(async () => Number(await page.locator(".sp-coach").evaluate(element =>
+    (element as HTMLElement).style.getPropertyValue("--sp-level")))).toBeGreaterThan(0);
+  // The 3.5-second fixture must finish naturally, well before the 30-second cap.
+  await expect(page.getByRole("button", { name: "Sponky. Tap to talk", exact: true })).toBeVisible({ timeout: 8000 });
+  expect(await page.locator(".sp-coach").evaluate(element =>
+    (element as HTMLElement).style.getPropertyValue("--sp-level"))).toBe("0");
+  await page.getByRole("button", { name: "Play reply", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Sponky. Speak instead", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Sponky. Speak instead", exact: true }).click();
   await expect(page.getByRole("button", { name: "Sponky. Stop and send", exact: true })).toBeVisible();
   await page.waitForTimeout(750); // Preserve the real reasoning burst limit.
@@ -52,7 +60,7 @@ test("prerecorded microphone PCM commits once, plays a reply, interrupts, and re
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.locator(".coach-message")).toContainText("long day");
   await expect(page.getByRole("button", { name: "Sponky. Tap to talk", exact: true })).toBeVisible();
-  expect(speechRevisions).toHaveLength(1);
+  expect(speechRevisions).toEqual([{ revision: 1 }, { revision: 1 }]);
   expect(errors).toEqual([]);
   await page.route("**/api/voice/token", route => route.fulfill({ status: 503, json: { error: "fixture unavailable" } }));
   await page.getByRole("button", { name: "Sponky. Tap to talk", exact: true }).click();
