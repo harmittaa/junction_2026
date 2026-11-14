@@ -123,3 +123,7 @@ Command (server running on port 8000):
 - `ready-light-390`: 500,900, `only=phone&scene=1`
 - `reveal-dark-390`: 500,900, `only=phone&scene=6&theme=dark`
 - `checkin-complete-light-360`: 500,900, `only=phone&scene=8&w=360`
+
+## Check-up and jar prototype
+
+`checkup-prototype.html` is the owner-approved reference for the check-up conversation: personal welcome, orb travel, jar, reward screen, free questions and the basket move. Open the file in a browser at phone width. It is a self-contained static mock; its amounts were calculated from the dataset for CUST04060, and the real app must calculate them.

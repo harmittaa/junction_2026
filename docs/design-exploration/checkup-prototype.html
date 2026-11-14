@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sponky Motion Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Barlow+Condensed:wght@800&display=swap">
+<style>
+/* Layout: one phone. The top is a canvas for the current answer, the bottom is the conversation: last question, Sponky's caption, things to ask, the orb. */
+:root {
+  --page: #EEF3EF; --ink: #1F1F1F; --ink-2: #363636; --muted: #5F6B63;
+  --screen: #F7FCF7; --surface: #FFFFFF; --border: #DDE6DF;
+  --brand: #007841; --brand-fill: #00AA46; --liquid-2: #00EB5A; --on-brand: #FFFFFF; --mint: #D2FCD5; --tint: #EBF7EC;
+  --amber: #885600; --amber-line: #CF8300; --amber-fill: #F5B041; --amber-bg: #FFF1D8;
+  --teal: #006E87; --teal-fill: #00A1C5; --teal-bg: #E0F4FF; --track: #E6ECE7;
+  --deep: #004628; --on-deep: #FFFFFF; --deep-accent: #00EB5A;
+  --font: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif; --display: "Barlow Condensed", "Figtree", system-ui, sans-serif;
+  --spring: linear(0, .6 10%, 1.12 35%, .94 55%, 1.03 75%, 1); --glide: cubic-bezier(.22, 1, .36, 1);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --page: #0A0E0C; --ink: #F4F7F5; --ink-2: #D0DBD4; --muted: #98A89E;
+  --screen: #0F1411; --surface: #171F1A; --border: #2B3A31;
+  --brand: #00EB5A; --brand-fill: #00C853; --liquid-2: #00EB5A; --on-brand: #002914; --mint: #12331E; --tint: #142B1D;
+  --amber: #FFCA6B; --amber-line: #CF8300; --amber-fill: #E0A030; --amber-bg: #2E220D;
+  --teal: #67D5EB; --teal-fill: #00A1C5; --teal-bg: #0F2730; --track: #25322A; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --page: #0A0E0C; --ink: #F4F7F5; --ink-2: #D0DBD4; --muted: #98A89E;
+  --screen: #0F1411; --surface: #171F1A; --border: #2B3A31;
+  --brand: #00EB5A; --brand-fill: #00C853; --liquid-2: #00EB5A; --on-brand: #002914; --mint: #12331E; --tint: #142B1D;
+  --amber: #FFCA6B; --amber-line: #CF8300; --amber-fill: #E0A030; --amber-bg: #2E220D;
+  --teal: #67D5EB; --teal-fill: #00A1C5; --teal-bg: #0F2730; --track: #25322A; color-scheme: dark }
+
+body { background: var(--page); color: var(--ink); font-family: var(--font); line-height: 1.4;
+  padding-block: 20px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+[hidden] { display: none !important; }
+.wrap { max-width: 390px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.bar { display: flex; justify-content: space-between; align-items: center; gap: 4px; font-size: 13px; flex-wrap: wrap; }
+.bar button { font: 600 13px var(--font); color: var(--brand); background: none; border: 0; padding: 8px 4px; cursor: pointer; }
+.bar button:disabled { color: var(--muted); opacity: .6; cursor: default; }
+button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+.phone { position: relative; background: var(--screen); border: 1px solid var(--border); border-radius: 32px; padding: 18px 16px 96px;
+  display: flex; flex-direction: column; gap: 10px; height: 800px; overflow: hidden; }
+.top { display: flex; justify-content: space-between; align-items: center; }
+.top b { color: var(--brand); font: 800 28px/1 var(--display); letter-spacing: .3px; text-transform: uppercase; }
+.top small { display: block; margin-top: 4px; font: 500 12px/1.3 var(--font); letter-spacing: 0; text-transform: none; color: var(--muted); }
+.streak { display: inline-flex; align-items: center; gap: 6px; background: var(--mint); color: var(--brand); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 700; }
+.streak svg, .cele svg { fill: currentColor; transform-origin: 50% 90%; animation: flame 1.2s ease-in-out infinite alternate; }
+.streak svg { width: 14px; height: 14px; }
+@keyframes flame { from { transform: rotate(-5deg) } to { transform: rotate(5deg) scale(1.08) } }
+@keyframes pop { 0% { transform: scale(1) } 40% { transform: scale(1.35) } 100% { transform: scale(1) } }
+
+.canvas { display: flex; flex-direction: column; justify-content: center; gap: 8px; min-height: 0; flex: 1; }
+.hero { text-align: center; animation: rise .6s var(--spring) both; }
+.num { font: 800 60px/1 var(--display); letter-spacing: 0; font-variant-numeric: tabular-nums; color: var(--brand); line-height: 1; }
+.num.over { color: var(--amber); }
+.lbl { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+.stats { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.stats span { background: var(--tint); color: var(--brand); border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; animation: rise .5s var(--spring) both; }
+.stage { width: 100%; max-width: 300px; margin: 0 auto; display: block; }
+#wrapj { transform: translateX(40px); transition: transform .8s var(--glide); } .two #wrapj { transform: none; }
+.jar { transform-origin: 120px 222px; transform-box: view-box; }
+.mini { transform-origin: 268px 222px; transform-box: view-box; opacity: 0; transition: opacity .5s; } .two .mini { opacity: 1; }
+.mini.squash { animation: squash .5s var(--spring); }
+@keyframes squash { 0% { transform: scale(1) } 30% { transform: scale(1.07, .9) } 60% { transform: scale(.96, 1.05) } 100% { transform: scale(1) } }
+.glass { fill: none; stroke: var(--brand); stroke-width: 4; stroke-linecap: round; }
+.glass.t { stroke: var(--teal); stroke-width: 3; }
+.l1 { fill: var(--brand-fill); } .l2 { fill: var(--liquid-2); opacity: .45; }
+.dome { fill: var(--amber-fill); } .fly { fill: var(--amber-fill); transition: fill .3s; } .fly.t { fill: var(--teal-fill); }
+.ml { fill: var(--teal-fill); } .mtext, .rim { fill: var(--muted); font: 600 11px var(--font); }
+.jt { fill: var(--on-brand); font: 700 13px var(--font); font-variant-numeric: tabular-nums; }
+.tick { stroke: var(--muted); stroke-width: 1.5; }
+.panel { display: flex; flex-direction: column; gap: 10px; }
+.panel > * { animation: rise .5s var(--spring) both; animation-delay: calc(var(--i, 0) * 80ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.97) } to { opacity: 1; transform: none } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.card h3 { margin: 0; font-size: 12px; font-weight: 600; color: var(--muted); }
+.kv { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; font-variant-numeric: tabular-nums; align-items: baseline; }
+.kv b { white-space: nowrap; } .kv small { display: block; color: var(--muted); font-size: 12px; }
+.kv i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+.meter { height: 8px; border-radius: 999px; background: var(--track); position: relative; margin-top: -4px; }
+.meter b { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 999px; background: var(--amber-line); transition: width .9s var(--spring); }
+.meter.good b { background: var(--brand-fill); }
+.meter::after { content: ""; position: absolute; top: -3px; bottom: -3px; left: var(--u, -9px); width: 2px; background: var(--ink); }
+.stack { display: flex; height: 16px; border-radius: 999px; overflow: hidden; gap: 2px; }
+.stack b { width: 0; transition: width 1s var(--glide); }
+.months { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; text-align: center; font-size: 11px; color: var(--muted); }
+.months span { animation: rise .45s var(--spring) both; animation-delay: calc(var(--i) * 70ms + 200ms); }
+.months i { display: block; width: 22px; height: 22px; margin: 0 auto 3px; border-radius: 50%; font-style: normal; font-weight: 700; line-height: 22px; font-size: 12px; }
+.months .in i { background: var(--brand-fill); color: var(--on-brand); }
+.months .out i { background: var(--amber-bg); color: var(--amber); box-shadow: inset 0 0 0 1.5px var(--amber-line); }
+.months .now i { box-shadow: inset 0 0 0 2px var(--brand-fill); color: var(--brand); }
+.pill { display: inline-block; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; }
+.pill.every { background: var(--amber-bg); color: var(--amber); } .pill.unexp { background: var(--teal-bg); color: var(--teal); }
+.move { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+
+/* Personal welcome: the name arrives letter by letter, calm, then leaves when content appears. */
+.greet { position: absolute; left: 0; right: 0; top: 96px; text-align: center; pointer-events: none; transition: opacity .4s, transform .7s var(--glide); }
+.phone:not(.intro) .greet { opacity: 0; transform: translateY(-18px); }
+.greet h2 { margin: 0; font: 800 68px/1 var(--display); letter-spacing: .3px; color: var(--brand); }
+.greet h2 em { font-style: normal; color: var(--ink); }
+.greet h2 span { display: inline-block; white-space: pre; animation: letter .9s var(--glide) both; animation-delay: calc(var(--i) * 60ms + 250ms); }
+.greet h2 span.n { animation: letter .9s var(--glide) both, shine 1s ease-in-out both; animation-delay: calc(var(--i) * 60ms + 250ms), calc(var(--i) * 70ms + 1150ms); }
+@keyframes shine { 50% { color: var(--brand-fill); text-shadow: 0 0 18px color-mix(in srgb, var(--liquid-2) 60%, transparent) } }
+.greet p { margin: 10px 0 0; font-size: 15px; color: var(--muted); animation: rise .8s var(--glide) 1.1s both; }
+@keyframes letter { from { opacity: 0; transform: translateY(22px); filter: blur(8px) } to { opacity: 1; transform: none; filter: none } }
+@media (prefers-reduced-motion: reduce) { .greet h2 span, .greet p { animation: none } .greet { transition: none } }
+
+/* Conversation: pinned to the bottom of the screen, above the orb. */
+.talk { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
+.you { align-self: flex-end; max-width: 88%; background: var(--tint); color: var(--ink-2); border-radius: 16px 16px 4px 16px; padding: 8px 12px; font-size: 14px; margin: 0; animation: rise .4s var(--spring) both; }
+.say { font-size: 16px; text-align: center; margin: 0; text-wrap: balance; }
+.say strong { color: var(--brand); }
+.try { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 4px 0 -4px; }
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 16px 4px; margin: 0 -16px; scrollbar-width: none; }
+.chip { flex: none; font: 600 14px var(--font); min-height: 44px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--surface); color: var(--brand); box-shadow: inset 0 0 0 1.5px var(--border); cursor: pointer; white-space: nowrap;
+  animation: rise .45s var(--spring) both; animation-delay: calc(var(--i) * 60ms); }
+.chip.main { background: var(--brand-fill); color: var(--on-brand); box-shadow: none; }
+.chip:active { transform: scale(.95); }
+
+/* The orb is always visible. It opens large and swoops to the bottom when content appears. */
+.orb { position: absolute; left: 50%; top: calc(100% - 80px); width: 64px; height: 64px; margin-left: -32px; border: 0; border-radius: 50%; background: var(--mint); cursor: pointer; z-index: 1;
+  display: grid; place-items: center; animation: breathe 3.5s ease-in-out infinite; }
+.orb svg { width: 55%; height: 55%; fill: none; stroke: var(--brand); stroke-width: 9; stroke-linecap: round; }
+.orb.speak { animation: speak .7s ease-in-out infinite alternate; }
+.orb.listen { animation: listen .35s ease-in-out infinite alternate; }
+.intro .orb { top: 281px; width: 168px; height: 168px; margin-left: -84px; }
+@keyframes breathe { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--mint) 55%, transparent) } }
+@keyframes speak { from { box-shadow: 0 0 0 4px color-mix(in srgb, var(--liquid-2) 30%, transparent) } to { box-shadow: 0 0 0 13px color-mix(in srgb, var(--liquid-2) 12%, transparent) } }
+@keyframes listen { from { box-shadow: 0 0 0 3px var(--brand-fill) } to { box-shadow: 0 0 0 9px color-mix(in srgb, var(--brand-fill) 35%, transparent) } }
+
+/* Full-screen reward: grows out of the orb. */
+.cele { position: absolute; inset: 0; z-index: 2; background: var(--deep); color: var(--on-deep); display: grid; place-content: center; justify-items: center; gap: 6px; text-align: center; padding: 28px;
+  clip-path: circle(0 at 50% 92%); transition: clip-path .75s var(--glide); pointer-events: none; cursor: pointer; }
+.cele.on { clip-path: circle(150% at 50% 92%); pointer-events: auto; }
+.cele svg { width: 64px; height: 64px; color: var(--deep-accent); }
+.cnum { font: 800 160px/1 var(--display); color: var(--deep-accent); }
+.cnum.pop { animation: pop .6s var(--spring); }
+.cl1 { font: 800 34px/1 var(--display); letter-spacing: .3px; text-transform: uppercase; } .cl2 { font-size: 16px; opacity: .85; max-width: 26ch; text-wrap: balance; margin-top: 8px; }
+.fx { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.fx i { position: absolute; width: 10px; height: 10px; border-radius: 50%; }
+.hint { font-size: 13px; color: var(--muted); margin: 0; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .panel > *, .months span, .streak svg, .cele svg, .cnum.pop, .mini.squash, .orb, .orb.speak, .orb.listen, .hero, .stats span, .chip, .you { animation: none }
+  .meter b, .stack b, #wrapj, .cele { transition: none } }
+</style>
+<style>body { margin: 0; font-size: 14px; }</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="bar"><button id="week" disabled>Jump one week ahead →</button><span><button id="snd" aria-pressed="true">Sound on</button><button id="again">Restart</button></span></div>
+
+  <div class="phone intro" id="phone">
+    <div class="top"><b>Sponky<small id="date">Wed 16 Sept</small></b>
+      <span class="streak"><svg viewBox="0 0 16 16"><path d="M8 1c1 3 4 4 4 8a4 4 0 0 1-8 0c0-1.5.7-2.5 1.5-3.2C6 7.500 7.500 5 8 1z"/></svg><span><span id="weeks">2</span>-week streak</span></span></div>
+    <div class="greet" id="greet"></div>
+    <div class="canvas">
+      <div class="hero" id="hero" hidden><div class="num" id="big"></div><div class="lbl" id="lbl"></div><div class="stats" id="stats"></div></div>
+      <svg class="stage" id="stage" viewBox="0 0 320 236" role="img" aria-label="Jar that fills with everyday spending up to the monthly limit" hidden>
+        <defs><clipPath id="jc"><path d="M42 26V180a38 38 0 0 0 38 38H160a38 38 0 0 0 38-38V26Z"/></clipPath>
+          <clipPath id="mc"><rect x="242" y="122" width="52" height="98" rx="14"/></clipPath></defs>
+        <g id="wrapj"><g class="jar">
+          <ellipse class="dome" id="dome" cx="120" cy="34" rx="76" ry="0"/>
+          <g clip-path="url(#jc)"><path class="l2" id="l2"/><path class="l1" id="l1"/><text class="jt" id="spent" x="120" text-anchor="middle"></text></g>
+          <path class="glass" d="M40 24V180a40 40 0 0 0 40 40H160a40 40 0 0 0 40-40V24"/>
+          <line class="tick" x1="204" x2="214" y1="44" y2="44"/><text class="rim" x="218" y="48" id="rim">2 200 €</text>
+        </g></g>
+        <g class="mini" id="mini">
+          <text class="mtext" x="268" y="112" text-anchor="middle">Unexpected</text>
+          <g clip-path="url(#mc)"><rect class="ml" id="ml" x="242" width="52" height="100" y="220"/></g>
+          <rect class="glass t" x="240" y="120" width="56" height="100" rx="16"/>
+        </g>
+        <circle class="fly" id="fly" r="15" cx="120" cy="20" hidden/>
+      </svg>
+      <div class="panel" id="panel"></div>
+    </div>
+    <div class="talk" id="talk">
+      <p class="you" id="you" hidden></p>
+      <p class="say" id="say" aria-live="polite"></p>
+      <div class="try">Try asking</div>
+      <div class="chips" id="chips"></div>
+    </div>
+    <button class="orb" id="orb" aria-label="Talk to Sponky"><svg viewBox="0 0 120 120"><path d="M69 10C107 34 39 80 77 110M43 10C81 34 13 80 51 110"/></svg></button>
+    <div class="cele" id="cele"><svg viewBox="0 0 16 16"><path d="M8 1c1 3 4 4 4 8a4 4 0 0 1-8 0c0-1.5.7-2.5 1.5-3.2C6 7.500 7.500 5 8 1z"/></svg>
+      <div class="cnum" id="cnum">2</div><div class="cl1">weeks in a row</div><div class="cl2" id="cl2"></div></div>
+    <div class="fx" id="fx"></div>
+  </div>
+  <p class="hint">Nothing here is a fixed path. Tap any question in any order; each one stands for something the user says to the orb.</p>
+</div>
+
+<script>
+const $ = id => document.getElementById(id), LIMIT = 2200, SPENT1 = 1287.71, SPENT2 = 2327.20, MOVED = 177.96;
+// SVG elements have no `hidden` property; give them one so the jar can be shown and hidden like the rest.
+Object.defineProperty(SVGElement.prototype, 'hidden', { set(v) { this.toggleAttribute('hidden', v); }, get() { return this.hasAttribute('hidden'); } });
+const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const eur = n => n.toLocaleString('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/[  ]/g, ' ') + ' €';
+const months = () => '<div class="months">' + [['Feb',1],['Mar',1],['Apr',0],['May',1],['Jun',0],['Jul',1],['Aug',0]].map(([m, ok], i) =>
+  `<span class="${ok ? 'in' : 'out'}" style="--i:${i}"><i>${ok ? '✓' : '!'}</i>${m}</span>`).join('') + '<span class="now" style="--i:7"><i>·</i>Sep</span></div>';
+
+// Liquid: a damped spring on the fill level; wave height follows the speed of the level.
+let lvl = 0, vel = 0, target = 0, over = 0, overT = 0, mini = 0, miniT = 0, phase = 0, last = 0, timers = [], sound = true, ctx, spent = 0;
+let done = false, week = 1, moved = false, busy = false, view = 'intro';
+const yOf = f => 220 - 176 * Math.max(0, Math.min(1, f));
+function wave(y, amp, ph) { let d = `M40 ${y}`; for (let x = 40; x <= 200; x += 16) d += ` L${x} ${(y + Math.sin(x * .045 + ph) * amp).toFixed(1)}`; return d + ' L200 232 L40 232 Z'; }
+function frame(t) {
+  const dt = Math.min(.033, (t - last) / 1000 || .016); last = t;
+  if (calm) { lvl = target; vel = 0; over = overT; mini = miniT; }
+  else { vel += (90 * (target - lvl) - 9 * vel) * dt; lvl += vel * dt; over += (overT - over) * .1; mini += (miniT - mini) * .1; phase += dt * 2.4; }
+  const amp = calm ? 0 : 2.5 + Math.min(9, Math.abs(vel) * 40), y = yOf(lvl);
+  $('l1').setAttribute('d', wave(y, amp, phase)); $('l2').setAttribute('d', wave(y - 4, amp * 1.3, phase * .8 + 2));
+  $('dome').setAttribute('ry', Math.max(0, over * 300 + (over > .005 && !calm ? Math.sin(phase * 1.5) * 1.5 : 0)).toFixed(1));
+  $('ml').setAttribute('y', (220 - 98 * mini).toFixed(1));
+  $('spent').setAttribute('y', y + 30); $('spent').textContent = lvl > .15 ? eur(Math.min(1, lvl / (target || 1)) * spent) + ' spent' : '';
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+function tone(freqs, len = .12, gain = .12) {
+  if (!sound) return;
+  try { ctx ??= new AudioContext(); ctx.resume(); freqs.forEach((f, i) => { const o = ctx.createOscillator(), g = ctx.createGain(), at = ctx.currentTime + i * len * .8;
+    o.type = 'sine'; o.frequency.setValueAtTime(f, at); g.gain.setValueAtTime(gain, at); g.gain.exponentialRampToValueAtTime(.001, at + len * 2.2);
+    o.connect(g).connect(ctx.destination); o.start(at); o.stop(at + len * 2.3); }); } catch {}
+}
+function burst(el, n, colors) {
+  if (calm) return;
+  const p = $('phone').getBoundingClientRect(), r = el.getBoundingClientRect(), x = r.left - p.left + r.width / 2, y = r.top - p.top + r.height / 2;
+  for (let i = 0; i < n; i++) { const d = document.createElement('i'), a = Math.random() * 6.28, far = 50 + Math.random() * 120, s = .5 + Math.random();
+    d.style.cssText = `left:${x - 5}px;top:${y - 5}px;background:var(${colors[i % colors.length]})`; $('fx').append(d);
+    d.animate([{ transform: `scale(${s})`, opacity: 1 }, { transform: `translate(${Math.cos(a) * far}px,${Math.sin(a) * far - 60}px) scale(.2)`, opacity: 0 }],
+      { duration: 800 + Math.random() * 600, easing: 'cubic-bezier(.2,.8,.3,1)' }).onfinish = () => d.remove(); }
+}
+function count(to, ms, after) {
+  const from = +$('big').dataset.v || 0, t0 = performance.now(); $('big').dataset.v = to;
+  (function tick(t) { const k = calm ? 1 : Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - k, 3); $('big').textContent = eur(from + (to - from) * e);
+    k < 1 ? requestAnimationFrame(tick) : after?.(); })(t0);
+}
+const later = (ms, fn) => timers.push(setTimeout(fn, calm ? 0 : ms));
+function panel(html) { $('panel').innerHTML = html; [...$('panel').children].forEach((c, i) => c.style.setProperty('--i', i));
+  later(350, () => document.querySelectorAll('.meter b, .stack b').forEach((b, i) => setTimeout(() => b.style.width = b.dataset.w, i * 120))); }
+function hero(label, stats, cls = '') { $('hero').hidden = false; $('big').className = 'num ' + cls; $('lbl').textContent = label; $('stats').innerHTML = stats.map(s => `<span>${s}</span>`).join(''); }
+function say(html) { $('say').innerHTML = html; const o = $('orb'); o.classList.add('speak'); clearTimeout(say.t); say.t = setTimeout(() => o.classList.remove('speak'), 1800); }
+
+// The orb leaves the centre on a curved path, shrinks, and settles at the bottom.
+function dock() {
+  const p = $('phone'); if (!p.classList.contains('intro')) return;
+  const o = $('orb'), a = o.getBoundingClientRect(); p.classList.remove('intro'); const b = o.getBoundingClientRect();
+  if (calm) return; const dy = (a.top + a.height / 2) - (b.top + b.height / 2), s = a.width / b.width;
+  o.animate([{ transform: `translate(0,${dy}px) scale(${s})` }, { offset: .5, transform: `translate(-96px,${dy * .5}px) scale(${s * .55})` },
+    { offset: .86, transform: 'translate(10px,-8px) scale(1.07)' }, { transform: 'none' }], { duration: 1150, easing: 'cubic-bezier(.4,0,.2,1)' });
+}
+function cele(n, line, then) {
+  const c = $('cele'); let ended = false; $('cnum').textContent = n - 1; $('cnum').classList.remove('pop'); $('cl2').textContent = line; c.classList.add('on'); busy = true;
+  const end = () => { if (ended) return; ended = true; c.classList.remove('on'); $('weeks').textContent = n; later(450, () => { busy = false; then(); }); };
+  later(700, () => { $('cnum').textContent = n; $('cnum').classList.add('pop'); burst($('cnum'), 34, ['--deep-accent', '--mint', '--amber-fill']); tone([523, 659, 784, 1047]); });
+  later(3000, end); c.onclick = end;
+}
+function showJar() { view = 'jar'; $('stage').hidden = false; $('you').hidden = true; }
+function pour() {
+  showJar(); spent = SPENT1; hero('left in your September jar', []); $('big').dataset.v = LIMIT; $('big').textContent = eur(LIMIT); panel('');
+  say("Here's your September jar. Let me pour it…"); busy = true;
+  if (!calm) timers.push(setInterval(() => { $('big').textContent = eur(Math.random() * LIMIT); tone([300 + Math.random() * 200], .03, .03); }, 80));
+  later(1300, () => { timers.forEach(clearInterval); target = SPENT1 / LIMIT;
+    count(LIMIT - SPENT1, 1000, () => { tone([523, 659, 784]); burst($('big'), 12, ['--liquid-2', '--brand-fill']);
+      hero('left in your September jar', ['14 days to go', 'about 65 € a day']); panel(months());
+      say('More than half the jar is full, and it is only the 16th. <strong>Plot twist:</strong> dining out is already past a normal month.');
+      done = true; busy = false; $('week').disabled = false; chips(); }); });
+}
+function card(html) { view = 'card'; $('stage').hidden = true; $('hero').hidden = true; panel(html); }
+const A = {
+  checkup: { q: "Let's do my check-up.", run: () => cele(3, 'You showed up for your money again. That is the whole trick.', pour) },
+  jar: { q: 'Show me my jar.', run: () => { showJar(); $('hero').hidden = false; panel(months()); say(week === 1 ? '912,29 € left, with 14 days to go.' : '50,76 € left, with 7 days to go.'); } },
+  track: { q: 'Am I still on track?', run: () => { say('A little ahead of pace. Keep going like this and the jar <strong>spills by about 214 €</strong>. Ease off by 15 € a day and you stay inside.');
+    card(`<div class="card"><h3>Your pace in September</h3>
+      <div class="kv"><span>So far<small>16 days</small></span><b>80,48 € a day</b></div><div class="meter" style="--u:81%"><b data-w="100%"></b></div>
+      <div class="kv"><span>Stays inside the jar<small>for the 14 days left</small></span><b>65,16 € a day</b></div><div class="meter good" style="--u:81%"><b data-w="81%"></b></div></div>`); } },
+  usual: { q: 'What have I spent more on than usual?', run: () => { say('Two things are already past a normal full month: <strong>home and tech</strong> and <strong>dining out</strong>.');
+    card(`<div class="card"><h3>1–16 Sept against your usual month</h3>
+      <div class="kv"><span>Home &amp; Tech<small>3 payments · 8, 12 and 15 Sept</small></span><b>281,65 €</b></div><div class="meter" style="--u:66%"><b data-w="100%"></b></div>
+      <div class="kv"><span>Dining out<small>7 payments · usual 188,91 €</small></span><b>203,70 €</b></div><div class="meter" style="--u:67%"><b data-w="72%"></b></div>
+      <div class="kv"><span>Groceries<small>4 payments · usual 818,13 €</small></span><b>306,81 €</b></div><div class="meter good" style="--u:100%"><b data-w="37%"></b></div></div>`); } },
+  cut: { q: 'What if I cut dining out by 20%?', run: () => { say('That would free up <strong>37,78 € a month</strong>. Keep it up for a year and it is 453,36 €.');
+    card(`<div class="card"><h3>Dining out · your usual month</h3>
+      <div class="kv"><span>Today<small>average of March to August</small></span><b>188,91 €</b></div><div class="meter"><b data-w="100%"></b></div>
+      <div class="kv"><span>With 20% less</span><b>151,13 €</b></div><div class="meter good"><b data-w="80%"></b></div>
+      <div class="kv"><span>Freed up in a year</span><b>453,36 €</b></div></div>`); } },
+  taxi: { q: 'How much did I spend on taxis last month?', run: () => { say('Nothing in August! Your last ride was on 4 June. This year it is <strong>6 rides for 283,37 €</strong>, and half of them were in one January week.');
+    card(`<div class="card"><h3>Taxis and ride-share · 2026</h3>
+      <div class="kv"><span>15–19 Jan<small>3 rides</small></span><b>149,58 €</b></div><div class="meter"><b data-w="100%"></b></div>
+      <div class="kv"><span>10 Mar</span><b>48,52 €</b></div><div class="meter good"><b data-w="32%"></b></div>
+      <div class="kv"><span>8 May</span><b>52,91 €</b></div><div class="meter good"><b data-w="35%"></b></div>
+      <div class="kv"><span>4 Jun</span><b>32,36 €</b></div><div class="meter good"><b data-w="22%"></b></div></div>`); } },
+  type: { q: 'What kind of spender am I?', run: () => { say('An <strong>everyday spender</strong>. In August, three of every four euros went to everyday things. Groceries, lifestyle and entertainment led.');
+    card(`<div class="card"><h3>Your three baskets · August</h3>
+      <div class="stack"><b data-w="75%" style="background:var(--amber-line)"></b><b data-w="22%" style="background:var(--brand)"></b><b data-w="3%" style="background:var(--teal-fill)"></b></div>
+      <div class="kv"><span><i style="background:var(--amber-line)"></i>Everyday spending</span><b>3 336,52 € · 75%</b></div>
+      <div class="kv"><span><i style="background:var(--brand)"></i>Regular essentials</span><b>987,19 € · 22%</b></div>
+      <div class="kv"><span><i style="background:var(--teal-fill)"></i>Unexpected necessities</span><b>125,07 € · 3%</b></div></div>`); } },
+  pipe: { q: 'The 177,96 € was a burst pipe. I had to fix it.', run: () => { say('A burst pipe? That is not everyday spending…'); busy = true;
+    const f = $('fly'), t0 = performance.now(), dur = calm ? 1 : 750; f.hidden = false; f.classList.remove('t'); overT = 0; tone([392], .08);
+    (function arc(t) { const k = Math.min(1, (t - t0) / dur), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2, u = 1 - e;
+      f.setAttribute('cx', u * u * 120 + 2 * u * e * 215 + e * e * 268); f.setAttribute('cy', u * u * 20 + 2 * u * e * -40 + e * e * 150); f.setAttribute('r', 15 + Math.sin(e * 3.14) * 5);
+      if (k > .5) f.classList.add('t');
+      if (k < 1) return requestAnimationFrame(arc);
+      f.hidden = true; miniT = .62; $('mini').classList.remove('squash'); void $('mini').getBBox(); $('mini').classList.add('squash');
+      spent = SPENT2 - MOVED; target = spent / LIMIT; vel = -.6; hero('left in your September jar', [], '');
+      count(LIMIT - spent, 800, () => { tone([523, 659, 784, 1047]); burst($('stage'), 34, ['--liquid-2', '--brand-fill', '--teal-fill']);
+        hero('left in your September jar', ['7 days to go', 'about 7 € a day']);
+        say("That's an unexpected necessity. It doesn't count against your jar. <strong>You're back inside your limit.</strong>");
+        panel('<div class="move"><span class="pill every">Everyday</span>→<span class="pill unexp">Unexpected necessity</span><span>177,96 € moved</span></div>' + months());
+        moved = true; busy = false; chips(); }); })(t0); } },
+};
+function chips() {
+  const keys = !done ? ['checkup', 'taxi', 'type'] : week === 1 ? ['track', 'usual', 'cut', 'taxi', 'type', 'jar'] : !moved ? ['pipe', 'type', 'taxi'] : ['cut', 'type', 'taxi', 'jar'];
+  $('chips').innerHTML = keys.filter(k => k !== 'jar' || view !== 'jar').map((k, i) => `<button class="chip ${i ? '' : 'main'}" data-k="${k}" style="--i:${i}">“${A[k].q}”</button>`).join('');
+  $('chips').scrollLeft = 0;
+}
+function ask(k) {
+  if (busy) return; dock(); $('you').textContent = '“' + A[k].q + '”'; $('you').hidden = false; $('orb').classList.add('listen'); tone([440], .05, .05); busy = true;
+  later(700, () => { $('orb').classList.remove('listen'); busy = false; A[k].run(); chips(); });
+}
+function nextWeek() {
+  if (busy || !done || week !== 1) return; week = 2; $('week').disabled = true; $('date').textContent = 'Wed 23 Sept'; $('you').hidden = true;
+  cele(4, 'Four weeks of looking at your money. That beats any budget.', () => {
+    showJar(); $('phone').classList.add('two'); miniT = .12; spent = SPENT2; target = 1; overT = (SPENT2 - LIMIT) / LIMIT;
+    hero('over the rim of your September jar', ['7 days to go'], 'over'); $('big').dataset.v = 0; count(SPENT2 - LIMIT, 900);
+    say('Welcome back! A big week, and the jar is <strong>a little over the rim</strong>. Two days did most of it. Was any of this a must?');
+    panel(`<div class="card"><h3>Where the week went</h3>
+      <div class="kv"><span>Sat 19 Sept<small>6 payments · clothes, fuel, 3 restaurants</small></span><b>280,04 €</b></div>
+      <div class="kv"><span>Mon 21 Sept<small>home supply store · <span class="pill every">Everyday</span></small></span><b>177,96 €</b></div></div>`); chips(); });
+}
+function reset() {
+  timers.forEach(t => { clearTimeout(t); clearInterval(t); }); timers = []; done = moved = busy = false; week = 1; view = 'intro'; lvl = vel = target = over = overT = mini = miniT = spent = 0;
+  $('phone').className = 'phone intro'; $('cele').classList.remove('on'); $('stage').hidden = true; $('hero').hidden = true; $('you').hidden = true; $('fly').hidden = true;
+  $('week').disabled = true; $('date').textContent = 'Wed 16 Sept'; $('weeks').textContent = 2; $('panel').innerHTML = '';
+  const hey = (text, tag, from) => [...text].map((c, i) => `<span class="${tag ? '' : 'n'}" aria-hidden="true" style="--i:${from + i}">${tag ? `<${tag}>${c}</${tag}>` : c}</span>`).join('');
+  $('greet').innerHTML = `<h2 aria-label="Hey Matti">${hey('Hey ', 'em', 0)}${hey('Matti', '', 4)}</h2><p>Wednesday 16 September · your check-up day</p>`;
+  if (!calm) { const soft = 'cubic-bezier(.22,1,.36,1)';
+    $('orb').animate([{ transform: 'scale(.5)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 1000, delay: 800, easing: soft, fill: 'backwards' });
+    $('talk').animate([{ transform: 'translateY(16px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 800, delay: 1700, easing: soft, fill: 'backwards' }); }
+  say('Ask me anything about your money, or let\'s do your check-up.'); chips();
+}
+$('chips').onclick = e => { const b = e.target.closest('[data-k]'); if (b) ask(b.dataset.k); };
+$('orb').onclick = () => { const b = $('chips').querySelector('.chip'); if (b) ask(b.dataset.k); };
+$('week').onclick = nextWeek; $('again').onclick = reset;
+$('snd').onclick = e => { sound = !sound; e.target.textContent = sound ? 'Sound on' : 'Sound off'; e.target.setAttribute('aria-pressed', sound); };
+reset();
+</script>
+</body>
+</html>
