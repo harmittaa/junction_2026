@@ -160,6 +160,17 @@ test("free questions, profile, taxi and six-month hypothetical reduction remain 
   expect(profile.activity.kind).toBe("analysis");
   if (profile.activity.kind !== "analysis") throw new Error("Expected profile");
   expect(profile.activity.analysis.kind).toBe("profile");
+  expect(profile.merchantNoticed?.merchantId).toBe("MRC-ENT-0052");
+  await page.getByRole("button", { name: /See the \d+ payments/ }).click();
+  const merchantNote = page.locator(".ac-noticed").filter({ hasText: "Still worth it to you?" });
+  await expect(merchantNote).toHaveCount(1);
+  await expect(merchantNote).toContainText(/4 payments here in August, 445,98\s€\./);
+  const reflectionResponse = page.waitForResponse(response => response.url().endsWith("/api/coach"));
+  await merchantNote.click();
+  const reflection = viewSchema.parse(await (await reflectionResponse).json());
+  expect(reflection.message).toContain("What did you value about those payments?");
+  expect(reflection.checkup).toEqual(profile.checkup);
+  await expect(page.getByRole("dialog", { name: /August.*payments/ })).toHaveCount(0);
   const taxi = await chip(page, questions.taxi);
   expect(taxi.activity.kind).toBe("reveal");
   if (taxi.activity.kind !== "reveal") throw new Error("Expected direct taxi result");
@@ -185,6 +196,42 @@ test("free questions, profile, taxi and six-month hypothetical reduction remain 
   await page.screenshot({ path: testInfo.outputPath("whatif-360.png"), fullPage: true });
   const jar = await chip(page, questions.jar);
   expect(jar).toMatchObject({ activity: { kind: "jar" }, jar: { leftCents: 91229 }, checkup: { due: true, streak: 2 } });
+});
+
+test("welcome car-cost notice opens the verified winter breakdown at phone width", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await enter(page);
+  const notice = page.locator(".checkup-welcome-stack").filter({ hasText: "Winter tire season is ahead." });
+  await expect(notice).toContainText(/Last December your transport costs hit 729,89\s€\./);
+  const question = "What did I spend on transport last winter?";
+  await expect(notice.getByRole("button").filter({ hasText: question })).toBeVisible();
+  const response = page.waitForResponse(response => response.url().endsWith("/api/coach"));
+  await notice.getByRole("button").filter({ hasText: question }).click();
+  const result = viewSchema.parse(await (await response).json());
+  expect(result.activity.kind).toBe("analysis");
+  if (result.activity.kind !== "analysis") throw new Error("Expected winter transport breakdown");
+  expect(result.activity.analysis).toMatchObject({
+    kind: "breakdown", evidenceCount: 33,
+    query: { start: "2025-12-01", end: "2026-01-31", categories: ["Transportation"], merchantType: null },
+  });
+  expect(result.activity.analysis.sections.flatMap(section => section.rows)).toEqual(expect.arrayContaining([
+    expect.objectContaining({ label: "Total spending", amountCents: 150998, count: 33 }),
+    expect.objectContaining({ label: "Fuel merchants", amountCents: 55678, count: 13 }),
+    expect.objectContaining({ label: "Parking merchants", amountCents: 29066, count: 7 }),
+    expect.objectContaining({ label: "Local transit merchants", amountCents: 28702, count: 5 }),
+    expect.objectContaining({ label: "Taxicabs and limousines (including ride-share)", amountCents: 17318, count: 4 }),
+  ]));
+  const card = page.locator(".sp-activities");
+  await expect(card).toContainText("2025-12-01 – 2026-01-31");
+  await expect(card).toContainText(/1\s509,98\s€/);
+  await expect(card.getByText("Fuel merchants", { exact: true })).toBeVisible();
+  await expect(card.getByText("Parking merchants", { exact: true })).toBeVisible();
+  await expect(card.getByText("Local transit merchants", { exact: true })).toBeVisible();
+  await expect(card.getByText("Taxicabs and limousines (including ride-share)", { exact: true })).toBeVisible();
+  expect(result.checkup).toMatchObject({ due: true, completed: false, streak: 2 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole("button", { name: /Ideas to ask/ }).click();
+  await expect(page.getByRole("dialog", { name: "Ideas to ask" }).getByRole("button", { name: question, exact: true })).toBeVisible();
 });
 
 test("provider failure and fabricated prose preserve suggestions, saved state and session isolation", async ({ page, context }) => {

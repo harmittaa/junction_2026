@@ -8,6 +8,8 @@ import {
   usualMonth,
 } from "@/domain/coaching";
 import { calculateJar, calculateUsualComparison } from "@/domain/checkup";
+import { calculateAnalysis } from "@/domain/exploration";
+import { merchantTypes } from "@/domain/merchant-types";
 import { euros } from "@/domain/spending";
 import {
   goalVerdictSchema,
@@ -482,5 +484,101 @@ describe("noticed rules", () => {
       everydayCents: 203387,
     };
     expect(noticed({ place: "spender", usual: underUsual })).toBeNull();
+  });
+
+  it("fires car_season for upcoming place with car history and prior December transport costs", () => {
+    const notice = noticed({
+      place: "upcoming",
+      rows,
+      customerId,
+      referenceDate,
+    });
+    expect(noticedSchema.safeParse(notice).success).toBe(true);
+    expect(notice).toMatchObject({
+      rule: "car_season",
+      text: `Winter tire season is ahead. Last December your transport costs hit ${euros(72989)}.`,
+      question: "What did I spend on transport last winter?",
+    });
+    expect(notice?.text).toContain(euros(72989));
+  });
+
+  it("only looks ahead to winter tire season in autumn", () => {
+    for (const referenceDate of ["2026-01-16", "2026-06-16", "2026-12-16"]) {
+      expect(noticed({ place: "upcoming", rows, customerId, referenceDate })).toBeNull();
+    }
+  });
+
+  it("returns null for upcoming place without car history or prior December transport spending", () => {
+    const withoutFuel = rows.map(r =>
+      r.mcc === "5541" || r.mcc === "5542" ? { ...r, mcc: null } : r,
+    );
+    expect(
+      noticed({ place: "upcoming", rows: withoutFuel, customerId, referenceDate }),
+    ).toBeNull();
+
+    const withoutParking = rows.map(r =>
+      r.mcc === "7523" ? { ...r, mcc: null } : r,
+    );
+    expect(
+      noticed({
+        place: "upcoming",
+        rows: withoutParking,
+        customerId,
+        referenceDate,
+      }),
+    ).toBeNull();
+
+    const withoutDecTransport = rows.map(r =>
+      r.date.startsWith("2025-12") && r.category === "Transportation"
+        ? { ...r, category: "Other" }
+        : r,
+    );
+    expect(
+      noticed({
+        place: "upcoming",
+        rows: withoutDecTransport,
+        customerId,
+        referenceDate,
+      }),
+    ).toBeNull();
+  });
+
+  it("scopes upcoming car evidence and December totals to the selected customer and reference date", () => {
+    const foreignRows = rows.map(row => ({ ...row, id: `other-${row.id}`, customerId: "OTHER" }));
+    const futureRows = rows.map(row => ({ ...row, id: `future-${row.id}`, date: "2026-10-01" }));
+    expect(noticed({ place: "upcoming", rows: [...rows, ...foreignRows, ...futureRows], customerId, referenceDate }))
+      .toEqual(noticed({ place: "upcoming", rows, customerId, referenceDate }));
+    expect(noticed({ place: "upcoming", rows: foreignRows, customerId, referenceDate })).toBeNull();
+
+    for (const mccs of [["5541", "5542"], ["7523"]]) {
+      for (const replacement of [{ customerId: "OTHER" }, { date: "2026-10-01" }]) {
+        const scopedRows = rows.map(row => mccs.includes(row.mcc ?? "") ? { ...row, ...replacement } : row);
+        expect(noticed({ place: "upcoming", rows: scopedRows, customerId, referenceDate })).toBeNull();
+      }
+    }
+  });
+
+  it("reconciles last winter's transport breakdown to its source rows and MCC groups", () => {
+    const analysis = calculateAnalysis(rows, customerId, {
+      kind: "breakdown", by: "merchantType", top: 5, percent: null, comparePeriod: null,
+      query: { start: "2025-12-01", end: "2026-01-31", categories: ["Transportation"], baskets: [], merchantType: null },
+    }, {}, referenceDate);
+    expect(analysis.sections[1].rows).toEqual([
+      { label: "Total spending", amountCents: 150998, count: 33, sharePercent: null },
+    ]);
+    expect(analysis.sections[0].rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: merchantTypes.fuel.label, amountCents: 55678, count: 13 }),
+      expect.objectContaining({ label: merchantTypes.parking.label, amountCents: 29066, count: 7 }),
+      expect.objectContaining({ label: merchantTypes.transit.label, amountCents: 28702, count: 5 }),
+      expect.objectContaining({ label: merchantTypes.taxi.label, amountCents: 17318, count: 4 }),
+      expect.objectContaining({ label: "Missing MCC (unclassified purchases)", amountCents: 20234, count: 4 }),
+    ]));
+    const winterRows = rows.filter(row => row.customerId === customerId && row.category === "Transportation"
+      && row.date >= "2025-12-01" && row.date <= "2026-01-31" && row.amountCents < 0);
+    expect(analysis.evidenceCount).toBe(33);
+    expect(analysis.evidence.map(row => row.sourceRow).sort((a, b) => a - b))
+      .toEqual(winterRows.map(row => row.sourceRow).sort((a, b) => a - b));
+    expect(analysis.evidence.reduce((sum, row) => sum + row.amountCents, 0)).toBe(150998);
+    expect(analysis.assumptions.join(" ")).toContain("do not prove fuel was bought");
   });
 });

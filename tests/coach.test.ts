@@ -12,6 +12,12 @@ const query = { categories: ["Groceries"], baskets: [], merchantType: null, star
 const operation: Interpretation = { kind: "spending", query, direct: false, percent: null, reply: "none", comparePeriod: null, by: null, top: null, concept: null };
 const ask = { action: "ask", text: "Groceries last month?", revision: 0 } as const;
 describe("coordinator boundaries", () => {
+  it("reflects on a merchant note without calculating an unrelated total or changing saved state", () => {
+    const state = transition(initialState(), ask, { ...operation, kind: "profile", query: null });
+    const next = transition(state, { ...ask, text: "Still worth it to you?" }, operation);
+    expect(next).toEqual({ ...state, message: "What did you value about those payments? You can decide whether they still fit your priorities." });
+    expect(toView(next).merchantNoticed?.merchantId).toBe("MRC-ENT-0052");
+  });
   it("answers directly with calculated amounts and evidence, distinguishing empty matches", () => {
     const revealed = toView(transition(initialState(), ask, operation));
     expect(revealed.activity.kind).toBe("reveal");

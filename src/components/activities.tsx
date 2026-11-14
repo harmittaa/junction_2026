@@ -152,6 +152,7 @@ export function AnalysisCard({ analysis, ...actions }: Actions & { analysis: Ana
 export function SpenderCard({
   analysis,
   noticed,
+  merchantNoticed,
   busy,
   revision,
   countActive = true,
@@ -159,6 +160,7 @@ export function SpenderCard({
 }: Actions & {
   analysis: Analysis;
   noticed: CoachView["noticed"];
+  merchantNoticed?: CoachView["merchantNoticed"];
   countActive?: boolean;
 }) {
   const [breakdownOpen, setBreakdownOpen] = useState(false);
@@ -279,6 +281,7 @@ export function SpenderCard({
           {sheetOpen && (
             <PaymentsSheet
               analysis={analysis}
+              merchantNoticed={merchantNoticed}
               monthLabel={monthLabel}
               busy={busy}
               revision={revision}
@@ -386,7 +389,7 @@ export function Activities({ view, busy, countActive = true, onAction }: { view:
     {activity.kind === "save" && <SafeToSaveCard save={activity.save} noticed={view.noticed} countActive={countActive} {...actions} />}
     {activity.kind === "goal" && <GoalCard verdict={activity.verdict} noticed={view.noticed} countActive={countActive} {...actions} />}
     {activity.kind === "analysis" && activity.analysis.kind === "profile" && (
-      <SpenderCard analysis={activity.analysis} noticed={view.noticed} countActive={countActive} {...actions} />
+      <SpenderCard analysis={activity.analysis} noticed={view.noticed} merchantNoticed={view.merchantNoticed} countActive={countActive} {...actions} />
     )}
     {activity.kind === "analysis" && activity.analysis.kind !== "profile" && <AnalysisCard analysis={activity.analysis} {...actions} />}
     {activity.kind === "pace" && <Card title={jar.overCents ? "Let's take a closer look" : "A little room each day"}>

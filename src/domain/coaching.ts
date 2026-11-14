@@ -264,12 +264,20 @@ export type NoticedSpenderInput = {
   usual: UsualMonth;
 };
 
+export type NoticedUpcomingInput = {
+  place: "upcoming";
+  rows: readonly Transaction[];
+  customerId: string;
+  referenceDate: string;
+};
+
 export type NoticedInput =
   | NoticedEntryInput
   | NoticedSaveInput
   | NoticedGoalInput
   | NoticedJarInput
-  | NoticedSpenderInput;
+  | NoticedSpenderInput
+  | NoticedUpcomingInput;
 
 export function noticed(input: NoticedInput): Noticed | null {
   switch (input.place) {
@@ -371,6 +379,47 @@ export function noticed(input: NoticedInput): Noticed | null {
         });
       }
       return null;
+    }
+    case "upcoming": {
+      const { rows, customerId, referenceDate } = input;
+      dateSchema.parse(referenceDate);
+      const seasonMonth = Number(referenceDate.slice(5, 7));
+      if (seasonMonth < 9 || seasonMonth > 11) return null;
+      const hasFuel = rows.some(
+        r =>
+          r.customerId === customerId &&
+          r.date <= referenceDate &&
+          (r.mcc === "5541" || r.mcc === "5542"),
+      );
+      const hasParking = rows.some(
+        r =>
+          r.customerId === customerId &&
+          r.date <= referenceDate &&
+          r.mcc === "7523",
+      );
+      if (!hasFuel || !hasParking) return null;
+
+      const refYear = Number(referenceDate.slice(0, 4));
+      const targetMonth = `${refYear - 1}-12`;
+
+      const decemberTransportCents = rows
+        .filter(
+          r =>
+            r.customerId === customerId &&
+            r.date <= referenceDate &&
+            r.date.startsWith(targetMonth) &&
+            r.category === "Transportation" &&
+            r.amountCents < 0,
+        )
+        .reduce((sum, r) => sum + Math.abs(r.amountCents), 0);
+
+      if (decemberTransportCents <= 0) return null;
+
+      return noticedSchema.parse({
+        rule: "car_season",
+        text: `Winter tire season is ahead. Last December your transport costs hit ${euros(decemberTransportCents)}.`,
+        question: "What did I spend on transport last winter?",
+      });
     }
   }
 }

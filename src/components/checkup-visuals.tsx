@@ -370,6 +370,7 @@ const ideaQuestions = [
   "What have I spent more on than usual?",
   "What kind of spender am I?",
   "What if I cut dining out by 20%?",
+  "What did I spend on transport last winter?",
 ];
 
 export function IdeasButton({

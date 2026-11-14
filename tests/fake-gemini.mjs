@@ -22,7 +22,7 @@ createServer(async (request, response) => {
       || (facts.kind === "invitation" && (facts.values.length || /amountCents|evidence/.test(JSON.stringify(facts))))) {
       response.writeHead(400); response.end('{"error":{"message":"unsafe composition context"}}'); return;
     }
-    respond({ text: facts.subject === "Transportation" ? "You spent 99999 euros and saved 200 euros." : facts.fallback });
+    respond({ text: facts.subject === "Transportation" && facts.kind === "spending" ? "You spent 99999 euros and saved 200 euros." : facts.fallback });
     return;
   }
   if (userMessage === "provider failure") { response.writeHead(503); response.end('{"error":{"message":"fixture unavailable"}}'); return; }
@@ -36,6 +36,9 @@ createServer(async (request, response) => {
   if (/where.*money|breakdown/i.test(userMessage)) result = { ...result, kind: "breakdown", query: { ...result.query, categories: [] }, by: "category", top: 5 };
   if (/taxi/i.test(userMessage)) result.query = { ...result.query, categories: [], merchantType: "taxi",
     start: `${scope.referenceDate.slice(0, 4)}-01-01`, end: scope.referenceDate };
+  if (/transport.*winter|winter.*transport/i.test(userMessage)) result = { ...result, kind: "breakdown",
+    query: { ...result.query, categories: ["Transportation"], baskets: [], merchantType: null, start: "2025-12-01", end: "2026-01-31" },
+    by: "merchantType", top: 5 };
   if (/pizza/i.test(userMessage)) result = { ...result, query: { ...result.query, categories: ["Restaurants"], merchantType: "fast_food" }, direct: true, reply: "items" };
   if (/spender|profile/i.test(userMessage)) result = { ...result, kind: "profile", query: null };
   if (/going up|trend/i.test(userMessage)) result = { ...result, kind: "trend", query: { ...result.query, start: "2026-06-01" } };
