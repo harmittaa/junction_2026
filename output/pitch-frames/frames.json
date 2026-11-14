@@ -1,0 +1,66 @@
+[
+  {
+    "slug": "01-the-question",
+    "title": "Sponky starts the discovery",
+    "time": "0:00–0:10",
+    "criteria": "Mobile UX · S-mobiili potential",
+    "caption": "Sponky spots a change in your money and gives you a way to explore it.",
+    "note": "Open with Sponky surfacing an observed balance change and inviting exploration. This is an in-app insight, not a background notification. The bank entry is a concept, not a live S-mobiili integration."
+  },
+  {
+    "slug": "02-talk-to-your-money",
+    "title": "Sponky guides the exploration",
+    "time": "0:10–0:24",
+    "criteria": "AI integration · Mobile UX",
+    "caption": "Ask in your own words. Sponky explains the pattern and offers a way to explore it.",
+    "note": "Use actual voice footage here in the final video. The illustrated response uses the August 2026 demo targets."
+  },
+  {
+    "slug": "03-understand-three-baskets",
+    "title": "Sponky makes the spending understandable",
+    "time": "0:24–0:42",
+    "criteria": "Financial literacy · AI integration",
+    "caption": "Sponky explains your three baskets, then spots the gap between your surplus and investments.",
+    "note": "The 16,90 € surplus is before investment transfers. The 186,58 € investment comparison is an observed monthly pattern, not evidence of savings achieved."
+  },
+  {
+    "slug": "04-a-realistic-goal",
+    "title": "Sponky checks what the goal takes",
+    "time": "0:42–1:00",
+    "criteria": "AI integration · Financial literacy",
+    "caption": "Sponky checks your goal against your history and shows the change it would take.",
+    "note": "The six-month target keeps the recorded investment allocation. Only explicit confirmation sets the goal."
+  },
+  {
+    "slug": "05-your-next-week",
+    "title": "Sponky turns the goal into next steps",
+    "time": "1:00–1:15",
+    "criteria": "Mobile UX · Financial literacy",
+    "caption": "Once you confirm, Sponky turns your goal into a spending plan for the week.",
+    "note": "93,28 € is the jar-based allowance for 17–20 September, excluding the simulated current day. It is not a verified bank balance or a guarantee about future bills."
+  },
+  {
+    "slug": "06-make-it-a-habit",
+    "title": "Sponky guides and celebrates the check-up",
+    "time": "1:15–1:36",
+    "criteria": "Financial literacy · Mobile UX",
+    "caption": "Sponky guides your weekly check-up and celebrates each time you show up.",
+    "note": "Illustrates three completed weekly check-ups on 2, 9 and 16 September. The dedicated streak screen is planned in #51 and remains to be verified in the integrated product. Do not imply measured retention or savings impact."
+  },
+  {
+    "slug": "07-built-for-trust",
+    "title": "Sponky guides. The user decides.",
+    "time": "1:36–1:48",
+    "criteria": "Feasibility · S-mobiili potential",
+    "caption": "Sponky guides the conversation with checked numbers. You stay in control of the goal.",
+    "note": "Architecture and providers reflect the project. S-mobiili embedding remains a proposed integration. The new coaching flow still requires combined acceptance under #50."
+  },
+  {
+    "slug": "08-sponky",
+    "title": "The promise to remember",
+    "time": "1:48–1:55",
+    "criteria": "All five criteria: concise closing",
+    "caption": "Sponky. Spots the pattern. Guides your next step. Builds the habit with you.",
+    "note": "Close on the product promise and demo address. Do not claim proven improvements in financial literacy; this prototype demonstrates the approach."
+  }
+]
