@@ -1,0 +1,62 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: read
+
+# A running cloud rollout must finish before another deployment can start.
+concurrency:
+  group: deploy-sponky-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      # Install before authentication; do not consume PR-writable caches.
+      - run: npm ci
+      # 14.x provisions IAM unconditionally; 15.36 supports existing runtime roles.
+      - name: Install deployment CLI without changing application dependencies
+        run: npm install --prefix "$RUNNER_TEMP/firebase-cli" --no-package-lock firebase-tools@15.36.0
+      - uses: google-github-actions/auth@v3
+        with:
+          project_id: sponky-junction-2026
+          workload_identity_provider: projects/967386564020/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: github-sponky-deploy@sponky-junction-2026.iam.gserviceaccount.com
+      - name: Keep temporary credentials outside the uploaded source
+        shell: bash
+        run: |
+          credentials="$RUNNER_TEMP/google-adc.json"
+          mv "$GOOGLE_APPLICATION_CREDENTIALS" "$credentials"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$credentials" >> "$GITHUB_ENV"
+          echo "CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=$credentials" >> "$GITHUB_ENV"
+          echo "GOOGLE_GHA_CREDS_PATH=$credentials" >> "$GITHUB_ENV"
+      - name: Deploy checked main and verify serving revision and public URL
+        run: node scripts/deploy.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Remove temporary credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/google-adc.json"
