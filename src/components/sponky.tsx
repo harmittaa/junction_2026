@@ -6,15 +6,25 @@ import { Coach } from "./coach";
 import { Activities } from "./activities";
 import { History } from "./history";
 
-type RequestState = { kind: "idle" } | { kind: "sending" } | { kind: "error"; message: string };
+type RequestState = { kind: "idle" } | { kind: "sending" } | { kind: "error"; message: string; outdated?: boolean };
 const ribbon = <svg viewBox="0 0 120 120"><path d="M69 10C107 34 39 80 77 110M43 10C81 34 13 80 51 110" /></svg>;
 const bankCards = [["Accounts", "S-Tili · Taloustili"], ["Payments and e-invoices", "Make a new payment or view e-invoices"], ["Cards", "S-Etukortti Visa Credit/Debit"], ["Säästäjä", "Oma tavoitteeni"], ["Investments", "Value of your investments"]];
 type HistoryEntry = { role: "user" | "coach"; text: string };
 
-async function loadSession(signal?: AbortSignal) {
-  const response = await fetch("/api/session", { signal, cache: "no-store" });
+class SessionLoadError extends Error {
+  constructor(message: string, readonly outdated = false) { super(message); }
+}
+function sessionError(error: unknown): RequestState {
+  return { kind: "error", message: error instanceof SessionLoadError ? error.message : "Could not open your coach. Check your connection and retry.", outdated: error instanceof SessionLoadError && error.outdated };
+}
+async function loadSession(signal?: AbortSignal, restart = false) {
+  const timeout = AbortSignal.timeout(15000);
+  const response = await fetch("/api/session", {
+    signal: signal ? AbortSignal.any([signal, timeout]) : timeout, cache: "no-store",
+    ...(restart ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmed: true }) } : {}),
+  });
   const data = await response.json();
-  if (!response.ok) throw new Error(apiErrorSchema.parse(data).error);
+  if (!response.ok) throw new SessionLoadError(apiErrorSchema.parse(data).error, response.status === 409);
   return viewSchema.parse(data);
 }
 
@@ -49,8 +59,8 @@ export function Sponky() {
     const controller = new AbortController();
     void loadSession(controller.signal).then(next => {
       if (!controller.signal.aborted) setView(next);
-    }).catch(() => {
-      if (!controller.signal.aborted) setRequestState({ kind: "error", message: "Could not load the demo. Try reconnecting." });
+    }).catch(error => {
+      if (!controller.signal.aborted) setRequestState(sessionError(error));
     });
     return () => { controller.abort(); activeRequest.current?.abort(); };
   }, []);
@@ -69,6 +79,20 @@ export function Sponky() {
     activeRequest.current?.abort();
     activeRequest.current = null;
     setRequestState({ kind: "idle" });
+  }
+  async function openSession(restart = false) {
+    cancelRequest();
+    const controller = new AbortController();
+    activeRequest.current = controller;
+    setRequestState({ kind: "sending" });
+    try {
+      const next = await loadSession(controller.signal, restart);
+      if (controller.signal.aborted) return;
+      setView(next);
+      setRequestState({ kind: "idle" });
+    } catch (error) {
+      if (!controller.signal.aborted) setRequestState(sessionError(error));
+    }
   }
   async function send(request: CoachRequest, submittedDraft?: number) {
     cancelRequest();
@@ -128,16 +152,21 @@ export function Sponky() {
   </main>;
 
   return <main className="app">
-    <header className="app-header"><button className="icon-button" aria-label="Back to entry" onClick={() => { voice.cancel(); cancelRequest(); setEntered(false); }}>‹</button><h1>Sponky<span>Your money, a little clearer</span></h1><button className="icon-button" aria-label={dark ? "Light appearance" : "Dark appearance"} onClick={toggleTheme}>{dark ? "☀" : "◐"}</button></header>
+    <header className="app-header"><button className="icon-button" aria-label="Back to entry" onClick={() => { voice.cancel(); if (view) cancelRequest(); setEntered(false); }}>‹</button><h1>Sponky<span>Your money, a little clearer</span></h1><button className="icon-button" aria-label={dark ? "Light appearance" : "Dark appearance"} onClick={toggleTheme}>{dark ? "☀" : "◐"}</button></header>
     <div className="toolbar"><button className="text-button" aria-pressed={voice.muted} onClick={voice.toggleMute}>{voice.muted ? "Sound off" : "Sound on"}</button><button className="text-button" aria-expanded={showHistory} onClick={() => setShowHistory(!showHistory)}>History</button></div>
     {showHistory && <History entries={history} onClose={() => setShowHistory(false)} />}
-    <Coach state={coachState} readBands={voice.readBands} onStart={startCoach}
+    {!view && requestState.kind === "error" && <div className="error" role="alert">
+      <p>{requestState.message}</p>
+      {requestState.outdated ? <><p>The demo data has changed. Start fresh to use the updated demo. Previous habits and check-ins will not carry over.</p><button className="text-button" onClick={() => void openSession(true)}>Start new demo session</button></>
+        : <button className="text-button" onClick={() => void openSession()}>Retry</button>}
+    </div>}
+    {view && <Coach state={coachState} readBands={voice.readBands} onStart={startCoach}
       onRelease={() => void voice.stop()} onCancel={voice.cancel} starting={voice.state === "starting"}
-      disabled={!view} />
+      />}
     {voice.state === "starting" && <p className="meta" role="status">Starting microphone…</p>}
     {voice.state === "transcribing" && <p className="meta" role="status">Finishing your words…</p>}
     {["starting", "transcribing", "loading"].includes(voice.state) && <button className="text-button replay" onClick={voice.cancel}>Cancel voice</button>}
-    <p className="coach-message" aria-live="polite">{view?.message ?? "Opening your coach…"}</p>
+    <p className="coach-message" aria-live="polite">{view?.message ?? (requestState.kind === "error" ? "Your coach could not open." : "Opening your coach…")}</p>
     <form className="typing" data-visible={!!voiceError} onSubmit={event => { event.preventDefault(); if (view && text.trim()) void send({ action: "ask", revision: view.revision, text }, draftVersion.current); }}><label><span className="sr-only">Message</span><input value={text} maxLength={600} onChange={event => { draftVersion.current++; setText(event.target.value); }} placeholder="Type a message" /></label><button disabled={!view || busy || !text.trim()}>Send</button></form>
     {!view?.habit && view?.activity.kind === "none" && <div className="starters">
       <button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "Show my August spending by category." })}>Break down my August spending ↗</button>
@@ -147,12 +176,12 @@ export function Sponky() {
     </div>}
     {view && <Activities view={view} busy={busy} onAction={request => void send(request)} />}
     {view?.habit && view.activity.kind !== "checkin" && <button className="checkin-entry" disabled={busy} onClick={() => void send({ action: "checkin", revision: view.revision })}>Daily check-in <span aria-hidden="true">↗</span></button>}
-    {requestState.kind === "error" && <div className="error" role="alert"><p>{requestState.message}</p><button className="text-button" onClick={() => {
+    {view && requestState.kind === "error" && <div className="error" role="alert"><p>{requestState.message}</p><button className="text-button" onClick={() => {
       if (lastRequest.current) void send(lastRequest.current.request, lastRequest.current.draft);
       else void refresh().then(() => setRequestState({ kind: "idle" })).catch(() => setRequestState({ kind: "error", message: "Still unavailable. Please try again shortly." }));
     }}>Retry</button></div>}
     {voiceError && <div className="error" role="alert"><p>{voiceError}</p><p>Typing is always available.</p><button className="text-button" onClick={() => setVoiceError("")}>Dismiss</button></div>}
-    {busy && <button className="text-button" onClick={cancelRequest}>Stop waiting</button>}
+    {view && busy && <button className="text-button" onClick={cancelRequest}>Stop waiting</button>}
     {view && !busy && voice.state === "ready" && view.revision > 0 && <button className="text-button replay" disabled={voice.muted} onClick={() => void voice.speak(view.revision)}>Play reply</button>}
     <details className="demo-controls"><summary>Demo controls</summary><p className="demo-date">Simulated date {view?.demoDate ?? "2026-09-01"}</p><button className="secondary" disabled={!view || busy} onClick={() => { if (view) void send({ action: "advance", revision: view.revision, confirmed: true }); }}>Advance simulated day</button></details>
   </main>;

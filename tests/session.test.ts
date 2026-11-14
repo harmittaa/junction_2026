@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { sessionId, signSession, verifySession } from "@/server/session";
+import { newSession, sessionId, signSession, verifySession } from "@/server/session";
 
 const jar = vi.hoisted(() => ({ values: new Map<string, string>(), set: vi.fn() }));
 vi.mock("next/headers", () => ({ cookies: async () => ({
@@ -50,4 +50,13 @@ it("creates a signed secure cookie that Firebase Hosting can forward", async () 
   expect(name).toBe("__session");
   expect(verifySession(token, secret, now)).toBe(created);
   expect(options).toEqual({ httpOnly: true, secure: true, sameSite: "strict", path: "/", maxAge: 604800 });
+});
+
+it("explicitly starts a fresh session even when current and legacy cookies are valid", async () => {
+  jar.values.set("__session", signSession(id, now + 120, secret));
+  jar.values.set("sponky_session", signSession(otherId, now + 120, secret));
+  const created = await newSession();
+  expect(created).not.toBe(id);
+  expect(created).not.toBe(otherId);
+  expect(verifySession(jar.set.mock.calls[0][1], secret, now)).toBe(created);
 });
