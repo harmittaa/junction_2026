@@ -28,7 +28,7 @@ export async function sessionId(create = false): Promise<string> {
   // Keep existing sessions on the original App Hosting origin through the rename.
   const legacyToken = jar.get("sponky_session")?.value ?? "";
   const legacyId = verifySession(legacyToken, secret, now);
-  if (!legacyId && !create) throw new AppError("Your demo session expired. Refresh to start a new session.", 401, true);
+  if (!legacyId && !create) throw new AppError("Your session expired. Refresh to start a new session.", 401, true);
   if (!legacyId) return newSession();
   jar.set(cookieName, legacyToken, {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/",

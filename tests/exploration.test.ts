@@ -159,16 +159,17 @@ describe("recorded cashflow", () => {
 });
 
 describe("hypothetical reductions", () => {
-  it("rounds the selected reduction once and annualizes the rounded average of three complete months including zeros", () => {
+  it("floors the available-month average and annualizes the rounded monthly reduction including zero months", () => {
     const rows = [transaction("a1", "2026-06-01", -101), transaction("a2", "2026-08-01", -203),
       transaction("a3", "2026-09-10", -99999), transaction("a4", "2026-08-01", -800, "Health"),
       transaction("a5", "2026-06-01", -777, "Groceries", { customerId: "OTHER" })];
     const result = analyze("whatif", { query: { ...query, start: "2026-08-01", categories: ["Groceries"] }, percent: 50 }, rows);
     expect(value(result, "Hypothetical reduction (50%)").amountCents).toBe(102);
     expect(value(result, "Hypothetical remaining spending").amountCents).toBe(101);
-    // 304 / 3 = 101⅓ → 101 cents, then 101 × 12 × 50% = 606.
+    // 304 / 3 floors to 101 cents; 50% rounds to 51 cents, then 51 × 12 = 612.
     expect(value(result, "Monthly average (complete months)")).toMatchObject({ amountCents: 101, count: 3 });
-    expect(value(result, "Hypothetical annual reduction (50%)").amountCents).toBe(606);
+    expect(value(result, "Hypothetical monthly reduction (50%)").amountCents).toBe(51);
+    expect(value(result, "Hypothetical annual reduction (50%)").amountCents).toBe(612);
     expect(result.evidence.map(row => row.id).sort()).toEqual(["a1", "a2"]);
     expect(result.assumptions.join(" ")).toContain("2026-06, 2026-07, 2026-08");
   });
@@ -206,12 +207,12 @@ describe("recent-period profile", () => {
 
 describe("analysis date and operation validation", () => {
   it.each<AnalysisOperation["kind"]>(["breakdown", "comparison", "trend", "cashflow", "whatif", "profile"])("rejects future or reversed periods for %s", kind => {
-    expect(() => analyze(kind, { query: { ...query, end: "2026-09-11" } })).toThrow("historical");
-    expect(() => analyze(kind, { query: { ...query, start: "2026-09-01" } })).toThrow("historical");
+    expect(() => analyze(kind, { query: { ...query, end: "2026-09-11" } })).toThrow("period up to the current date");
+    expect(() => analyze(kind, { query: { ...query, start: "2026-09-01" } })).toThrow("period up to the current date");
   });
   it("validates comparison dates and required parameters", () => {
-    expect(() => analyze("comparison", { comparePeriod: { start: "2026-09-01", end: "2026-09-11" } })).toThrow("historical");
-    expect(() => analyze("comparison", { comparePeriod: { start: "2026-08-02", end: "2026-08-01" } })).toThrow("historical");
+    expect(() => analyze("comparison", { comparePeriod: { start: "2026-09-01", end: "2026-09-11" } })).toThrow("period up to the current date");
+    expect(() => analyze("comparison", { comparePeriod: { start: "2026-08-02", end: "2026-08-01" } })).toThrow("period up to the current date");
     expect(() => analyze("comparison")).toThrow("comparison period");
     expect(() => analyze("breakdown")).toThrow("dimension");
     expect(() => analyze("whatif")).toThrow("percentage");

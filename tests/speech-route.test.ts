@@ -8,25 +8,25 @@ vi.mock("@/server/session", () => ({ sessionId: async () => "12345678-1234-1234-
 vi.mock("@/server/storage/sessions", () => ({ readSession: io.read, consumeBudget: async () => {} }));
 vi.mock("@/server/providers/elevenlabs", () => ({ synthesizeSpeech: io.synthesize }));
 
-it("authorizes speech from the current server state, withholds pending facts, and rejects stale or arbitrary text", async () => {
+it("speaks the server-owned entry or answer and rejects stale revisions or arbitrary text", async () => {
   const spoken: string[] = [];
   io.synthesize.mockImplementation(async (text: string) => { spoken.push(text); return new Uint8Array([73, 68, 51]); });
   const send = (body: object) => POST(new Request("https://demo.example/api/speech", {
     method: "POST", headers: { origin: "https://demo.example", "Content-Type": "application/json" }, body: JSON.stringify(body),
   }));
-  const pending = { ...transition(initialState(), { action: "ask", revision: 0, text: "August groceries" }, {
+  io.read.mockResolvedValue(initialState());
+  expect((await send({ revision: 0, entry: true })).status).toBe(200);
+  expect(spoken[0]).toBe("A little check-up, or something on your mind? I'm here for both.");
+  expect(spoken[0]).not.toMatch(/euros|MRC|balance|spent/);
+  const answer = { ...transition(initialState(), { action: "ask", revision: 0, text: "August groceries" }, {
     kind: "spending", query: { categories: ["Groceries"], baskets: [], merchantType: null, start: "2026-08-01", end: "2026-08-31" }, percent: null, direct: false, reply: "none",
     comparePeriod: null, by: null, top: null, concept: null,
   }), revision: 1 };
-  io.read.mockResolvedValue(pending);
-  expect((await send({ revision: 1 })).status).toBe(200);
-  expect(spoken[0]).toContain("Want to guess");
-  expect(spoken[0]).not.toMatch(/1111|7990|11 transactions|MRC/);
-  io.read.mockResolvedValue({ ...transition(pending, { action: "reveal", revision: 1, guessCents: null }), revision: 2 });
-  expect((await send({ revision: 1 })).status).toBe(409);
-  expect((await send({ revision: 2, text: "You saved 200 euros on taxis" })).status).toBe(400);
+  io.read.mockResolvedValue(answer);
+  expect((await send({ revision: 0 })).status).toBe(409);
+  expect((await send({ revision: 1, text: "You saved 200 euros on taxis" })).status).toBe(400);
   expect(spoken).toHaveLength(1);
-  const revealed = await send({ revision: 2 });
+  const revealed = await send({ revision: 1 });
   expect(revealed.status).toBe(200);
   expect(revealed.headers.get("Content-Type")).toBe("audio/mpeg");
   expect(spoken[1]).toContain("one thousand one hundred eleven euros and six cents");

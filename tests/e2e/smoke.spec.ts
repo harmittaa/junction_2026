@@ -1,237 +1,308 @@
 import { expect, test, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { viewSchema } from "../../src/shared/contracts";
 
-async function enter(page: Page) {
+const headers = { Origin: "http://localhost:3200" };
+const questions = {
+  pace: "Am I still on track?", usual: "What have I spent more on than usual?",
+  profile: "What kind of spender am I?", taxi: "How much did I spend on taxis this year?",
+  whatif: "What if I cut dining out by 20%?", days: "Which days pushed me over?", jar: "Show my jar",
+};
+test.use({ video: "on" });
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/speech", route => route.fulfill({ contentType: "audio/mpeg", body: readFileSync("tests/fixtures/reply.mp3") }));
+  await page.route("**/api/voice/token", route => route.fulfill({ json: { token: "fixture-single-use", modelId: "scribe_v3_live" } }));
+});
+
+async function enter(page: Page, mute = true) {
+  const loaded = page.waitForResponse(response => response.url().endsWith("/api/session") && response.request().method() === "GET");
   await page.goto("/");
-  await page.getByRole("button", { name: "Talk to Sponky" }).click();
-  await expect(page.locator(".coach-message")).toContainText("less mysterious");
-  await page.getByRole("button", { name: "Sound on", exact: true }).click();
-}
-async function ask(page: Page, text: string) {
-  const box = page.getByRole("textbox", { name: "Message", exact: true });
-  await box.fill(text);
-  const response = page.waitForResponse(response => response.url().endsWith("/api/coach"));
-  await box.press("Enter");
-  return await (await response).json();
+  await loaded;
+  await page.getByRole("button", { name: /Talk to Sponky/ }).click();
+  await expect(page.locator(".coach-message")).toContainText("check-up");
+  await expect(page.locator(".sp-coach-trigger")).toBeEnabled();
+  if (mute) await page.getByRole("button", { name: "Sound on", exact: true }).click();
 }
 
-test("an outdated session offers explicit recovery and retains the previous saved records", async ({ page, context }) => {
+async function chip(page: Page, name: string) {
+  await page.waitForTimeout(750); // Preserve the production per-session reasoning burst limit.
+  const response = page.waitForResponse(response => response.url().endsWith("/api/coach"));
+  await page.getByRole("button", { name, exact: true }).click();
+  const result = await response;
+  expect(result.status()).toBe(200);
+  return viewSchema.parse(await result.json());
+}
+
+async function installVoice(page: Page) {
+  let transcript = "", chunks = 0;
+  await page.routeWebSocket("wss://api.elevenlabs.io/**", socket => {
+    setTimeout(() => socket.send(JSON.stringify({ message_type: "session_started" })), 25);
+    socket.onMessage(message => {
+      const chunk = JSON.parse(String(message));
+      if (chunk.commit) socket.send(JSON.stringify({ message_type: "committed_transcript", text: transcript }));
+      else { chunks++; socket.send(JSON.stringify({ message_type: "partial_transcript", text: "unfinished" })); }
+    });
+  });
+  return async (text: string) => {
+    transcript = text;
+    await page.waitForTimeout(750);
+    const trigger = page.locator(".sp-coach-trigger");
+    await trigger.focus();
+    const before = chunks;
+    await page.keyboard.down("Space");
+    await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "listening");
+    await expect.poll(() => chunks).toBeGreaterThan(before);
+    const response = page.waitForResponse(response => response.url().endsWith("/api/coach"));
+    await page.keyboard.up("Space");
+    return await response;
+  };
+}
+
+test("entry before session load speaks the welcome once without replaying on rerender", async ({ page }) => {
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/api/session", async route => { await held; await route.continue(); });
+  const speech: object[] = [];
+  page.on("request", request => { if (request.url().endsWith("/api/speech")) speech.push(request.postDataJSON()); });
+  const loading = page.waitForRequest(request => request.url().endsWith("/api/session"));
+  await page.goto("/");
+  await loading;
+  await page.getByRole("button", { name: /Talk to Sponky/ }).click();
+  await expect(page.getByRole("heading", { name: "Hey Matti" })).toHaveCount(0);
+  await expect(page.locator(".coach-message")).toHaveText("Opening your coach…");
+  expect(speech).toEqual([]);
+  release();
+  await expect(page.getByRole("heading", { name: "Hey Matti" })).toBeVisible();
+  await expect(page.locator(".coach-message")).toContainText("check-up");
+  await expect.poll(() => speech).toEqual([{ revision: 0, entry: true }]);
+  await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "speaking");
+  await page.getByRole("button", { name: "Dark appearance", exact: true }).click();
+  await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "ready", { timeout: 8000 });
+  await page.getByRole("button", { name: "Light appearance", exact: true }).click();
+  expect(speech).toEqual([{ revision: 0, entry: true }]);
+});
+
+test("an answer resets a scrolled suggestion strip to its first action", async ({ page }) => {
   await enter(page);
-  const headers = { Origin: "http://localhost:3200" };
-  const saved = await page.request.post("/api/coach", { headers, data: {
-    action: "habit", revision: 0, confirmed: true,
-    habit: { category: "Housing", action: "Review my housing costs", goal: "" },
-  } });
-  expect(saved.status()).toBe(200);
-  const previous = await saved.json();
+  await page.getByRole("button", { name: questions.jar, exact: true }).scrollIntoViewIfNeeded();
+  await expect.poll(() => page.locator(".checkup-chips").evaluate(element => element.scrollLeft)).toBeGreaterThan(30);
+  expect((await chip(page, questions.jar)).activity.kind).toBe("jar");
+  await expect.poll(() => page.locator(".checkup-chips").evaluate(element => element.scrollLeft)).toBe(0);
+  await expect(page.getByRole("button", { name: "Let's do my check-up", exact: true })).toBeInViewport({ ratio: 1 });
+});
+
+test("welcome, weekly reward, jar, spoken necessity correction, undo and hidden reset", async ({ page }, testInfo) => {
+  test.setTimeout(60000);
+  const say = await installVoice(page);
+  const speech: object[] = [], spoken: string[] = [];
+  page.on("request", request => {
+    if (request.url().endsWith("/api/speech")) speech.push(request.postDataJSON());
+    if (request.url().endsWith("/api/coach") && request.postDataJSON().action === "ask") spoken.push(request.postDataJSON().text);
+  });
+  await enter(page, false);
+  await expect(page.getByRole("heading", { name: "Hey Matti" })).toBeVisible();
+  await expect(page.getByRole("textbox")).toHaveCount(0);
+  await expect.poll(() => speech).toEqual([{ revision: 0, entry: true }]);
+  await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "ready", { timeout: 8000 });
+  expect(speech).toHaveLength(1); // Entry speech ends naturally and does not replay on rerender.
+  await page.screenshot({ path: testInfo.outputPath("welcome.png"), fullPage: true });
+  await page.getByRole("button", { name: "Sound on", exact: true }).click();
+  const completed = await chip(page, "Let's do my check-up");
+  expect(completed.checkup).toMatchObject({ streak: 3, completed: true, due: false,
+    completedDates: ["2026-09-02", "2026-09-09", "2026-09-16"] });
+  const reward = page.getByRole("button", { name: "3 weeks in a row. Check-up complete. Continue." });
+  await expect(reward).toBeVisible();
+  await expect(reward).toHaveAttribute("data-landed", "true");
+  await page.screenshot({ path: testInfo.outputPath("weekly-reward.png"), fullPage: true });
+  await reward.press("Enter");
+  const jar = page.getByRole("region", { name: "September spending jar" });
+  await expect(jar).toContainText(/912,29\s€ left/);
+  await expect(jar.locator("[data-counter]")).toHaveText(/912,29/);
+  await expect(page.getByLabel("3 week check-up streak")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Let's do my check-up", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Guess first|Confirm habit|Daily check-in/ })).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath("jar.png"), fullPage: true });
+
+  const advanced = page.waitForResponse(response => response.url().endsWith("/api/coach"));
+  await page.keyboard.press("n");
+  expect(viewSchema.parse(await (await advanced).json())).toMatchObject({ demoDate: "2026-09-23",
+    checkup: { streak: 3, completed: false, due: true }, jar: { spentCents: 232720, overCents: 12720 } });
+  await expect(jar).toContainText(/127,20\s€ over the rim/);
+  await expect(jar.locator("[data-counter]")).toHaveText(/127,20/);
+  await page.screenshot({ path: testInfo.outputPath("over-limit.png"), fullPage: true });
+  const days = await chip(page, questions.days);
+  expect(days.jar.topDays).toEqual([{ date: "2026-09-21", amountCents: 35915, count: 4 }, { date: "2026-09-19", amountCents: 28004, count: 6 }]);
+  await expect(page.getByRole("heading", { name: "The days that filled your jar" })).toBeVisible();
+  await expect(page.locator(".sp-activities")).toContainText("177,96");
+  await page.getByRole("button", { name: questions.jar, exact: true }).scrollIntoViewIfNeeded();
+  await expect.poll(() => page.locator(".checkup-chips").evaluate(element => element.scrollLeft)).toBeGreaterThan(30);
+  const exactWords = "The 177,96 € payment on 2026-09-21 was necessary because of a burst pipe.";
+  const correctedResponse = await say(exactWords);
+  expect(correctedResponse.status()).toBe(200);
+  const corrected = viewSchema.parse(await correctedResponse.json());
+  expect(corrected).toMatchObject({ jar: { spentCents: 214924, leftCents: 5076, overCents: 0 },
+    move: { transactionId: "row-2898396", amountCents: 17796, from: "everyday", to: "unexpected" } });
+  expect(spoken).toEqual([questions.days, exactWords]);
+  await expect(jar).toContainText(/50,76\s€ left/);
+  await expect(jar.locator("[data-counter]")).toHaveText(/50,76/);
+  await expect.poll(() => page.locator(".checkup-chips").evaluate(element => element.scrollLeft)).toBe(0);
+  await expect(page.getByRole("button", { name: "Undo basket move", exact: true })).toBeInViewport({ ratio: 1 });
+  await page.screenshot({ path: testInfo.outputPath("corrected.png"), fullPage: true });
+  const undone = await chip(page, "Undo basket move");
+  expect(undone.jar).toMatchObject({ spentCents: 232720, overCents: 12720 });
+  expect(undone.move).toBeNull();
+  await expect(jar.locator("[data-counter]")).toHaveText(/127,20/);
+  await page.reload();
+  await page.getByRole("button", { name: /Talk to Sponky/ }).click();
+  await expect(page.getByLabel("3 week check-up streak")).toBeVisible();
+  await expect(jar).toContainText(/127,20\s€ over the rim/);
+  const reset = page.waitForResponse(response => response.url().endsWith("/api/session") && response.request().method() === "POST");
+  await page.getByRole("heading", { name: "Sponky", exact: true }).hover();
+  await page.mouse.down();
+  await page.waitForTimeout(1250);
+  await page.mouse.up();
+  expect(viewSchema.parse(await (await reset).json())).toMatchObject({ revision: 0, demoDate: "2026-09-16",
+    checkup: { due: true, streak: 2 }, jar: { spentCents: 128771, leftCents: 91229 }, move: null });
+  await expect(page.getByRole("heading", { name: "Hey Matti" })).toBeVisible();
+});
+
+for (const order of [["usual", "pace"], ["pace", "usual"]] as const) {
+test(`free questions in ${order.join(" then ")} order do not complete a week`, async ({ page }) => {
+  await enter(page);
+  for (const question of order) {
+    const result = await chip(page, questions[question]);
+    expect(result.activity.kind).toBe(question);
+    expect(result.checkup).toMatchObject({ due: true, completed: false, streak: 2, completedDates: ["2026-09-02", "2026-09-09"] });
+    await expect(page.getByLabel("2 week check-up streak")).toBeVisible();
+    await expect(page.locator(".checkup-reward")).toHaveCount(0);
+  }
+  const advanced = page.waitForResponse(response => response.url().endsWith("/api/coach"));
+  await page.locator(".checkup-heading time").click({ clickCount: 3, delay: 80 });
+  expect(viewSchema.parse(await (await advanced).json())).toMatchObject({ demoDate: "2026-09-23",
+    checkup: { due: true, completed: false, streak: 0, completedDates: ["2026-09-02", "2026-09-09"] }, jar: { overCents: 12720 } });
+  await expect(page.getByRole("button", { name: questions.days, exact: true })).toBeVisible();
+});
+}
+
+test("profile, taxi and six-month hypothetical reduction remain grounded direct answers", async ({ page }, testInfo) => {
+  await enter(page);
+  const profile = await chip(page, questions.profile);
+  expect(profile.activity.kind).toBe("analysis");
+  if (profile.activity.kind !== "analysis") throw new Error("Expected profile");
+  expect(profile.activity.analysis.kind).toBe("profile");
+  const taxi = await chip(page, questions.taxi);
+  expect(taxi.activity.kind).toBe("reveal");
+  if (taxi.activity.kind !== "reveal") throw new Error("Expected direct taxi result");
+  expect(taxi.activity.spending.query).toMatchObject({ merchantType: "taxi", start: "2026-01-01", end: "2026-09-16" });
+  expect(taxi.activity.spending).toMatchObject({ totalCents: 28337, evidenceCount: 6 });
+  expect(taxi.activity.spending.evidence.every(row => row.category === "Transportation")).toBe(true);
+  await expect(page.getByRole("button", { name: "Guess first", exact: true })).toHaveCount(0);
+  const whatif = await chip(page, questions.whatif);
+  expect(whatif.activity.kind).toBe("analysis");
+  if (whatif.activity.kind !== "analysis") throw new Error("Expected hypothetical reduction");
+  expect(whatif.activity.analysis.kind).toBe("whatif");
+  const basis = whatif.activity.analysis.sections.find(section => section.label === "Projection basis: 2026-03-01 to 2026-08-31");
+  expect(basis).toBeDefined();
+  expect(basis?.rows).toEqual(expect.arrayContaining([
+    expect.objectContaining({ label: "Monthly average (complete months)", amountCents: 18891 }),
+    expect.objectContaining({ label: "Hypothetical monthly reduction (20%)", amountCents: 3778 }),
+    expect.objectContaining({ label: "Hypothetical annual reduction (20%)", amountCents: 45336 }),
+  ]));
+  expect(whatif.checkup).toMatchObject({ due: true, streak: 2 });
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.getByRole("button", { name: "Dark appearance", exact: true }).click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("whatif-dark-360.png"), fullPage: true });
+  const jar = await chip(page, questions.jar);
+  expect(jar).toMatchObject({ activity: { kind: "jar" }, jar: { leftCents: 91229 }, checkup: { due: true, streak: 2 } });
+});
+
+test("provider failure and fabricated prose preserve suggestions, saved state and session isolation", async ({ page, context }) => {
+  const say = await installVoice(page);
+  await enter(page);
+  const before = await (await page.request.get("/api/session")).json();
+  for (const text of ["fabricated reply", "provider failure"]) {
+    expect((await say(text)).status()).toBe(503);
+    await expect(page.getByRole("main").getByRole("alert")).toContainText("couldn't interpret");
+    await expect(page.locator(".coach-message")).not.toContainText("saved 200");
+    expect(await (await page.request.get("/api/session")).json()).toEqual(before);
+    await expect(page.getByRole("button", { name: questions.pace, exact: true })).toBeEnabled();
+  }
+  const recovered = await chip(page, questions.pace);
+  expect(recovered.activity.kind).toBe("pace");
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  const fallbackResponse = await say("fabricated composition");
+  expect(fallbackResponse.status()).toBe(200);
+  const fallback = viewSchema.parse(await fallbackResponse.json());
+  expect(fallback.activity).toMatchObject({ kind: "reveal", spending: { totalCents: 38472 } });
+  await expect(page.locator(".coach-message")).not.toContainText(/99999|saved 200/);
+  expect((await page.request.post("/api/coach", { headers, data: { action: "ask", revision: recovered.revision, text: "another customer", customerId: "CUST00002" } })).status()).toBe(400);
+  expect((await page.request.post("/api/speech", { headers, data: { revision: recovered.revision, text: "Invented savings" } })).status()).toBe(400);
+  expect((await context.cookies()).find(cookie => cookie.name === "__session")).toMatchObject({ httpOnly: true, sameSite: "Strict" });
+  await context.clearCookies();
+  const other = viewSchema.parse(await (await page.request.get("/api/session")).json());
+  expect(other).toMatchObject({ revision: 0, demoDate: "2026-09-16", checkup: { streak: 2, due: true } });
+});
+
+test("startup failure retries with chip recovery instead of obsolete typing controls", async ({ page }) => {
+  await page.route("**/api/session", () => {});
+  await page.goto("/");
+  await page.getByRole("button", { name: /Talk to Sponky/ }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Check your connection", { timeout: 20000 });
+  await expect(page.locator(".coach-message")).not.toContainText("Opening");
+  await expect(page.getByRole("textbox")).toHaveCount(0);
+  await page.unroute("**/api/session");
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByRole("button", { name: questions.pace, exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: "Sound on", exact: true }).click();
+  expect((await chip(page, questions.pace)).activity.kind).toBe("pace");
+});
+
+test("outdated-session recovery creates a fresh session without destroying the previous saved week", async ({ page, context }) => {
+  await enter(page);
+  await chip(page, "Let's do my check-up");
+  const previous = await (await page.request.get("/api/session")).json();
   const oldCookies = await context.cookies();
-  for (const invalid of [
-    { headers, data: { confirmed: false } },
-    { headers: { Origin: "https://unrelated.example" }, data: { confirmed: true } },
-  ]) {
+  for (const invalid of [{ headers, data: { confirmed: false } }, { headers: { Origin: "https://unrelated.example" }, data: { confirmed: true } }]) {
     expect((await page.request.post("/api/session", invalid)).ok()).toBe(false);
     expect(await (await page.request.get("/api/session")).json()).toEqual(previous);
   }
   await page.route("**/api/session", async route => {
-    if (route.request().method() === "GET") await route.fulfill({ status: 409, json: {
-      error: "This session uses an older demo dataset. Start a new browser session.", retryable: false,
-    } });
+    if (route.request().method() === "GET") await route.fulfill({ status: 409, json: { error: "This session uses an older demo dataset. Start a new browser session.", retryable: false } });
     else await route.continue();
   });
   await page.reload();
-  await page.getByRole("button", { name: "Talk to Sponky" }).click();
+  await page.getByRole("button", { name: /Talk to Sponky/ }).click();
   await expect(page.getByRole("main").getByRole("alert")).toContainText("older demo dataset");
-  await expect(page.locator(".coach-message")).not.toContainText("Opening");
-  await page.getByRole("button", { name: "Back to entry" }).click();
-  await page.getByRole("button", { name: "Talk to Sponky" }).click();
-  await expect(page.getByRole("button", { name: "Start new demo session" })).toBeInViewport();
-  await page.getByRole("button", { name: "Start new demo session" }).click();
-  await expect(page.getByRole("button", { name: "Sponky. Hold to talk", exact: true })).toBeEnabled();
-  await expect(page.locator(".coach-message")).toContainText("less mysterious");
+  await page.getByRole("button", { name: "Start fresh", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Hey Matti" })).toBeVisible();
+  await page.unroute("**/api/session");
   const fresh = await (await page.request.get("/api/session")).json();
-  expect(fresh.revision).toBe(0);
-  expect(fresh.habit).toBeNull();
+  expect(fresh).toMatchObject({ revision: 0, checkup: { due: true, streak: 2 } });
   await context.addCookies(oldCookies);
   expect(await (await page.request.get("/api/session")).json()).toEqual(previous);
 });
 
-test("a stalled startup times out and retries without losing the typed draft", async ({ page }) => {
-  await page.route("**/api/session", () => {});
-  await page.goto("/");
-  await page.getByRole("button", { name: "Talk to Sponky" }).click();
-  await expect(page.locator(".coach-message")).toContainText("Opening");
-  await page.getByRole("textbox", { name: "Message", exact: true }).fill("My draft question");
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("Check your connection", { timeout: 20000 });
-  await expect(page.locator(".coach-message")).not.toContainText("Opening");
-  await page.unroute("**/api/session");
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(page.locator(".coach-message")).toContainText("less mysterious");
-  await expect(page.getByRole("textbox", { name: "Message", exact: true })).toHaveValue("My draft question");
-  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
-});
-
-test("provider failure and fabricated prose preserve typing, saved state and session boundaries", async ({ page, context }) => {
+test("a lost weekly completion response cannot award the newer week on retry", async ({ page }) => {
   await enter(page);
-  const before = await (await page.request.get("/api/session")).json();
-  await ask(page, "fabricated reply");
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("couldn't interpret");
-  await expect(page.locator(".coach-message")).not.toContainText("saved 200");
-  expect(await (await page.request.get("/api/session")).json()).toEqual(before);
-  // The production per-session burst limit is intentionally preserved in E2E.
-  await page.waitForTimeout(750);
-  const direct = await ask(page, "August groceries, just show me");
-  expect(direct.activity.spending.totalCents).toBe(111106);
-  await expect(page.locator(".coach-message")).toContainText(/1\s111,06/);
-  await page.waitForTimeout(750);
-  await ask(page, "provider failure");
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("couldn't interpret");
-  expect((await (await page.request.get("/api/session")).json()).revision).toBe(direct.revision);
-  await page.waitForTimeout(750);
-  await ask(page, "I've had a long day");
-  await expect(page.locator(".coach-message")).toContainText("We can skip the money talk");
-  const headers = { Origin: "http://localhost:3200" };
-  const forged = await page.request.post("/api/coach", { headers, data: { action: "ask", revision: direct.revision + 1, text: "another customer", customerId: "CUST00002" } });
-  expect(forged.status()).toBe(400);
-  const unconfirmed = await page.request.post("/api/coach", { headers, data: { action: "complete", revision: direct.revision + 1, reflection: "done" } });
-  expect(unconfirmed.status()).toBe(400);
-  const arbitrarySpeech = await page.request.post("/api/speech", { headers, data: { revision: direct.revision + 1, text: "Invented savings" } });
-  expect(arbitrarySpeech.status()).toBe(400);
-  const cookies = await context.cookies();
-  expect(cookies.find(cookie => cookie.name === "__session")).toMatchObject({ httpOnly: true, sameSite: "Strict" });
-  await context.clearCookies();
-  const other = await (await page.request.get("/api/session")).json();
-  expect(other.revision).toBe(0);
-  expect(other.completedDates).toEqual([]);
-});
-
-test("phone visit keeps the answer hidden, corrects a scenario, and persists one check-in per date", async ({ page }, testInfo) => {
-  await enter(page);
-  await page.screenshot({ path: testInfo.outputPath("ready-light.png"), fullPage: true });
-  const hidden = await ask(page, "August groceries");
-  expect(hidden.activity.kind).toBe("invitation");
-  expect(JSON.stringify(hidden)).not.toMatch(/1111|totalCents|evidence|MRC/);
-  await expect(page.locator("body")).not.toContainText(/1\s111,06/);
-  await page.getByRole("button", { name: "Guess first", exact: true }).click();
-  await page.screenshot({ path: testInfo.outputPath("guess-light.png"), fullPage: true });
-  await page.getByRole("button", { name: "Lock in my guess", exact: true }).click();
-  await expect(page.locator(".coach-message")).toContainText(/1\s111,06/);
-  await expect(page.locator(".sp-amount [aria-hidden]")).toHaveText(/1\s111,06/);
-  await page.screenshot({ path: testInfo.outputPath("reveal-light.png"), fullPage: true });
-  await page.getByRole("button", { name: "Explore this", exact: true }).click();
-  await page.getByText("Evidence & basket corrections (16)", { exact: true }).click();
-  await page.getByLabel("Basket interpretation", { exact: true }).first().selectOption("regular");
-  await page.getByRole("button", { name: "Confirm correction", exact: true }).click();
-  await expect(page.locator(".coach-message")).toContainText("The amount stays the same");
-  await expect(page.locator(".sp-basket[data-basket=regular]")).toContainText("79,90");
-  await page.getByText("Evidence & basket corrections (16)", { exact: true }).click();
-  await page.getByRole("button", { name: "Confirm what-if", exact: true }).click();
-  await expect(page.locator(".coach-message")).toContainText("206,23");
-  await expect(page.locator(".coach-message")).toContainText("hypothetical");
-  await page.getByRole("button", { name: "Dark appearance", exact: true }).click();
-  await page.screenshot({ path: testInfo.outputPath("explore-dark.png"), fullPage: true });
-  await page.getByRole("button", { name: "Keep an eye on it", exact: true }).click();
-  await page.getByRole("textbox", { name: "Category", exact: true }).fill("Housing");
-  await page.getByRole("textbox", { name: "My daily action", exact: true }).fill("Review my essential housing costs");
-  await page.getByRole("button", { name: "Confirm habit", exact: true }).click();
-  await expect(page.locator(".coach-message")).toContainText("Habit saved");
-  await page.getByRole("button", { name: "Daily check-in", exact: true }).click();
-  await expect(page.locator(".coach-message")).toContainText("no housing spending recorded");
-  await expect(page.locator(".sp-amount")).toContainText("0,00");
-  await page.getByRole("radio", { name: "I’m just reflecting today", exact: true }).check();
-  await page.getByRole("button", { name: "Complete check-in", exact: true }).click();
-  await expect(page.locator(".sp-days")).toContainText("1 completed reflection day");
-  await page.reload();
-  await page.getByRole("button", { name: "Talk to Sponky" }).click();
-  await page.getByRole("button", { name: "Sound on", exact: true }).click();
-  await expect(page.locator(".sp-days")).toContainText("1 completed reflection day");
-  await expect(page.getByRole("button", { name: "Complete check-in", exact: true })).toHaveCount(0);
-  await page.screenshot({ path: testInfo.outputPath("complete-light.png"), fullPage: true });
-  // Set up the next simulated day through the API; demo controls are not part of the UI.
-  const current = await (await page.request.get("/api/session")).json();
-  const advanced = await page.request.post("/api/coach", {
-    headers: { Origin: "http://localhost:3200" },
-    data: { action: "advance", revision: current.revision, confirmed: true },
+  let loseResponse = true;
+  await page.route("**/api/coach", async route => {
+    if (loseResponse && route.request().postDataJSON().action === "weekly-checkup") {
+      loseResponse = false;
+      expect((await route.fetch()).status()).toBe(200);
+      await route.abort("failed");
+    } else await route.continue();
   });
-  expect(advanced.status()).toBe(200);
-  expect((await advanced.json()).demoDate).toBe("2026-09-17");
-  await page.reload();
-  await page.getByRole("button", { name: "Talk to Sponky" }).click();
-  await page.getByRole("button", { name: "Sound on", exact: true }).click();
-  await expect(page.locator(".coach-message")).toContainText("no housing spending recorded");
-  await page.getByRole("radio", { name: "I followed my action", exact: true }).check();
-  await page.getByRole("button", { name: "Complete check-in", exact: true }).click();
-  await expect(page.locator(".sp-days")).toContainText("2 completed reflection days");
-  await page.setViewportSize({ width: 360, height: 800 });
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.getByRole("button", { name: "Dark appearance", exact: true }).click();
-  await page.screenshot({ path: testInfo.outputPath("no-spending-dark-360.png"), fullPage: true });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
-  expect(await page.locator(".sp-coach-motion").evaluate(element => getComputedStyle(element).animationName)).toBe("none");
-});
-
-test("free-form breakdown shows scoped rows and a rejected writer still completes the turn", async ({ page }) => {
-  await enter(page);
-  const result = await ask(page, "Where did my money go in August?");
-  expect(result.activity.kind).toBe("analysis");
-  expect(result.activity.analysis.kind).toBe("breakdown");
-  const rows = result.activity.analysis.sections.flatMap((section: { rows: { label: string; amountCents: number }[] }) => section.rows);
-  expect(rows).toContainEqual(expect.objectContaining({ label: "Total spending", amountCents: 444878 }));
-  expect(rows).toContainEqual(expect.objectContaining({ label: "Groceries", amountCents: 111106 }));
-  expect(result.activity.analysis.evidenceCount).toBe(59);
-  expect(result.activity.analysis.evidence).toHaveLength(40);
-  await expect(page.locator(".sp-activities")).toContainText("2026-08-01");
-  await expect(page.locator(".sp-activities")).toContainText(/4\s448,78/);
-  await page.setViewportSize({ width: 360, height: 800 });
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.getByRole("button", { name: "Dark appearance", exact: true }).click();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.waitForTimeout(750);
-  const fallback = await ask(page, "fabricated composition");
-  expect(fallback.activity.spending.totalCents).toBe(38472);
-  await expect(page.locator(".coach-message")).toContainText("384,72");
-  await expect(page.locator(".coach-message")).not.toContainText("99999");
-  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
-  await page.waitForTimeout(750);
-  const whatif = await ask(page, "What if I cut restaurants by 20%?");
-  expect(whatif.activity.analysis.kind).toBe("whatif");
-  expect(whatif.activity.analysis.evidenceCount).toBe(30);
-  await expect(page.locator(".sp-card p").filter({ hasText: /^Historical ·/ })).not.toContainText("30 transactions");
-  await expect(page.getByRole("region", { name: "Projection basis: 2026-06-01 to 2026-08-31" })).toContainText("602,16");
-  await expect(page.getByRole("region", { name: "Selected period: 2026-08-01 to 2026-08-31" })).toContainText("10 transactions");
-});
-
-test("a lost complete response never re-confirms the action on a newer date", async ({ page }) => {
-    await enter(page);
-    const headers = { Origin: "http://localhost:3200" };
-    const state = async () => await (await page.request.get("/api/session")).json();
-    const mutate = async (payload: object) => {
-      const current = await state();
-      const response = await page.request.post("/api/coach", { headers, data: { revision: current.revision, ...payload } });
-      expect(response.status()).toBe(200);
-    };
-    await mutate({ action: "habit", confirmed: true, habit: { category: "Housing", action: "Review my housing costs", goal: "" } });
-    await mutate({ action: "checkin" });
-    await page.reload();
-    await page.getByRole("button", { name: "Talk to Sponky" }).click();
-    await page.getByRole("button", { name: "Sound on", exact: true }).click();
-    let loseResponse = true;
-    await page.route("**/api/coach", async route => {
-      if (loseResponse && route.request().postDataJSON().action === "complete") {
-        loseResponse = false;
-        expect((await route.fetch()).status()).toBe(200);
-        await route.abort("failed");
-      } else await route.continue();
-    });
-    await page.getByRole("radio", { name: "I followed my action", exact: true }).check();
-    await page.getByRole("button", { name: "Complete check-in", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
-    await mutate({ action: "advance", confirmed: true }); // Another client advances the simulated date.
-    await page.getByRole("button", { name: "Retry", exact: true }).click();
-    await expect(page.getByRole("main").getByRole("alert")).toContainText("Review the current activity");
-    await page.getByRole("button", { name: "Retry", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
-    const after = await state();
-    expect(after.demoDate).toBe("2026-09-17");
-    expect(after.completedDates).toEqual(["2026-09-16"]);
-    await expect(page.getByRole("button", { name: "Complete check-in", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Let's do my check-up", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  const saved = await (await page.request.get("/api/session")).json();
+  const next = await page.request.post("/api/coach", { headers, data: { revision: saved.revision, action: "next-week" } });
+  expect(next.status()).toBe(200);
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Review the current answer");
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+  expect(await (await page.request.get("/api/session")).json()).toMatchObject({ demoDate: "2026-09-23",
+    checkup: { due: true, completed: false, completedDates: ["2026-09-02", "2026-09-09", "2026-09-16"] } });
 });

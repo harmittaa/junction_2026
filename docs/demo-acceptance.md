@@ -1,5 +1,13 @@
 # Sponky demo acceptance record
 
+## Check-up and jar presentation
+
+The check-up screen follows `docs/design-exploration/checkup-prototype.html`, with actual CUST04060 calculations. The coach accepts hold-to-talk voice and changing “Try asking” chips, with no text field or visible presenter controls. Weekly check-ups alone award streak credit, at most once per ISO week. Corrections change the basket, not the payment, and have an undo chip. The model selects operations; the application validates source matches and financial replies.
+
+Presenter gestures: triple-tap the date in the header within 800 ms, or press **n**, to move ahead seven days (September 16 → September 23). Neither awards credit. Long-press the **SPONKY** header for 1.1 seconds to create a fresh session on September 16; previous sessions are retained. Both gestures are intentionally absent from product instructions and visible controls.
+
+Session version 4 preserves version 3's saved date, profile, weekly history, habits, daily completions and corrections. It opens the new welcome screen instead of an old guessing/daily screen; old saved records are not deleted. Sound follows the existing mute, reward sound is synthesized only after user activation, and reduced motion uses static states. Browsers without microphone permission recover through the chips.
+
 ## Check-up and jar foundation
 
 New sessions use CUST04060's stored profile, Matti, an Everyday-only monthly limit of 220,000 cents active since February 2026, date September 16, and completed weekly check-ups on September 2 and 9. Session version 3 explicitly migrates older records: it preserves the existing date, revision, corrections, daily completions and habits; adds the profile; and seeds only weekly dates on or before that session's date. A fresh session starts the new story without deleting previous records. Daily completions are never converted into weekly credit.

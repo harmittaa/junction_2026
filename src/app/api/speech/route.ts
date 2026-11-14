@@ -9,7 +9,7 @@ import { body, failure } from "@/server/http";
 export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
-    const { revision } = await body(request, speechRequestSchema);
+    const { revision, entry } = await body(request, speechRequestSchema);
     const id = await sessionId();
     const state = await readSession(id);
     if (revision !== state.revision) throw new AppError("That reply is no longer current.", 409);
@@ -17,7 +17,8 @@ export async function POST(request: Request) {
     // Pending amounts and evidence never enter either payload.
     // Spell out Finnish-formatted currency for the English voice; the raw €
     // symbol was pronounced as "arrow" in the live acceptance recording.
-    const text = speechText(toView(state).message);
+    const view = toView(state);
+    const text = speechText(entry ? view.entryMessage : view.message);
     await consumeBudget(id, "speech");
     const audio = await synthesizeSpeech(text, request.signal);
     return new Response(Buffer.from(audio), { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" } });

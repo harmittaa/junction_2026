@@ -20,14 +20,14 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function Period({ query, count }: { query: SpendingQuery; count?: number }) {
-  return <p className="sp-meta">Historical · {query.start} – {query.end} (inclusive)
+  return <p className="sp-meta">{query.start} – {query.end}
     {count !== undefined && <> · {count} {count === 1 ? "transaction" : "transactions"}</>}</p>;
 }
 
 function Assumptions({ assumptions }: { assumptions: string[] }) {
-  return assumptions.length > 0 ? <div className="sp-assumptions"><p className="sp-meta">Calculation assumptions</p>
+  return assumptions.length > 0 ? <details className="sp-assumptions"><summary>How it adds up</summary>
     <ul className="sp-meta">{assumptions.map((assumption, index) => <li key={index}>{assumption}</li>)}</ul>
-  </div> : null;
+  </details> : null;
 }
 
 export function GuessCard({ query, busy, revision, onAction }: Actions & { query: SpendingQuery }) {
@@ -122,7 +122,7 @@ function Evidence({ evidence, evidenceCount, correctable, ...actions }: Actions 
   const limited = evidence.length < evidenceCount;
   return <details><summary>Evidence{correctable ? " & basket corrections" : ""} ({evidenceCount})</summary>
     <p className="sp-meta">Showing {evidence.length} of {evidenceCount} source transactions{limited ? "; this list is limited. Calculated results use all matching records." : "."}</p>
-    {correctable && <p className="sp-meta">A correction changes the interpretation, never the historical amount.</p>}
+    {correctable && <p className="sp-meta">A correction changes the basket, never the payment amount.</p>}
     <ul className="sp-evidence">{evidence.map(row => <CorrectionRow key={`${row.id}:${row.basket}`} row={row} correctable={correctable} {...actions} />)}</ul>
     {evidenceCount === 0 && <p>No matching source transactions in this period.</p>}
   </details>;
@@ -234,40 +234,38 @@ export function CheckinCard({ spending, completed, habit, completedDates, demoDa
   </Card>;
 }
 
-function RevealedActivity({ view, activity, ...actions }: Actions & {
-  view: CoachView; activity: Extract<CoachView["activity"], { kind: "reveal" }>;
-}) {
-  const [branch, setBranch] = useState<"summary" | "explore" | "habit">("summary");
-  return <>
-    <RevealCard spending={activity.spending} guessCents={activity.guessCents}>
-      <div className="sp-actions">
-        {branch !== "explore" && <button type="button" className="sp-secondary" disabled={actions.busy} onClick={() => setBranch("explore")}>Explore this</button>}
-        {branch !== "habit" && !view.habit && <button type="button" disabled={actions.busy} onClick={() => setBranch("habit")}>Keep an eye on it</button>}
-        {branch !== "summary" && <button className="sp-secondary" type="button" onClick={() => setBranch("summary")}>Close details</button>}
-      </div>
-    </RevealCard>
-    {branch === "explore" && <><EvidenceCard spending={activity.spending} {...actions} />
-      <ScenarioCard spending={activity.spending} confirmed={activity.scenario} {...actions} /></>}
-    {branch === "habit" && <HabitCard key={JSON.stringify(view.habit)} habit={view.habit} category={activity.spending.query.categories.length === 1 ? activity.spending.query.categories[0] : view.categories[0] ?? ""}
-      onCancel={() => setBranch("summary")} {...actions} />}
-  </>;
-}
-
 export function Activities({ view, busy, onAction }: { view: CoachView; busy: boolean; onAction: (request: CoachRequest) => void }) {
-  const [editingRevision, setEditingRevision] = useState<number | null>(null);
-  const editingHabit = editingRevision === view.revision;
-  const { activity } = view;
+  const { activity, jar } = view;
   const actions = { busy, onAction, revision: view.revision };
-  const activityKey = activity.kind === "none" ? "none" : JSON.stringify(activity.kind === "invitation" ? activity.query : activity.kind === "analysis" ? [activity.analysis.kind, activity.analysis.query] : activity.spending.query);
   return <div className="sp-activities" aria-busy={busy}>
-    {view.habit && <aside className="sp-saved-habit"><div><strong>My daily habit · {view.habit.category}</strong><p>{view.habit.action}</p>
-      {view.habit.goal && <span className="sp-meta">For: {view.habit.goal}</span>}</div>
-      <button type="button" className="sp-secondary" disabled={busy} onClick={() => setEditingRevision(editingHabit ? null : view.revision)}>{editingHabit ? "Close edit" : "Edit"}</button></aside>}
-    {editingHabit && view.habit && <HabitCard key={JSON.stringify(view.habit)} habit={view.habit} category={view.habit.category} onCancel={() => setEditingRevision(null)} {...actions} />}
-    {activity.kind === "invitation" && <GuessCard key={activityKey} query={activity.query} {...actions} />}
-    {activity.kind === "reveal" && <RevealedActivity key={`${activityKey}:${JSON.stringify(view.habit)}`} view={view} activity={activity} {...actions} />}
-    {activity.kind === "analysis" && <AnalysisCard key={activityKey} analysis={activity.analysis} {...actions} />}
-    {activity.kind === "checkin" && <CheckinCard key={view.demoDate} spending={activity.spending} completed={activity.completed}
-      habit={view.habit} completedDates={view.completedDates} demoDate={view.demoDate} {...actions} />}
+    {activity.kind === "reveal" && <RevealCard spending={activity.spending} guessCents={null}>
+      <Evidence evidence={activity.spending.evidence} evidenceCount={activity.spending.evidenceCount} correctable={false} {...actions} />
+    </RevealCard>}
+    {activity.kind === "analysis" && <AnalysisCard analysis={activity.analysis} {...actions} />}
+    {activity.kind === "pace" && <Card title={jar.overCents ? "Let's take a closer look" : "A little room each day"}>
+      <div className="checkup-pace"><p className="sp-amount">{euros(jar.overCents || jar.dailyRemainingCents)}</p><p>{jar.overCents ? "over this month's everyday limit" : `per day for the ${jar.daysLeft} days left`}</p></div>
+      <div className="sp-bar-label"><span>Your pace so far</span><strong>{euros(jar.dailySpentCents)} / day</strong></div>
+      <p className="sp-meta">{jar.overCents ? `You're ${euros(jar.overCents)} over your ${euros(jar.limitCents)} limit.` : `${euros(jar.leftCents)} left in your ${euros(jar.limitCents)} everyday limit.`}</p>
+      <p className="sp-meta">{jar.period.start} – {jar.period.end}. {jar.projectedOverCents > 0 ? `At the same pace, the month would finish ${euros(jar.projectedOverCents)} over.` : "The same pace would stay inside the limit."}</p>
+    </Card>}
+    {activity.kind === "usual" && <Card title="This month, compared with usual">
+      <p className="sp-meta">So far: {activity.comparison.period.start} – {activity.comparison.period.end}. Usual is a full month, averaged across {activity.comparison.baseline.start} – {activity.comparison.baseline.end}.</p>
+      {activity.comparison.rows.map(row => {
+        const maximum = Math.max(row.currentCents, row.usualCents, 1) * 1.15;
+        return <section key={row.category} className="sp-analysis-section">
+          <div className="checkup-usual-label"><span>{row.category}</span><strong>{euros(row.currentCents)}</strong></div>
+          <div className="checkup-usual-track" data-over={row.currentCents > row.usualCents} aria-hidden="true"><b style={{ width: `${row.currentCents / maximum * 100}%` }} /><i style={{ left: `${row.usualCents / maximum * 100}%` }} /></div>
+          <p className="sp-meta">Usual month {euros(row.usualCents)} · paid {row.paymentDates.map(date => date.slice(8)).join(", ") || "—"}</p>
+        </section>;
+      })}
+      <Evidence evidence={activity.comparison.evidence} evidenceCount={activity.comparison.evidence.length} correctable={false} {...actions} />
+    </Card>}
+    {activity.kind === "overspend" && <Card title="The days that filled your jar">
+      <p className="sp-meta">{jar.contributionPeriod.start} – {jar.contributionPeriod.end}</p>
+      {jar.topDays.map(day => <section key={day.date} className="sp-analysis-section"><div className="checkup-usual-label"><span>{day.date}<small> · {day.count} payments</small></span><strong>{euros(day.amountCents)}</strong></div>
+        <ul className="sp-analysis-rows">{jar.evidence.filter(row => row.date === day.date && row.basket === "everyday").map(row => <li key={row.id}><div className="sp-bar-label"><span>{row.category}<small> · {row.merchant}</small></span><strong>{euros(row.amountCents)}</strong></div></li>)}</ul>
+      </section>)}
+      <p className="sp-meta">Only everyday spending counts towards the rim.</p>
+    </Card>}
   </div>;
 }

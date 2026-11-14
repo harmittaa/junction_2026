@@ -25,7 +25,7 @@ export function calculateSpending(
 ): Spending {
   querySchema.parse(query);
   dateSchema.parse(referenceDate);
-  if (query.start > query.end || query.end > referenceDate) throw new Error("Choose a completed historical period, up to the simulated date.");
+  if (query.start > query.end || query.end > referenceDate) throw new Error("Choose a period up to the current date.");
   const candidates = rows.filter(row => row.customerId === customerId && isSpending(row)
     && (!query.categories.length || query.categories.includes(row.category))
     && (!query.baskets.length || query.baskets.includes(corrections[row.id] ?? defaultBasket(row)))
@@ -39,8 +39,8 @@ export function calculateSpending(
   const baskets = { regular: 0, unexpected: 0, everyday: 0 };
   for (const row of evidence) baskets[row.basket] += row.amountCents;
   const assumptions = ["Gross recorded spending counts negative purchases, housing and utilities payments; excludes income, transfers and refunds.",
-    `Historical records from ${query.start} through ${query.end}, inclusive; simulated reference date ${referenceDate}.`,
-    "Basket assignments are correctable interpretations, not changes to historical amounts."];
+    `Payments from ${query.start} through ${query.end}, inclusive; current date ${referenceDate}.`,
+    "Basket assignments are correctable interpretations, not changes to payment amounts."];
   if (!evidence.length) assumptions.push("No matching spending records in this period; this is not evidence of unavailable data or future activity.");
   if (query.merchantType) {
     assumptions.push("Merchant types are classified by MCC, not purchased items or motives; fuel-merchant purchases do not prove fuel was bought.");

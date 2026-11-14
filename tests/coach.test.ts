@@ -10,26 +10,26 @@ const query = { categories: ["Groceries"], baskets: [], merchantType: null, star
 const operation: Interpretation = { kind: "spending", query, direct: false, percent: null, reply: "none", comparePeriod: null, by: null, top: null, concept: null };
 const ask = { action: "ask", text: "Groceries last month?", revision: 0 } as const;
 describe("coordinator boundaries", () => {
-  it("withholds amount, evidence and model text until a reveal, including serialized payload and speech text", () => {
-    const pending = transition(initialState(), ask, operation);
-    const hidden = toView(pending);
-    expect(hidden.activity).toEqual({ kind: "invitation", query });
-    expect(JSON.stringify(hidden)).not.toMatch(/1111|7990|MRC|totalCents|evidence|Untrusted/);
-    const revealed = toView(transition(pending, { action: "reveal", revision: 0, guessCents: 20000 }));
+  it("answers directly with calculated amounts and evidence, distinguishing empty matches", () => {
+    const revealed = toView(transition(initialState(), ask, operation));
     expect(revealed.activity.kind).toBe("reveal");
-    if (revealed.activity.kind === "reveal") expect(revealed.activity.spending.totalCents).toBe(111106);
-    expect(revealed.message).toMatch(/911,06\s€ more than your guess of 200,00\s€/);
+    if (revealed.activity.kind === "reveal") {
+      expect(revealed.activity.spending.totalCents).toBe(111106);
+      expect(revealed.activity.spending.evidenceCount).toBe(16);
+      expect(revealed.activity.guessCents).toBeNull();
+    }
+    expect(revealed.message).toMatch(/1\s111,06\s€ on groceries in August 2026, across 16 payments/);
     const empty = toView(transition(initialState(), ask, { ...operation, direct: true,
       query: { ...query, categories: ["Health"], start: "2026-08-01", end: "2026-08-09" } }));
     expect(empty.message).toContain("no health spending in your records from 1 August 2026 to 9 August 2026");
     expect(empty.message).toContain("outside this dataset wouldn't show up");
   });
-  it("honors direct answers, remembers a declined game, and leaves a game when the topic changes", () => {
+  it("answers without a game regardless of the old direct flag and permits topic changes", () => {
     const direct = transition(initialState(), ask, { ...operation, direct: true });
     expect(toView(direct).activity.kind).toBe("reveal");
     const pending = transition(initialState(), ask, operation);
-    const skipped = transition(pending, { action: "reveal", revision: 0, guessCents: null });
-    expect(toView(transition(skipped, ask, operation)).activity.kind).toBe("reveal");
+    expect(toView(pending).activity.kind).toBe("reveal");
+    expect(toView(transition(pending, ask, operation)).activity.kind).toBe("reveal");
     const chat = transition(pending, ask, { ...operation, kind: "chat", query: null, reply: "tired" });
     expect(toView(chat).activity.kind).toBe("none");
     expect(chat.completedDates).toEqual([]);
@@ -37,11 +37,11 @@ describe("coordinator boundaries", () => {
     expect(() => transition(chat, { action: "reveal", revision: 0, guessCents: null })).toThrow();
   });
   it("only corrects revealed evidence and recalculates the everyday scenario without changing history", () => {
-    const hidden = transition(initialState(), ask, operation);
+    const hidden = initialState();
     const correct = { action: "correct", revision: 0, transactionId: "row-2898292", basket: "regular", confirmed: true } as const;
     expect(() => transition(hidden, correct)).toThrow("revealed evidence");
     expect(() => transition(hidden, { action: "scenario", revision: 0, percent: 20 })).toThrow("Reveal");
-    const revealed = transition(hidden, { action: "reveal", revision: 0, guessCents: null });
+    const revealed = transition(hidden, ask, operation);
     expect(() => transition(revealed, { ...correct, transactionId: "row-2898357" })).toThrow("revealed evidence");
     const changed = transition(revealed, correct);
     const result = toView(transition(changed, { action: "scenario", revision: 0, percent: 20 }));
@@ -67,7 +67,9 @@ describe("coordinator boundaries", () => {
     const valid = await interpret("A long day", context, undefined, async () => JSON.stringify({ ...operation, kind: "chat", query: null, reply: "tired" }));
     const view = toView(transition(initialState(), ask, valid));
     expect(view.message).toContain("long day");
-    expect(JSON.stringify(view)).not.toMatch(/900|200|taxi|balance|saved/);
+    expect(view.message).not.toMatch(/900|200|taxi|balance|saved/);
+    expect(view.activity.kind).toBe("none");
+    expect(view.jar.spentCents).toBe(128771);
   });
   it("normalizes malformed, out-of-scope and failed reasoning without trusting model output", async () => {
     const context = { categories: ["Groceries"], start: "2024-10-01", end: "2026-09-30", referenceDate: "2026-09-01", previousQuery: null };
