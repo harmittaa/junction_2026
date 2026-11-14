@@ -13,5 +13,12 @@
     "backendId": "sponky",
     "rootDir": ".",
     "ignore": ["node_modules", ".git", ".next", ".env", ".env.*", ".agents", ".amp", "firebase-debug*.log", "test-results", "playwright-report"]
-  }]
+  }],
+  "hosting": {
+    "site": "sponky",
+    "rewrites": [{
+      "source": "**",
+      "run": { "serviceId": "sponky", "region": "europe-west4" }
+    }]
+  }
 }
