@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
 for (const reducedMotion of ["no-preference", "reduce"] as const) {
-test(`prerecorded voice, interruption and typing recovery (${reducedMotion})`, async ({ page }) => {
+test(`prerecorded voice, interruption and suggestion recovery (${reducedMotion})`, async ({ page }) => {
   await page.emulateMedia({ reducedMotion });
   const bars = page.locator(".sp-coach-bars line");
   const barLengths = () => bars.evaluateAll(lines => lines.map(line => {
@@ -41,10 +41,12 @@ test(`prerecorded voice, interruption and typing recovery (${reducedMotion})`, a
   page.on("request", request => {
     if (request.url().endsWith("/api/coach")) { coachRequests++; sentTexts.push(request.postDataJSON().text); }
   });
+  const loaded = page.waitForResponse(response => response.url().endsWith("/api/session"));
   await page.goto("/");
-  await page.getByRole("button", { name: "Talk to Sponky" }).click();
-  const draft = page.getByRole("textbox", { name: "Message", exact: true });
-  await draft.fill("My unsent typed draft");
+  await loaded;
+  await page.getByRole("button", { name: /Talk to Sponky/ }).click();
+  await expect.poll(() => speechRevisions).toEqual([{ revision: 0, entry: true }]);
+  await expect(page.getByRole("textbox")).toHaveCount(0);
   const trigger = page.locator(".sp-coach-trigger");
   const touch = await page.context().newCDPSession(page);
   await expect(trigger).toBeEnabled();
@@ -54,7 +56,7 @@ test(`prerecorded voice, interruption and typing recovery (${reducedMotion})`, a
   await expect.poll(() => nonzero && pcmBytes > 8000).toBe(true);
   await expect(page.locator("body")).not.toContainText(interim);
   expect(await page.locator("body").ariaSnapshot()).not.toContain(interim);
-  await expect(draft).toHaveValue("My unsent typed draft");
+  await expect(page.getByRole("button", { name: "Am I still on track?", exact: true })).toBeEnabled();
   await expect(bars).toHaveCount(32);
   await expect(page.locator(".sp-coach-bars")).toHaveAttribute("aria-hidden", "true");
   await expect.poll(async () => Math.max(...await barLengths())).toBeGreaterThan(5);
@@ -86,9 +88,8 @@ test(`prerecorded voice, interruption and typing recovery (${reducedMotion})`, a
   await expect(page.getByRole("button", { name: "Sponky. Hold to interrupt", exact: true })).toBeVisible();
   expect(coachRequests).toBe(1);
   expect(sentTexts).toEqual(["How much did I spend on groceries last month?"]);
-  await expect(draft).toHaveValue("My unsent typed draft");
-  expect(speechRevisions).toEqual([{ revision: 1 }]);
-  await expect(page.locator(".coach-message")).not.toContainText(/1\s111,06/);
+  expect(speechRevisions).toEqual([{ revision: 0, entry: true }, { revision: 1 }]);
+  await expect(page.locator(".coach-message")).toContainText(/1\s111,06/);
   await expect.poll(async () => Math.max(...await barLengths())).toBeGreaterThan(5);
   await expect.poll(() => bars.evaluateAll(lines => lines.every(line => line.getAttribute("opacity") === "1"))).toBe(true);
   if (reducedMotion === "reduce") {
@@ -107,35 +108,33 @@ test(`prerecorded voice, interruption and typing recovery (${reducedMotion})`, a
     observer.observe(element, { attributes: true, subtree: true });
     setTimeout(() => { observer.disconnect(); resolve(writes); }, 200);
   }))).toBe(0);
-  await page.getByRole("button", { name: "History", exact: true }).click();
-  await expect(page.getByRole("region", { name: "Conversation history" })).toContainText("How much did I spend on groceries last month?");
-  await expect(page.getByRole("region", { name: "Conversation history" })).not.toContainText(interim);
-  await page.getByRole("button", { name: "Close history", exact: true }).click();
+  await expect(page.locator(".checkup-question")).toHaveText("How much did I spend on groceries last month?");
+  await expect(page.locator("body")).not.toContainText(interim);
   await expect(page.getByRole("button", { name: "Play reply", exact: true })).toHaveCount(0);
   // A new answer still speaks automatically and can be interrupted without a replay control.
-  await page.getByRole("button", { name: "Show me", exact: true }).click();
+  await page.getByRole("button", { name: "Am I still on track?", exact: true }).click();
   await expect(page.getByRole("button", { name: "Sponky. Hold to interrupt", exact: true })).toBeVisible();
   await trigger.focus();
   await page.keyboard.down("Space");
   await expect(page.getByRole("button", { name: "Sponky. Release to send", exact: true })).toBeVisible();
   await page.waitForTimeout(750); // Preserve the real reasoning burst limit.
-  // Sending typed input must cancel the unfinished capture and preserve typing.
+  // A neighboring control cancels the capture; a suggestion then recovers without typing.
   await page.getByRole("button", { name: "Sound on", exact: true }).click();
   await page.keyboard.up("Space");
-  await page.getByRole("textbox", { name: "Message", exact: true }).fill("I've had a long day");
-  await page.getByRole("textbox", { name: "Message", exact: true }).press("Enter");
-  await expect(page.locator(".coach-message")).toContainText("long day");
+  await page.getByRole("button", { name: "What have I spent more on than usual?", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "This month, compared with usual" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sponky. Hold to talk", exact: true })).toBeVisible();
   await expect.poll(hiddenBars).toBe(true);
-  expect(speechRevisions).toEqual([{ revision: 1 }, { revision: 2 }]);
+  expect(speechRevisions).toEqual([{ revision: 0, entry: true }, { revision: 1 }, { revision: 2 }]);
+  expect(coachRequests).toBe(3); // The canceled interruption never submits another transcript.
   expect(errors).toEqual([]);
   await page.route("**/api/voice/token", route => route.fulfill({ status: 503, json: { error: "fixture unavailable" } }));
   await trigger.focus();
   await page.keyboard.down("Enter");
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("Typing is always available");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("choose a suggestion");
   await expect(page.getByRole("main").getByRole("alert")).toContainText("Could not connect to voice transcription");
   await page.keyboard.up("Enter");
-  await expect(page.getByRole("textbox", { name: "Message", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Am I still on track?", exact: true })).toBeEnabled();
   await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "ready");
   await expect.poll(hiddenBars).toBe(true);
 });
@@ -152,7 +151,7 @@ test("hold cancels during microphone startup or on lost focus, listens before co
   });
   await page.route("**/api/coach", route => {
     requests++;
-    return route.fulfill({ status: 503, json: { error: "Fixture: typing remains available", retryable: true } });
+    return route.fulfill({ status: 503, json: { error: "Fixture: suggestions remain available", retryable: true } });
   });
   await page.route("**/api/speech", route => route.abort());
   await page.routeWebSocket("wss://api.elevenlabs.io/**", socket => {
@@ -173,7 +172,7 @@ test("hold cancels during microphone startup or on lost focus, listens before co
     };
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Talk to Sponky" }).click();
+  await page.getByRole("button", { name: /Talk to Sponky/ }).click();
   const trigger = page.locator(".sp-coach-trigger");
   const coach = page.locator(".sp-coach");
   await expect(trigger).toBeEnabled();
@@ -212,7 +211,7 @@ test("hold cancels during microphone startup or on lost focus, listens before co
       await page.keyboard.down("Space");
     }
     await expect(coach).toHaveAttribute("data-state", "listening");
-    if (cancel === "focus") await page.getByRole("textbox", { name: "Message", exact: true }).focus();
+    if (cancel === "focus") await page.getByRole("button", { name: "Am I still on track?", exact: true }).focus();
     else if (cancel === "Escape") await page.keyboard.press("Escape");
     else await trigger.dispatchEvent("pointercancel", { pointerId: 1, pointerType: "mouse" });
     await page.keyboard.up("Space");
@@ -234,7 +233,7 @@ test("hold cancels during microphone startup or on lost focus, listens before co
     await expect.poll(() => requests).toBe(commits);
     await expect(coach).toHaveAttribute("data-state", "ready");
   }
-  await expect(page.getByRole("textbox", { name: "Message", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Am I still on track?", exact: true })).toBeEnabled();
 });
 
 for (const width of [360, 390]) {
@@ -265,33 +264,31 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
     });
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Talk to Sponky" }).tap();
+  await page.getByRole("button", { name: /Talk to Sponky/ }).tap();
   const coach = page.locator(".sp-coach");
   const trigger = page.locator(".sp-coach-trigger");
   const orb = page.locator(".sp-coach-orb");
-  const draft = page.getByRole("textbox", { name: "Message", exact: true });
+  const recovery = page.getByRole("button", { name: "What have I spent more on than usual?", exact: true });
   await expect(trigger).toBeEnabled();
   await expect(trigger).toHaveCSS("-webkit-tap-highlight-color", "rgba(0, 0, 0, 0)");
   // Neighbors above the enlarged region must still receive their own touches.
   await page.getByRole("button", { name: "Sound on", exact: true }).tap();
   await expect(page.getByRole("button", { name: "Sound off", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "History", exact: true }).tap();
-  await expect(page.getByRole("region", { name: "Conversation history" })).toBeVisible();
-  await page.getByRole("button", { name: "Close history", exact: true }).tap();
-  await expect(page.getByRole("region", { name: "Conversation history" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Dark appearance", exact: true }).tap();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: "Light appearance", exact: true }).tap();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   if (compact) {
-    await draft.fill("August groceries");
-    await draft.press("Enter");
-    await expect(page.getByRole("button", { name: "Guess first", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Am I still on track?", exact: true }).tap();
+    await expect(page.getByRole("heading", { name: "A little room each day" })).toBeVisible();
   }
   page.on("request", request => {
     if (request.url().endsWith("/api/coach") && request.postDataJSON().action === "ask") submitted.push(request.postDataJSON().text);
   });
-  await draft.fill("I've had a long day");
   await trigger.scrollIntoViewIfNeeded();
-  // The orb stays full size even when activities render below it.
-  await expect(orb).toHaveCSS("width", "168px");
-  await expect(orb).toHaveCSS("height", "168px");
+  // The intro is prominent; answers keep a smaller but fully touchable voice target.
+  await expect(orb).toHaveCSS("width", compact ? "64px" : "168px");
+  await expect(orb).toHaveCSS("height", compact ? "64px" : "168px");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const regionBox = (await coach.boundingBox())!;
   const targetBox = (await trigger.boundingBox())!;
@@ -320,7 +317,7 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
     return observed;
   });
   const touch = await page.context().newCDPSession(page);
-  const label = page.locator(".sp-coach-label strong");
+  const label = page.locator(".sp-coach-label span");
   const labelBox = (await label.boundingBox())!;
   const orbBox = (await orb.boundingBox())!;
   expect(labelBox.y).toBeGreaterThan(orbBox.y + orbBox.height);
@@ -339,11 +336,11 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
   await expect.poll(() => probe.evaluate(value => value.tracks.length > 0 && value.tracks.every(track => track.readyState === "ended"))).toBe(true);
   expect(commits).toBe(0);
   expect(submitted).toEqual([]);
-  await expect(draft).toHaveValue("I've had a long day");
+  await expect(recovery).toBeEnabled();
 
-  // Start well to the left of the visible orb, but within the whole coach region.
-  const side = { x: regionBox.x + 12, y: orbBox.y + orbBox.height / 2 };
-  expect(orbBox.x - side.x).toBeGreaterThan(24);
+  // The label-side padding outside the visible circle is part of the hold target too.
+  const side = { x: regionBox.x + 12, y: labelBox.y + labelBox.height / 2 };
+  expect(side.y).toBeGreaterThan(orbBox.y + orbBox.height);
   expect(side.x).toBeGreaterThan(targetBox.x);
   expect(side.y).toBeLessThan(targetBox.y + targetBox.height);
   const scrollBefore = await page.evaluate(() => scrollY);
@@ -363,34 +360,32 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
   await expect(coach).toHaveAttribute("data-state", "thinking");
   expect(submitted).toEqual([]); // Release requests a final transcript; it cannot submit a partial.
   finish!();
-  await expect(page.getByRole("button", { name: "Guess first", exact: true })).toBeVisible();
+  await expect(page.locator(".coach-message")).toContainText(/1\s111,06/);
   await expect(coach).toHaveAttribute("data-state", "ready");
   await expect.poll(() => closed).toBe(2);
   await expect.poll(() => probe.evaluate(value => value.tracks.length === 2 && value.tracks.every(track => track.readyState === "ended"))).toBe(true);
-  await expect(draft).toHaveValue("I've had a long day");
-  await expect(page.locator("body")).not.toContainText(/1\s111,06/);
+  await expect(recovery).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Guess first", exact: true })).toHaveCount(0);
   expect(submitted).toEqual([finalText]);
   await expect.poll(() => tokens).toBe(3); // Each hold uses one; the next is prefetched.
   expect(commits).toBe(1);
 
-  // Controls below the region must remain touchable, including typing after cancellation.
-  await page.getByRole("button", { name: "Guess first", exact: true }).tap();
-  await expect(page.getByRole("button", { name: "Lock in my guess", exact: true })).toBeVisible();
+  // Suggestions remain touchable after cancellation and do not duplicate voice submissions.
   await page.waitForTimeout(750); // Keep the production reasoning burst limit, and catch delayed duplicate sends.
   expect(submitted).toEqual([finalText]);
-  await draft.press("Enter");
-  await expect(page.locator(".coach-message")).toContainText("We can skip the money talk");
-  expect(submitted).toEqual([finalText, "I've had a long day"]);
-  await page.getByRole("button", { name: "History", exact: true }).tap();
-  await expect(page.getByRole("region", { name: "Conversation history" })).toBeVisible();
-  await page.evaluate(() => window.scrollTo(0, 0));
-  // Swipe in the page gutter, outside the voice target: touch-action must not leak globally.
-  await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 4, y: 700 }] });
-  for (const y of [660, 610, 560, 510, 460]) {
-    await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 4, y }] });
+  await recovery.tap();
+  await expect(page.getByRole("heading", { name: "This month, compared with usual" })).toBeVisible();
+  expect(submitted).toEqual([finalText, "What have I spent more on than usual?"]);
+  const canvas = page.locator(".checkup-canvas");
+  const canvasBox = (await canvas.boundingBox())!;
+  // Answers now scroll inside the canvas, not the page: holding the coach must not disable that.
+  const x = canvasBox.x + canvasBox.width / 2;
+  await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y: canvasBox.y + canvasBox.height - 10 }] });
+  for (const fraction of [.8, .6, .4, .2]) {
+    await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: canvasBox.y + canvasBox.height * fraction }] });
   }
   await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(50);
+  await expect.poll(() => canvas.evaluate(element => element.scrollTop)).toBeGreaterThan(30);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(tokens).toBe(3);
   expect(commits).toBe(1);
@@ -401,13 +396,16 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
 }
 }
 
-test("bank entry opens Sponky with typing out of view", async ({ page }) => {
+test("bank entry opens the check-up without obsolete controls", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/voice/token", route => route.fulfill({ json: { token: "fixture", modelId: "scribe_v3_live" } }));
+  await page.route("**/api/speech", route => route.fulfill({ contentType: "audio/mpeg", body: readFileSync("tests/fixtures/reply.mp3") }));
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "S-Bank" })).toBeVisible();
-  await page.getByRole("button", { name: "Talk to Sponky" }).tap();
-  await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "ready");
-  await expect(page.getByRole("textbox", { name: "Message", exact: true })).not.toBeInViewport();
+  await page.getByRole("button", { name: /Talk to Sponky/ }).tap();
+  await expect(page.getByRole("heading", { name: "Hey Matti" })).toBeVisible();
+  await expect(page.locator(".sp-coach-trigger")).toBeEnabled();
+  await expect(page.getByRole("textbox")).toHaveCount(0);
   await expect(page.getByText("Demo controls", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Advance simulated day", exact: true })).toHaveCount(0);
 });
