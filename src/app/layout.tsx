@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import tokens from "../../docs/design-tokens.json";
 import "./globals.css";
 
-export const metadata: Metadata = { title: "Sponky — your money, a little clearer", description: "A conversational money coach with synthetic historical data." };
+export const metadata: Metadata = { title: "Sponky — your money, a little clearer", description: "A conversational money coach in your banking app." };
 function variables(object: object, prefix = ""): string {
   return Object.entries(object).map(([key, value]) => typeof value === "object" ? variables(value, `${prefix}${key}-`) : `--${prefix}${key}:${value};`).join("");
 }

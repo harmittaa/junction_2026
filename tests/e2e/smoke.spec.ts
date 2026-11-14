@@ -7,9 +7,10 @@ async function enter(page: Page) {
   await page.getByRole("button", { name: "Sound on", exact: true }).click();
 }
 async function ask(page: Page, text: string) {
-  await page.getByRole("textbox", { name: "Message", exact: true }).fill(text);
+  const box = page.getByRole("textbox", { name: "Message", exact: true });
+  await box.fill(text);
   const response = page.waitForResponse(response => response.url().endsWith("/api/coach"));
-  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await box.press("Enter");
   return await (await response).json();
 }
 
@@ -88,7 +89,7 @@ test("phone visit keeps the answer hidden, corrects a scenario, and persists one
   await expect(page.locator(".sp-days")).toContainText("1 completed reflection day");
   await expect(page.getByRole("button", { name: "Complete check-in", exact: true })).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("complete-light.png"), fullPage: true });
-  await page.getByText("About this demo & simulated date", { exact: true }).click();
+  await page.getByText("Demo controls", { exact: true }).click();
   await page.getByRole("button", { name: "Advance simulated day", exact: true }).click();
   await expect(page.locator(".demo-date")).toContainText("2024-11-05");
   await expect(page.locator(".coach-message")).toContainText("No housing spending recorded");
@@ -98,7 +99,7 @@ test("phone visit keeps the answer hidden, corrects a scenario, and persists one
   await page.setViewportSize({ width: 360, height: 800 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.getByRole("button", { name: "Dark appearance", exact: true }).click();
-  await page.getByText("About this demo & simulated date", { exact: true }).click();
+  await page.getByText("Demo controls", { exact: true }).click();
   await page.screenshot({ path: testInfo.outputPath("no-spending-dark-360.png"), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
@@ -132,7 +133,7 @@ for (const action of ["complete", "advance"] as const) {
       await page.getByRole("radio", { name: "I followed my action", exact: true }).check();
       await page.getByRole("button", { name: "Complete check-in", exact: true }).click();
     } else {
-      await page.getByText("About this demo & simulated date", { exact: true }).click();
+      await page.getByText("Demo controls", { exact: true }).click();
       await page.getByRole("button", { name: "Advance simulated day", exact: true }).click();
     }
     await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
