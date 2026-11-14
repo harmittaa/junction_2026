@@ -59,10 +59,10 @@ describe("Firestore server persistence", () => {
     const ref = getFirestore().collection("demoSessionsV1").doc(id);
     await ref.set({ state: legacy });
     const loaded = await readSession(id);
-    expect(loaded).toMatchObject({ version: 4, mode: "none", revision: 4, habit: legacy.habit, corrections: legacy.corrections,
+    expect(loaded).toMatchObject({ version: 5, mode: "none", revision: 4, habit: legacy.habit, corrections: legacy.corrections,
       completedDates: legacy.completedDates, query: { categories: ["Groceries"], baskets: [], merchantType: null } });
     await updateSession(id, 4, state => transition(state, { action: "checkin", revision: 4 }));
-    expect((await ref.get()).data()?.state.version).toBe(4);
+    expect((await ref.get()).data()?.state.version).toBe(5);
     await ref.set({ state: { ...legacy, customerId: "CUST00001" } });
     await expect(readSession(id)).rejects.toMatchObject({ status: 409 });
   });
@@ -85,5 +85,43 @@ describe("Firestore server persistence", () => {
     const next = await updateSession(a, 2, state => transition({ ...state, demoDate: "2026-09-23" }, { action: "weekly-checkup", revision: 2 }));
     expect(next.weeklyCompletedDates).toEqual([...saved.weeklyCompletedDates, "2026-09-23"]);
     expect(next.message).toContain("4 weeks");
+  });
+  it("loads a stored version 4 state with goal: null and starts a new session at version 5", async () => {
+    const id = randomUUID();
+    const fresh = await readSession(randomUUID());
+    expect(fresh.version).toBe(5);
+    expect(fresh.goal).toBeNull();
+    const v4State = {
+      customerId: "CUST04060",
+      version: 4,
+      revision: 3,
+      mode: "none" as const,
+      demoDate: "2026-09-16",
+      weeklyCompletedDates: ["2026-09-02", "2026-09-09"],
+      completedDates: ["2026-09-02"],
+      reflections: {},
+      corrections: { "row-2898292": "regular" as const },
+      query: null,
+      profile: { firstName: "Matti", everydayLimit: { amountCents: 220000, activeSince: "2026-02" } },
+      habit: null,
+      analysis: null,
+      itemLimitation: false,
+      move: null,
+      guessCents: null,
+      percent: null,
+      skipGuess: true,
+      message: "hello",
+      jarMonth: null,
+    };
+    const ref = getFirestore().collection("demoSessionsV1").doc(id);
+    await ref.set({ state: v4State });
+    const loaded = await readSession(id);
+    expect(loaded.version).toBe(5);
+    expect(loaded.goal).toBeNull();
+    expect(loaded.proposedGoal).toBeNull();
+    expect(loaded.revision).toBe(3);
+    expect(loaded.demoDate).toBe("2026-09-16");
+    expect(loaded.completedDates).toEqual(["2026-09-02"]);
+    expect(loaded.corrections).toEqual({ "row-2898292": "regular" });
   });
 });

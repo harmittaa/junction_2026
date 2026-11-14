@@ -64,6 +64,7 @@ def build_dataset(source: Path) -> dict:
                     "timestamp": row["tx_timestamp"],
                     "category": row["category"],
                     "amountCents": amount_cents(row["tx_amount_eur"]),
+                    "balanceAfterCents": amount_cents(row["balance_after_eur"]),
                     "transactionType": row["transaction_type"],
                     "merchantId": None if row["merchant_id"] in ("", ".") else row["merchant_id"],
                     "mcc": None if row["mcc_code"] in ("", ".") else row["mcc_code"],

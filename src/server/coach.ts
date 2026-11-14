@@ -284,6 +284,9 @@ export function toView(state: SessionState): CoachView {
   return viewSchema.parse({ revision: state.revision, demoDate: state.demoDate, message: state.message, activity,
     entryMessage: jar.overCents ? jarMessage(state, true) : "A little check-up, or something on your mind? I'm here for both.",
     profile: state.profile, checkup: weeklyCheckup(state.weeklyCompletedDates, state.demoDate), jar, move: state.move,
+    // placeholder until Coach 3/7
+    goal: state.goal ?? null, noticed: null, entryNoticed: null,
+    spendWeek: { dailyCents: jar.dailyRemainingCents, daysLeftInWeek: 0, amountCents: 0, weekEnd: state.demoDate },
     habit: state.habit, completedDates: state.completedDates, categories, period: { start: dataset.period.start, end: state.demoDate } });
 }
 

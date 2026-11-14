@@ -34,16 +34,16 @@ class ImportTests(unittest.TestCase):
         text = io.StringIO(newline="")
         writer = csv.writer(text)
         writer.writerow(importer.FIELDS)
-        for customer, date, amount, kind, merchant, mcc in [
-            ("CUST04060", "2024-09-30", "-1", "purchase", "M1", "5411"),
-            ("CUST04060", "2024-10-01", "-32.51", "purchase", "M1", "5411"),
-            ("OTHER", "2024-10-02", "-9", "purchase", "M1", "5411"),
-            ("CUST04060", "2026-02-05", "3.29", "refund", ".", "."),
-            ("CUST04060", "2026-09-30", "-219.64", "investment_deposit", "", ""),
-            ("CUST04060", "2026-10-01", "-7", "purchase", "M1", "5411"),
+        for customer, date, amount, balance, kind, merchant, mcc in [
+            ("CUST04060", "2024-09-30", "-1", "99", "purchase", "M1", "5411"),
+            ("CUST04060", "2024-10-01", "-32.51", "100.05", "purchase", "M1", "5411"),
+            ("OTHER", "2024-10-02", "-9", "50", "purchase", "M1", "5411"),
+            ("CUST04060", "2026-02-05", "3.29", "-3.5", "refund", ".", "."),
+            ("CUST04060", "2026-09-30", "-219.64", "7", "investment_deposit", "", ""),
+            ("CUST04060", "2026-10-01", "-7", "12", "purchase", "M1", "5411"),
         ]:
             writer.writerow([customer, "ACC-test", date, "raw timestamp", "test\ncategory",
-                             amount, "0", kind, merchant, mcc])
+                             amount, balance, kind, merchant, mcc])
         data = text.getvalue().encode("utf-8-sig")
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "source.csv"
@@ -58,11 +58,12 @@ class ImportTests(unittest.TestCase):
         self.assertEqual([r["id"] for r in rows], ["row-4", "row-8", "row-10"])
         self.assertEqual([r["sourceRow"] for r in rows], [4, 8, 10])
         self.assertEqual([r["amountCents"] for r in rows], [-3251, 329, -21964])
+        self.assertEqual([r["balanceAfterCents"] for r in rows], [10005, -350, 700])
         self.assertEqual([r["transactionType"] for r in rows], ["purchase", "refund", "investment_deposit"])
         self.assertEqual(rows[0], {
             "id": "row-4", "sourceRow": 4, "customerId": "CUST04060", "accountId": "ACC-test",
             "date": "2024-10-01", "timestamp": "raw timestamp", "category": "test\ncategory",
-            "amountCents": -3251, "transactionType": "purchase", "merchantId": "M1", "mcc": "5411",
+            "amountCents": -3251, "balanceAfterCents": 10005, "transactionType": "purchase", "merchantId": "M1", "mcc": "5411",
         })
         self.assertEqual([(r["merchantId"], r["mcc"]) for r in rows[1:]], [(None, None), (None, None)])
 

@@ -26,22 +26,27 @@ export const analysisOperationSchema = z.object({
   percent: z.number().int().min(0).max(100).nullable(),
 }).strict();
 export type AnalysisOperation = z.infer<typeof analysisOperationSchema>;
+const money = z.number().int().safe().nonnegative();
+const month = z.string().regex(/^\d{4}-\d{2}$/);
+export const goalSchema = z.object({ amountCents: money.positive(), targetMonth: month }).strict();
+export type Goal = z.infer<typeof goalSchema>;
 // The planner cannot choose a customer or write amounts. A correction is only
 // user-supplied matching criteria; the application resolves current evidence.
 export const planSchema = analysisOperationSchema.extend({
-  kind: z.enum(["spending", "breakdown", "comparison", "trend", "cashflow", "whatif", "profile", "scenario", "reveal", "chat", "clarify", "explain", "checkin", "habit", "jar", "pace", "usual", "overspend", "weekly_checkup", "move"]),
+  kind: z.enum(["spending", "breakdown", "comparison", "trend", "cashflow", "whatif", "profile", "scenario", "reveal", "chat", "clarify", "explain", "checkin", "habit", "jar", "pace", "usual", "overspend", "weekly_checkup", "move", "save", "spend_week", "goal"]),
   query: querySchema.nullable(), direct: z.boolean(),
   reply: z.enum(["none", "listen", "tired", "positive", "scope", "question", "items"]),
   concept: z.enum(["baskets", "budget", "interest", "inflation", "saving", "investing", "gross_net", "compound_interest"]).nullable(),
   correction: z.object({ amountCents: z.number().int().safe().positive().nullable(), date: dateSchema.nullable(),
     merchant: z.string().max(80).nullable(), category: z.string().max(60).nullable(),
     necessityQuote: z.string().min(1).max(600) }).strict().nullable().optional(),
+  goal: goalSchema.nullable().optional(),
 }).strict();
 export type Plan = z.infer<typeof planSchema>;
 export const transactionSchema = z.object({
   id: z.string(), sourceRow: z.number().int().positive(), customerId: z.string(),
   accountId: z.string(), date: dateSchema, timestamp: z.string(), category: z.string(),
-  amountCents: z.number().int().safe(), transactionType: z.string(),
+  amountCents: z.number().int().safe(), balanceAfterCents: z.number().int().safe().optional(), transactionType: z.string(),
   merchantId: z.string().nullable(), mcc: z.string().nullable(),
 });
 export type Transaction = z.infer<typeof transactionSchema>;
@@ -50,7 +55,6 @@ export const habitSchema = z.object({
   goal: z.string().trim().max(80),
 }).strict();
 export type Habit = z.infer<typeof habitSchema>;
-const money = z.number().int().safe().nonnegative();
 export const evidenceSchema = z.object({
   id: z.string(), sourceRow: z.number().int(), date: dateSchema,
   category: z.string(), merchant: z.string(), amountCents: money, basket: basketSchema,
@@ -94,6 +98,8 @@ export const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("checkin"), revision }).strict(),
   z.object({ action: z.literal("complete"), revision, reflection: z.enum(["done", "adjust", "reflect"]), confirmed: z.literal(true) }).strict(),
   z.object({ action: z.literal("advance"), revision, confirmed: z.literal(true) }).strict(),
+  z.object({ action: z.literal("set-goal"), revision, goal: goalSchema, confirmed: z.literal(true) }).strict(),
+  z.object({ action: z.literal("clear-goal"), revision, confirmed: z.literal(true) }).strict(),
 ]);
 export type CoachRequest = z.infer<typeof requestSchema>;
 export const speechRequestSchema = z.object({ revision, entry: z.boolean().optional() }).strict();
@@ -120,6 +126,31 @@ export const jarSchema = z.object({
   evidence: z.array(evidenceSchema),
 }).strict();
 export type JarStatus = z.infer<typeof jarSchema>;
+export const usualMonthSchema = z.object({
+  baseline: periodSchema, monthCount: z.number().int().positive(),
+  incomeCents: money, regularCents: money, unexpectedCents: money, everydayCents: money, investmentCents: money,
+  everydayByMonth: z.array(z.object({ month, spentCents: money })),
+}).strict();
+export type UsualMonth = z.infer<typeof usualMonthSchema>;
+export const safeToSaveSchema = z.object({ usual: usualMonthSchema, safeToSaveCents: money }).strict();
+export type SafeToSave = z.infer<typeof safeToSaveSchema>;
+export const safeToSpendWeekSchema = z.object({
+  dailyCents: money, daysLeftInWeek: z.number().int().nonnegative(), amountCents: money, weekEnd: dateSchema,
+}).strict();
+export type SafeToSpendWeek = z.infer<typeof safeToSpendWeekSchema>;
+export const goalVerdictSchema = z.object({
+  goal: goalSchema, months: z.number().int().positive(),
+  monthlyCents: money, neededJarCents: money, cutCents: money,
+  verdict: z.enum(["on_track", "stretch", "out_of_reach"]),
+  monthsInside: z.number().int().nonnegative(), lowestMonthCents: money,
+  history: z.array(z.object({ month, spentCents: money, inside: z.boolean() })),
+}).strict();
+export type GoalVerdict = z.infer<typeof goalVerdictSchema>;
+export const noticedSchema = z.object({
+  rule: z.enum(["balance_lower", "invest_over_left", "largest_category", "jar_pace", "month_over_usual", "merchant_spike"]),
+  text: z.string().min(1).max(300), question: z.string().min(1).max(200),
+}).strict();
+export type Noticed = z.infer<typeof noticedSchema>;
 export const usualComparisonSchema = z.object({
   period: periodSchema, baseline: periodSchema, monthCount: z.number().int().positive(),
   rows: z.array(z.object({ category: z.string(), currentCents: money, usualCents: money,
@@ -147,12 +178,16 @@ export const activitySchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("pace") }),
   z.object({ kind: z.literal("overspend") }),
   z.object({ kind: z.literal("usual"), comparison: usualComparisonSchema }),
+  z.object({ kind: z.literal("save"), save: safeToSaveSchema }),
+  z.object({ kind: z.literal("goal"), verdict: goalVerdictSchema }),
+  z.object({ kind: z.literal("spend_week") }),
 ]);
 export type Activity = z.infer<typeof activitySchema>;
 export const viewSchema = z.object({
   revision: z.number().int().nonnegative(), demoDate: dateSchema,
   message: z.string().max(1200), entryMessage: z.string().max(1200), activity: activitySchema,
   profile: customerProfileSchema, checkup: weeklyCheckupSchema, jar: jarSchema, move: basketMoveSchema.nullable(),
+  goal: goalSchema.nullable(), spendWeek: safeToSpendWeekSchema, noticed: noticedSchema.nullable(), entryNoticed: noticedSchema.nullable(),
   habit: habitSchema.nullable(), completedDates: z.array(dateSchema),
   categories: z.array(z.string()), period: z.object({ start: dateSchema, end: dateSchema }),
 });
