@@ -1,19 +1,22 @@
 "use client";
 
-import { useEffect, useId, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 import { basketLabels, type Analysis, type Basket, type CoachRequest, type CoachView, type Habit, type Spending, type SpendingQuery } from "@/shared/contracts";
 import { euros, percentageScenario, queryLabel } from "@/domain/spending";
+import {
+  CountAmount,
+  GoalCard,
+  NoticedRow,
+  PaymentsSheet,
+  SafeToSaveCard,
+} from "./answer-cards";
+import { monthRange } from "./answer-format";
 import "./activities.css";
+
+export { CountAmount, subscribeMotion, reducedMotion, serverMotion } from "./answer-cards";
 
 type Actions = { busy: boolean; onAction: (request: CoachRequest) => void; revision: number };
 const baskets: Basket[] = ["regular", "unexpected", "everyday"];
-const subscribeMotion = (notify: () => void) => {
-  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-  media.addEventListener("change", notify);
-  return () => media.removeEventListener("change", notify);
-};
-const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const serverMotion = () => true;
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return <section className="sp-card"><h2>{title}</h2>{children}</section>;
@@ -60,27 +63,6 @@ export function GuessCard({ query, busy, revision, onAction }: Actions & { query
         </form>}
     </fieldset>
   </Card>;
-}
-
-function CountAmount({ cents, active = true }: { cents: number; active?: boolean }) {
-  const reduced = useSyncExternalStore(subscribeMotion, reducedMotion, serverMotion);
-  const [started, setStarted] = useState(active);
-  const [animated, setAnimated] = useState(0);
-  if (active && !started) setStarted(true);
-  useEffect(() => {
-    if (reduced || !started) return;
-    let frame: number;
-    let start: number | undefined;
-    const tick = (time: number) => {
-      start ??= time;
-      const progress = Math.min(1, (time - start) / 950);
-      setAnimated(Math.round(cents * (1 - (1 - progress) ** 3)));
-      if (progress < 1) frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [cents, reduced, started]);
-  return <><span aria-hidden="true">{euros(reduced ? cents : started ? animated : 0)}</span><span className="sp-sr">{euros(cents)}</span></>;
 }
 
 export function RevealCard({ spending, guessCents, countActive = true, children }: {
@@ -135,12 +117,10 @@ function Evidence({ evidence, evidenceCount, correctable, ...actions }: Actions 
   </details>;
 }
 
-export function AnalysisCard({ analysis, ...actions }: Actions & { analysis: Analysis }) {
-  return <Card title={analysis.title}>
-    <p className="sp-meta">{queryLabel(analysis.query)}</p>
-    <Period query={analysis.query} count={analysis.kind === "comparison" || analysis.kind === "whatif" ? undefined : analysis.evidenceCount} />
-    {analysis.kind === "whatif" && <p className="sp-meta">Hypothetical calculation · no money has been saved or moved.</p>}
-    {analysis.sections.map((section, sectionIndex) => <section className="sp-analysis-section" key={sectionIndex} aria-label={section.label}>
+export function AnalysisSections({ analysis, skip = 0 }: { analysis: Analysis; skip?: number }) {
+  const sections = skip > 0 ? analysis.sections.slice(skip) : analysis.sections;
+  return <>
+    {sections.map((section, sectionIndex) => <section className="sp-analysis-section" key={sectionIndex} aria-label={section.label}>
       <h3>{section.label}</h3>
       <ul className="sp-analysis-rows">{section.rows.map((row, rowIndex) => {
         const countUnit = row.label === "Monthly average (complete months)" || section.label === "Most variable category (monthly range)" ? "month" : "transaction";
@@ -155,9 +135,164 @@ export function AnalysisCard({ analysis, ...actions }: Actions & { analysis: Ana
       </li>; })}</ul>
       {section.rows.length === 0 && <p className="sp-meta">No matching results for this section.</p>}
     </section>)}
+  </>;
+}
+
+export function AnalysisCard({ analysis, ...actions }: Actions & { analysis: Analysis }) {
+  return <Card title={analysis.title}>
+    <p className="sp-meta">{queryLabel(analysis.query)}</p>
+    <Period query={analysis.query} count={analysis.kind === "comparison" || analysis.kind === "whatif" ? undefined : analysis.evidenceCount} />
+    {analysis.kind === "whatif" && <p className="sp-meta">Hypothetical calculation · no money has been saved or moved.</p>}
+    <AnalysisSections analysis={analysis} />
     <Assumptions assumptions={analysis.assumptions} />
     <Evidence evidence={analysis.evidence} evidenceCount={analysis.evidenceCount} correctable={analysis.kind !== "cashflow"} {...actions} />
   </Card>;
+}
+
+export function SpenderCard({
+  analysis,
+  noticed,
+  busy,
+  revision,
+  countActive = true,
+  onAction,
+}: Actions & {
+  analysis: Analysis;
+  noticed: CoachView["noticed"];
+  countActive?: boolean;
+}) {
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const paymentsLinkRef = useRef<HTMLButtonElement>(null);
+  const eyebrowId = useId();
+
+  const monthLabel = monthRange(analysis.query.start, analysis.query.end);
+  const basketShares = analysis.sections[0]?.rows;
+  const regularRow = basketShares?.find(r => r.label === basketLabels.regular);
+  const unexpectedRow = basketShares?.find(r => r.label === basketLabels.unexpected);
+  const everydayRow = basketShares?.find(r => r.label === basketLabels.everyday);
+
+  const regularAmount = regularRow?.amountCents ?? 0;
+  const unexpectedAmount = unexpectedRow?.amountCents ?? 0;
+  const everydayAmount = everydayRow?.amountCents ?? 0;
+  const total = regularAmount + unexpectedAmount + everydayAmount;
+
+  const count = analysis.evidenceCount;
+  const countLabel = count === 1 ? "1 payment" : `${count} payments`;
+  const eyebrowText = `${monthLabel} · ${countLabel}`;
+
+  return (
+    <section className={`ac-card${breakdownOpen ? "" : " ac-card-flush-bottom"}`} aria-labelledby={eyebrowId}>
+      <h2 id={eyebrowId} className="ac-eyebrow ac-stagger" style={{ "--i": 0 } as React.CSSProperties}>
+        {eyebrowText}
+      </h2>
+
+      {total === 0 ? (
+        <p className="ac-sentence ac-stagger" style={{ "--i": 1 } as React.CSSProperties}>
+          No spending in this period.
+        </p>
+      ) : (
+        <>
+          <p className="ac-amount">
+            <CountAmount
+              cents={Math.round(everydayRow?.sharePercent ?? 0)}
+              durationMs={600}
+              active={countActive}
+              format={v => `${v}\u00A0%`}
+            />
+          </p>
+          <p className="ac-sentence ac-stagger" style={{ "--i": 1 } as React.CSSProperties}>
+            of your spending was everyday spending
+          </p>
+
+          <div className="ac-bar ac-stagger" aria-hidden="true" style={{ "--i": 2 } as React.CSSProperties}>
+            <span
+              className="ac-bar-segment ac-bar-regular"
+              style={{ flex: `0 0 ${(regularAmount / total) * 100}%`, "--k": 0 } as React.CSSProperties}
+            />
+            <span
+              className="ac-bar-segment ac-bar-unexpected"
+              style={{ flex: `0 0 ${(unexpectedAmount / total) * 100}%`, "--k": 1 } as React.CSSProperties}
+            />
+            <span
+              className="ac-bar-segment ac-bar-everyday"
+              style={{ "--k": 2 } as React.CSSProperties}
+            />
+          </div>
+
+          <ul className="ac-rows ac-stagger" style={{ "--i": 3 } as React.CSSProperties}>
+            <li>
+              <span className="ac-row-label">
+                <span className="ac-dot ac-dot-regular" aria-hidden="true" />
+                Regular essentials
+              </span>
+              <span>{euros(regularAmount)}</span>
+            </li>
+            <li>
+              <span className="ac-row-label">
+                <span className="ac-dot ac-dot-unexpected" aria-hidden="true" />
+                Unexpected necessities
+              </span>
+              <span>{euros(unexpectedAmount)}</span>
+            </li>
+            <li>
+              <span className="ac-row-label">
+                <span className="ac-dot ac-dot-everyday" aria-hidden="true" />
+                Everyday spending
+              </span>
+              <strong style={{ fontWeight: 700 }}>{euros(everydayAmount)}</strong>
+            </li>
+          </ul>
+
+          {noticed && (
+            <div style={{ marginBottom: 4 }}>
+              <NoticedRow noticed={noticed} busy={busy} revision={revision} onAction={onAction} index={4} />
+            </div>
+          )}
+
+          <div className="ac-card-links ac-stagger" style={{ "--i": 5 } as React.CSSProperties}>
+            <button
+              type="button"
+              className="ac-link ac-press"
+              aria-expanded={breakdownOpen}
+              onClick={() => setBreakdownOpen(prev => !prev)}
+            >
+              See the breakdown ›
+            </button>
+            <button
+              ref={paymentsLinkRef}
+              type="button"
+              className="ac-link ac-press"
+              onClick={() => setSheetOpen(true)}
+            >
+              See the {countLabel} ›
+            </button>
+          </div>
+
+          {breakdownOpen && (
+            <div className="ac-breakdown-region">
+              <AnalysisSections analysis={analysis} skip={1} />
+              <Assumptions assumptions={analysis.assumptions} />
+            </div>
+          )}
+
+          {sheetOpen && (
+            <PaymentsSheet
+              analysis={analysis}
+              monthLabel={monthLabel}
+              busy={busy}
+              revision={revision}
+              onAction={onAction}
+              onClose={() => {
+                setSheetOpen(false);
+                paymentsLinkRef.current?.focus();
+              }}
+            />
+          )}
+        </>
+      )}
+    </section>
+  );
 }
 
 export function EvidenceCard({ spending, ...actions }: Actions & { spending: Spending }) {
@@ -248,7 +383,12 @@ export function Activities({ view, busy, countActive = true, onAction }: { view:
     {activity.kind === "reveal" && <RevealCard spending={activity.spending} guessCents={activity.guessCents} countActive={countActive}>
       <Evidence evidence={activity.spending.evidence} evidenceCount={activity.spending.evidenceCount} correctable={false} {...actions} />
     </RevealCard>}
-    {activity.kind === "analysis" && <AnalysisCard analysis={activity.analysis} {...actions} />}
+    {activity.kind === "save" && <SafeToSaveCard save={activity.save} noticed={view.noticed} countActive={countActive} {...actions} />}
+    {activity.kind === "goal" && <GoalCard verdict={activity.verdict} noticed={view.noticed} countActive={countActive} {...actions} />}
+    {activity.kind === "analysis" && activity.analysis.kind === "profile" && (
+      <SpenderCard analysis={activity.analysis} noticed={view.noticed} countActive={countActive} {...actions} />
+    )}
+    {activity.kind === "analysis" && activity.analysis.kind !== "profile" && <AnalysisCard analysis={activity.analysis} {...actions} />}
     {activity.kind === "pace" && <Card title={jar.overCents ? "Let's take a closer look" : "A little room each day"}>
       <div className="checkup-pace"><p className="sp-amount">{euros(jar.overCents || jar.dailyRemainingCents)}</p><p>{jar.overCents ? "over this month's everyday limit" : `per day for the ${jar.daysLeft} days left`}</p></div>
       <div className="sp-bar-label"><span>Your pace so far</span><strong>{euros(jar.dailySpentCents)} / day</strong></div>
