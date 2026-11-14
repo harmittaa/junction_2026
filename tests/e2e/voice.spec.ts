@@ -111,7 +111,9 @@ test(`prerecorded voice, interruption and typing recovery (${reducedMotion})`, a
   await expect(page.getByRole("region", { name: "Conversation history" })).toContainText("How much did I spend on groceries last month?");
   await expect(page.getByRole("region", { name: "Conversation history" })).not.toContainText(interim);
   await page.getByRole("button", { name: "Close history", exact: true }).click();
-  await page.getByRole("button", { name: "Play reply", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Play reply", exact: true })).toHaveCount(0);
+  // A new answer still speaks automatically and can be interrupted without a replay control.
+  await page.getByRole("button", { name: "Show me", exact: true }).click();
   await expect(page.getByRole("button", { name: "Sponky. Hold to interrupt", exact: true })).toBeVisible();
   await trigger.focus();
   await page.keyboard.down("Space");
@@ -125,7 +127,7 @@ test(`prerecorded voice, interruption and typing recovery (${reducedMotion})`, a
   await expect(page.locator(".coach-message")).toContainText("long day");
   await expect(page.getByRole("button", { name: "Sponky. Hold to talk", exact: true })).toBeVisible();
   await expect.poll(hiddenBars).toBe(true);
-  expect(speechRevisions).toEqual([{ revision: 1 }, { revision: 1 }]);
+  expect(speechRevisions).toEqual([{ revision: 1 }, { revision: 2 }]);
   expect(errors).toEqual([]);
   await page.route("**/api/voice/token", route => route.fulfill({ status: 503, json: { error: "fixture unavailable" } }));
   await trigger.focus();
@@ -379,7 +381,8 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
   await draft.press("Enter");
   await expect(page.locator(".coach-message")).toContainText("We can skip the money talk");
   expect(submitted).toEqual([finalText, "I've had a long day"]);
-  await page.getByText("Demo controls", { exact: true }).tap();
+  await page.getByRole("button", { name: "History", exact: true }).tap();
+  await expect(page.getByRole("region", { name: "Conversation history" })).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
   // Swipe in the page gutter, outside the voice target: touch-action must not leak globally.
   await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 4, y: 700 }] });
@@ -405,4 +408,6 @@ test("bank entry opens Sponky with typing out of view", async ({ page }) => {
   await page.getByRole("button", { name: "Talk to Sponky" }).tap();
   await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "ready");
   await expect(page.getByRole("textbox", { name: "Message", exact: true })).not.toBeInViewport();
+  await expect(page.getByText("Demo controls", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Advance simulated day", exact: true })).toHaveCount(0);
 });

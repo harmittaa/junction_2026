@@ -144,9 +144,17 @@ test("phone visit keeps the answer hidden, corrects a scenario, and persists one
   await expect(page.locator(".sp-days")).toContainText("1 completed reflection day");
   await expect(page.getByRole("button", { name: "Complete check-in", exact: true })).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("complete-light.png"), fullPage: true });
-  await page.getByText("Demo controls", { exact: true }).click();
-  await page.getByRole("button", { name: "Advance simulated day", exact: true }).click();
-  await expect(page.locator(".demo-date")).toContainText("2026-09-02");
+  // Set up the next simulated day through the API; demo controls are not part of the UI.
+  const current = await (await page.request.get("/api/session")).json();
+  const advanced = await page.request.post("/api/coach", {
+    headers: { Origin: "http://localhost:3200" },
+    data: { action: "advance", revision: current.revision, confirmed: true },
+  });
+  expect(advanced.status()).toBe(200);
+  expect((await advanced.json()).demoDate).toBe("2026-09-02");
+  await page.reload();
+  await page.getByRole("button", { name: "Talk to Sponky" }).click();
+  await page.getByRole("button", { name: "Sound on", exact: true }).click();
   await expect(page.locator(".coach-message")).toContainText("no housing spending recorded");
   await page.getByRole("radio", { name: "I followed my action", exact: true }).check();
   await page.getByRole("button", { name: "Complete check-in", exact: true }).click();
@@ -154,7 +162,6 @@ test("phone visit keeps the answer hidden, corrects a scenario, and persists one
   await page.setViewportSize({ width: 360, height: 800 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.getByRole("button", { name: "Dark appearance", exact: true }).click();
-  await page.getByText("Demo controls", { exact: true }).click();
   await page.screenshot({ path: testInfo.outputPath("no-spending-dark-360.png"), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
@@ -192,8 +199,7 @@ test("free-form breakdown shows scoped rows and a rejected writer still complete
   await expect(page.getByRole("region", { name: "Selected period: 2026-08-01 to 2026-08-31" })).toContainText("10 transactions");
 });
 
-for (const action of ["complete", "advance"] as const) {
-  test(`a lost ${action} response never re-confirms the action on a newer date`, async ({ page }) => {
+test("a lost complete response never re-confirms the action on a newer date", async ({ page }) => {
     await enter(page);
     const headers = { Origin: "http://localhost:3200" };
     const state = async () => await (await page.request.get("/api/session")).json();
@@ -209,28 +215,22 @@ for (const action of ["complete", "advance"] as const) {
     await page.getByRole("button", { name: "Sound on", exact: true }).click();
     let loseResponse = true;
     await page.route("**/api/coach", async route => {
-      if (loseResponse && route.request().postDataJSON().action === action) {
+      if (loseResponse && route.request().postDataJSON().action === "complete") {
         loseResponse = false;
         expect((await route.fetch()).status()).toBe(200);
         await route.abort("failed");
       } else await route.continue();
     });
-    if (action === "complete") {
-      await page.getByRole("radio", { name: "I followed my action", exact: true }).check();
-      await page.getByRole("button", { name: "Complete check-in", exact: true }).click();
-    } else {
-      await page.getByText("Demo controls", { exact: true }).click();
-      await page.getByRole("button", { name: "Advance simulated day", exact: true }).click();
-    }
+    await page.getByRole("radio", { name: "I followed my action", exact: true }).check();
+    await page.getByRole("button", { name: "Complete check-in", exact: true }).click();
     await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
-    if (action === "complete") await mutate({ action: "advance", confirmed: true }); // A second tab.
+    await mutate({ action: "advance", confirmed: true }); // Another client advances the simulated date.
     await page.getByRole("button", { name: "Retry", exact: true }).click();
     await expect(page.getByRole("main").getByRole("alert")).toContainText("Review the current activity");
     await page.getByRole("button", { name: "Retry", exact: true }).click();
     await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
     const after = await state();
     expect(after.demoDate).toBe("2026-09-02");
-    expect(after.completedDates).toEqual(action === "complete" ? ["2026-09-01"] : []);
+    expect(after.completedDates).toEqual(["2026-09-01"]);
     await expect(page.getByRole("button", { name: "Complete check-in", exact: true })).toBeDisabled();
-  });
-}
+});

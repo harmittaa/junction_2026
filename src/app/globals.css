@@ -22,7 +22,6 @@ p { margin: 12px 0; overflow-wrap: anywhere; }
 .toolbar { display: flex; justify-content: center; gap: 24px; }
 .eyebrow,.meta { font-size: 12px; color: var(--textMuted); text-align: center; }
 .eyebrow { letter-spacing: 1.5px; font-weight: 600; }
-.demo-date { font-size: 12px; text-align: center; color: var(--textMuted); margin: 4px 0 12px; }
 .coach-message { text-align: center; font-size: 18px; line-height: 1.5; margin: 20px 0; }
 .card { background: var(--surface); padding: 20px; border: 1px solid var(--border); border-radius: 16px; margin: 16px 0; }
 .secondary { background: var(--surfaceAccent); color: var(--textBrand); border: 1px solid var(--textBrand); }
@@ -43,9 +42,6 @@ input:not([type=radio]):not([type=checkbox]):not([type=range]),select,textarea {
 .history { max-height: 360px; overflow: auto; }
 .history p { font-size: 14px; }
 .history .user { background: var(--surfaceAccent); padding: 12px; border-radius: 12px; }
-.demo-controls { font-size: 12px; color: var(--textMuted); border-top: 1px solid var(--border); margin-top: 12px; }
-.demo-controls summary { font-weight: 400; text-align: center; }
-.demo-controls button { font-size: 14px; width: 100%; }
 /* Typing stays for keyboard users and voice failure, but is hidden from the demo view until focused. */
 .typing:not([data-visible=true]) { position: fixed; left: max(16px, calc(50vw - 224px)); right: max(16px, calc(50vw - 224px)); bottom: 24px; margin: 0; padding: 4px 0; }
 .typing:not([data-visible=true]):not(:focus-within) { width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); padding: 0; }

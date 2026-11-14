@@ -13,8 +13,8 @@ const failures = {
   capture: "Could not capture microphone audio. Please try again or type your question.",
   flush: "Could not finish recording. Please try again or type your question.",
   transcript: "Could not finish transcription. Please try again or type your question.",
-  speech: "Could not load the spoken reply. Read the reply or try Play reply.",
-  playback: "Could not play the spoken reply. Try Play reply or continue typing.",
+  speech: "Could not load the spoken reply. Read the reply or continue typing.",
+  playback: "Could not play the spoken reply. Read the reply or continue typing.",
 };
 type Phase = keyof typeof failures;
 type Turn = {

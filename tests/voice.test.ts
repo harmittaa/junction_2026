@@ -415,8 +415,8 @@ describe("browser voice lifecycle", () => {
     await drain(); // Transcription connects after capture starts.
     expect(error.mock.calls.map(([message]) => message)).toEqual([
       "Could not start the microphone. Check microphone permission, then hold again or type your question.",
-      "Could not play the spoken reply. Try Play reply or continue typing.",
-      "Could not load the spoken reply. Read the reply or try Play reply.",
+      "Could not play the spoken reply. Read the reply or continue typing.",
+      "Could not load the spoken reply. Read the reply or continue typing.",
       "Could not connect to voice transcription. Please try again or type your question.",
     ]);
     expect(warning.mock.calls).toEqual(["microphone", "playback", "speech", "token"].map(phase => ["Voice failed", { phase }]));
@@ -438,7 +438,7 @@ describe("browser voice lifecycle", () => {
       expect(fetch).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(20_000);
       expect(snapshot!.state).toBe("ready");
-      expect(error).toHaveBeenCalledExactlyOnceWith("Could not play the spoken reply. Try Play reply or continue typing.");
+      expect(error).toHaveBeenCalledExactlyOnceWith("Could not play the spoken reply. Read the reply or continue typing.");
       expect(warning).toHaveBeenCalledExactlyOnceWith("Voice failed", { phase: "playback" });
       expect(Context.instances[0].state).toBe("closed");
       resumeLate();
