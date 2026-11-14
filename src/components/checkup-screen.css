@@ -70,8 +70,12 @@ button.sponky-entry-label-btn {
 .checkup-orb .sp-coach-orb { width: 64px; height: 64px; margin: 24px 0; transition: transform .3s var(--checkup-spring); }
 .checkup-orb .sp-coach-label strong { display: none; }
 .checkup-orb .sp-coach-label span { font-size: 12px; }
-.checkup-screen.intro { --checkup-intro-orb-size: clamp(112px, calc(50dvh - 200px), 168px); padding-bottom: 260px; }
-.checkup-screen.intro .checkup-orb { top: calc(50% - var(--checkup-intro-orb-size) / 2 - 4px); bottom: auto; }
+.checkup-screen.intro { --checkup-intro-orb-size: clamp(112px, calc(50dvh - 200px), 168px); height: auto; min-height: 100dvh; padding-bottom: 24px; overflow: visible; }
+.checkup-screen.intro .checkup-canvas { display: contents; }
+.checkup-screen.intro .checkup-welcome { position: static; order: 1; margin-top: 24px; }
+.checkup-screen.intro .checkup-orb { position: relative; top: auto; bottom: auto; left: auto; align-self: center; order: 2; }
+.checkup-screen.intro .checkup-welcome-stack { position: static; order: 3; }
+.checkup-screen.intro .checkup-talk { order: 4; }
 .checkup-screen.intro .sp-coach-orb { width: var(--checkup-intro-orb-size); height: var(--checkup-intro-orb-size); margin: 0; }
 .checkup-screen.intro .sp-coach-trigger { gap: calc(var(--checkup-intro-orb-size) * 42 / 116 + 8px); }
 .checkup-screen .sp-card { margin: 8px 0; padding: 14px; }
