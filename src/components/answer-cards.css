@@ -1,0 +1,649 @@
+/* Answer cards styling */
+
+.sp-activities .ac-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+  animation: sp-enter 360ms var(--sp-spring) both;
+}
+
+.sp-activities .ac-card-flush-bottom {
+  padding-bottom: 0;
+}
+
+.sp-activities .ac-stagger {
+  animation: sp-enter 360ms var(--sp-spring) both;
+  animation-delay: calc(120ms + var(--i, 0) * 70ms);
+}
+
+.sp-activities .ac-eyebrow {
+  margin: 0 0 4px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--textMuted);
+}
+
+.sp-activities .ac-amount {
+  margin: 0;
+  text-align: center;
+  font-family: Figtree, var(--font-ux), sans-serif;
+  font-size: 34px;
+  line-height: 40px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--textBrand);
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-activities .ac-sentence {
+  margin: 0 0 12px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--textSecondary);
+}
+
+.sp-activities .ac-goal-headline {
+  margin: 0;
+  text-align: center;
+  font-family: Figtree, var(--font-ux), sans-serif;
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  animation: ac-pop 320ms var(--sp-spring) both;
+  animation-delay: 120ms;
+}
+
+.sp-activities .ac-goal-headline[data-verdict="on_track"] {
+  color: var(--textBrand);
+}
+
+.sp-activities .ac-goal-headline[data-verdict="stretch"] {
+  color: var(--status-warningText);
+}
+
+.sp-activities .ac-goal-headline[data-verdict="out_of_reach"] {
+  color: var(--textPrimary);
+}
+
+.sp-activities .ac-goal-line {
+  margin: 0 0 10px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--textSecondary);
+}
+
+.sp-activities .ac-goal-copy {
+  margin: 0 0 4px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--textMuted);
+}
+
+.sp-activities .ac-goal-copy strong {
+  color: var(--textPrimary);
+}
+
+.sp-activities .ac-subtext {
+  margin: 0 0 10px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--textSecondary);
+}
+
+.sp-activities .ac-month-marks {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 3px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--textMuted);
+}
+
+.sp-activities .ac-month-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: ac-pop 300ms var(--sp-spring) both;
+  animation-delay: calc(250ms + var(--k, 0) * 70ms);
+}
+
+.sp-activities .ac-mark-disc {
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: 0 auto 3px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+}
+
+.sp-activities .ac-mark-disc[data-inside="true"] {
+  background: var(--primaryPressed);
+  color: var(--onPrimary);
+}
+
+.sp-activities .ac-mark-disc[data-inside="false"] {
+  background: var(--status-warningBg);
+  color: var(--status-warningText);
+  box-shadow: inset 0 0 0 1.5px var(--status-warningBorder);
+}
+
+.sp-activities .ac-bar {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  margin: 0 0 10px;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: var(--surfaceSubtle);
+}
+
+.sp-activities .ac-bar-segment {
+  height: 100%;
+  border-radius: inherit;
+  transform-origin: left;
+  animation: sp-grow 500ms cubic-bezier(.16, 1, .3, 1) both;
+  animation-delay: calc(200ms + var(--k, 0) * 70ms);
+}
+
+.sp-activities .ac-bar-regular {
+  background: var(--baskets-mandatoryRegular-color);
+}
+
+.sp-activities .ac-bar-unexpected {
+  background: var(--status-infoBorder);
+}
+
+.sp-activities .ac-bar-everyday {
+  background: var(--baskets-everydaySlipping-color);
+  flex: 1 1 auto;
+}
+
+.sp-activities .ac-bar-sliver {
+  background: var(--accentPlayful);
+  flex-shrink: 0;
+}
+
+.sp-activities .ac-rows {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 24px;
+}
+
+.sp-activities .ac-rows li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.sp-activities .ac-row-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sp-activities .ac-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.sp-activities .ac-dot-regular {
+  background: var(--baskets-mandatoryRegular-color);
+}
+
+.sp-activities .ac-dot-unexpected {
+  background: var(--status-infoBorder);
+}
+
+.sp-activities .ac-dot-everyday {
+  background: var(--baskets-everydaySlipping-color);
+}
+
+.sp-activities button.ac-noticed {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surfaceAccent);
+  color: var(--textPrimary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: 48px;
+  white-space: normal;
+}
+
+.sp-activities .ac-noticed-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--brand-greenMintSoft);
+  display: grid;
+  place-items: center;
+}
+
+[data-theme="dark"] .sp-activities .ac-noticed-icon {
+  background: var(--surfaceSubtle);
+}
+
+.sp-activities .ac-noticed-icon svg {
+  width: 64%;
+  height: 64%;
+  fill: none;
+  stroke: var(--textBrand);
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+
+.sp-activities .ac-noticed-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.sp-activities .ac-noticed-eyebrow {
+  display: block;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--textBrand);
+}
+
+.sp-activities .ac-noticed-text {
+  display: block;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--textPrimary);
+}
+
+.sp-activities .ac-noticed-question {
+  display: block;
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--textBrand);
+}
+
+.sp-activities .ac-footer {
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--textMuted);
+}
+
+.sp-activities .ac-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 0;
+}
+
+.sp-activities .ac-card-actions button {
+  flex: 1 1 0;
+  min-height: 48px;
+  padding: 12px 16px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.sp-activities .ac-card-links {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sp-activities button.ac-link {
+  min-height: 48px;
+  padding: 12px 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--textBrand);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sp-activities .ac-breakdown-region {
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+/* Press feedback override */
+.sp-activities .ac-press {
+  transition: transform 120ms ease-out !important;
+}
+
+.sp-activities .ac-press:not(:disabled):active {
+  transform: scale(.97) !important;
+}
+
+/* Payments Sheet */
+.sp-activities .ac-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .32);
+  z-index: 100;
+  animation: ac-fade-in 200ms ease-out both;
+}
+
+.sp-activities .ac-sheet-backdrop.ac-closing {
+  animation: ac-fade-out 150ms ease-in both;
+}
+
+.sp-activities .ac-sheet {
+  position: fixed;
+  left: max(0px, calc(50vw - 240px));
+  right: max(0px, calc(50vw - 240px));
+  bottom: 0;
+  height: min(724px, 86dvh);
+  box-sizing: border-box;
+  background: var(--surface);
+  border-radius: 24px 24px 0 0;
+  padding: 10px 16px 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, .12);
+  z-index: 101;
+  animation: ac-sheet-in 380ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.sp-activities .ac-sheet.ac-closing {
+  animation: ac-sheet-out 200ms ease-in both;
+}
+
+.sp-activities .ac-sheet-handle {
+  flex: none;
+  width: 36px;
+  height: 4px;
+  margin: 0 auto 4px;
+  border-radius: 9999px;
+  background: var(--border);
+}
+
+.sp-activities .ac-sheet-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sp-activities .ac-sheet-title {
+  margin: 0;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 700;
+  color: var(--textBrand);
+}
+
+.sp-activities .ac-sheet-subtitle {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--textSecondary);
+}
+
+.sp-activities button.ac-btn-close {
+  min-width: 48px;
+  min-height: 48px;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  margin: 0 -12px 0 0;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--textMuted);
+}
+
+.sp-activities button.ac-btn-close svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.sp-activities .ac-sheet-limited {
+  flex: none;
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--textMuted);
+}
+
+.sp-activities .ac-chips {
+  flex: none;
+  margin: 12px -16px 4px 0;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-right: 16px;
+}
+
+.sp-activities button.ac-chip {
+  flex: none;
+  min-height: 48px;
+  padding: 8px 14px;
+  margin: 0;
+  border-radius: 9999px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--textPrimary);
+}
+
+.sp-activities button.ac-chip[aria-pressed="true"] {
+  background: var(--primaryPressed);
+  color: var(--onPrimary);
+  border-color: transparent;
+}
+
+.sp-activities .ac-sheet-hint {
+  flex: none;
+  margin: 4px 0 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--textMuted);
+}
+
+.sp-activities .ac-sheet-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding-bottom: 24px;
+}
+
+.sp-activities .ac-day-heading {
+  margin: 0;
+  padding: 10px 0 2px;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--textMuted);
+}
+
+.sp-activities button.ac-payment-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 0;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--textPrimary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sp-activities .ac-payment-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.sp-activities .ac-payment-cat {
+  display: block;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--textPrimary);
+}
+
+.sp-activities .ac-payment-merchant {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--textMuted);
+}
+
+.sp-activities .ac-payment-amount {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--textPrimary);
+}
+
+.sp-activities .ac-payment-chevron {
+  flex: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--textMuted);
+}
+
+.sp-activities .ac-payment-panel {
+  padding: 8px 0 12px;
+  border-top: 1px dashed var(--border);
+}
+
+.sp-activities .ac-panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--textMuted);
+  margin: 0 0 8px;
+}
+
+.sp-activities .ac-panel-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sp-activities .ac-panel-actions button {
+  flex: 1 1 auto;
+  min-height: 48px;
+}
+
+@keyframes ac-pop {
+  from {
+    opacity: 0;
+    transform: scale(.88);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes ac-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes ac-sheet-out {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes ac-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ac-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.sp-activities) .ac-card,
+  :is(.sp-activities) [class^="ac-"],
+  :is(.sp-activities) [class*=" ac-"] {
+    animation: none !important;
+    transition: none !important;
+  }
+}
