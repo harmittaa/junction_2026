@@ -177,7 +177,5 @@ export function Sponky() {
     }}>Retry</button></div>}
     {voiceError && <div className="error" role="alert"><p>{voiceError}</p><p>Typing is always available.</p><button className="text-button" onClick={() => setVoiceError("")}>Dismiss</button></div>}
     {view && busy && <button className="text-button" onClick={cancelRequest}>Stop waiting</button>}
-    {view && !busy && voice.state === "ready" && view.revision > 0 && <button className="text-button replay" disabled={voice.muted} onClick={() => void voice.speak(view.revision)}>Play reply</button>}
-    <details className="demo-controls"><summary>Demo controls</summary><p className="demo-date">Simulated date {view?.demoDate ?? "2026-09-01"}</p><button className="secondary" disabled={!view || busy} onClick={() => { if (view) void send({ action: "advance", revision: view.revision, confirmed: true }); }}>Advance simulated day</button></details>
   </main>;
 }
