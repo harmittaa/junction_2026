@@ -3,6 +3,10 @@
 This is **synthetic historical data**, not a live bank feed. No demographic file
 was imported, and no age, household, motive or affordability is inferred.
 
+The project owner confirmed permission to redistribute the supplied synthetic
+dataset on 14 November 2026. The project's MIT license covers its own code;
+partner-supplied data remains subject to its applicable terms.
+
 ## Selection and provenance
 
 - Customer `CUST04060`, account `ACC004060`: a richer customer with a full history.
