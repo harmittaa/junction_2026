@@ -89,6 +89,10 @@ button.sponky-entry-label-btn {
 .checkup-screen .sp-bar { animation-timing-function: var(--checkup-spring); }
 .checkup-screen .meta { margin: 0; }
 .checkup-screen .checkup-usual-label { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.checkup-usual-headline { margin: 8px 0; font-size: 14px; font-weight: 600; }
+.checkup-usual-headline[data-flagged=true] { padding: 8px 10px; border-radius: 8px; background: var(--status-warningBg); color: var(--status-warningText); }
+.whatif-headline { margin: 8px 0; padding: 8px 10px; border-radius: 8px; font-size: 14px; font-weight: 600; background: var(--status-successBg); color: var(--status-successText); }
+.checkup-usual-tag { font-weight: 600; }
 .checkup-usual-strip { max-height: 26dvh; overflow-y: auto; }
 .checkup-usual-label strong { white-space: nowrap; }
 .checkup-usual-track { position: relative; height: 8px; margin: 8px 0; background: var(--surfaceSubtle); border-radius: 999px; }

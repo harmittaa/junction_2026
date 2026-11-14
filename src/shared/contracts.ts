@@ -17,7 +17,7 @@ export const querySchema = periodSchema.extend({
   merchantType: merchantTypeSchema.nullable(),
 }).strict();
 export type SpendingQuery = z.infer<typeof querySchema>;
-export const analysisKindSchema = z.enum(["breakdown", "comparison", "trend", "cashflow", "whatif", "profile"]);
+export const analysisKindSchema = z.enum(["breakdown", "comparison", "trend", "cashflow", "whatif", "profile", "season"]);
 export const analysisOperationSchema = z.object({
   kind: analysisKindSchema, query: querySchema,
   comparePeriod: periodSchema.nullable(),
@@ -82,6 +82,8 @@ export const analysisSchema = z.object({
   })) })),
   evidence: z.array(evidenceSchema), evidenceCount: z.number().int().nonnegative(),
   assumptions: z.array(z.string()),
+  // Deterministic what-if headline, next step and reply, attached by the coordinator.
+  insight: z.object({ headline: z.string().min(1), supporting: z.array(z.string().min(1)).max(2), message: z.string().min(1) }).strict().optional(),
 });
 export type Analysis = z.infer<typeof analysisSchema>;
 const revision = z.number().int().nonnegative();
@@ -121,11 +123,17 @@ export const jarSchema = z.object({
   projectedCents: money, projectedOverCents: money,
   unexpectedCents: money,
   months: z.array(z.object({ month: z.string(), spentCents: money, inside: z.boolean() })),
-  contributionPeriod: periodSchema,
-  topDays: z.array(z.object({ date: dateSchema, amountCents: money, count: z.number().int().positive() })),
   evidence: z.array(evidenceSchema),
 }).strict();
 export type JarStatus = z.infer<typeof jarSchema>;
+export const overspendInsightSchema = z.object({
+  kind: z.enum(["large_payments", "category", "spread"]), headline: z.string().min(1),
+  supporting: z.array(z.string().min(1)).max(2), message: z.string().min(1),
+  wentOverOn: dateSchema, daysLeftAfter: z.number().int().nonnegative(),
+  payments: z.array(z.object({ date: dateSchema, category: z.string(), amountCents: money })).max(3),
+  categories: z.array(z.object({ category: z.string(), currentCents: money, usualCents: money })).max(2),
+}).strict();
+export type OverspendInsight = z.infer<typeof overspendInsightSchema>;
 export const usualMonthSchema = z.object({
   baseline: periodSchema, monthCount: z.number().int().positive(),
   incomeCents: money, regularCents: money, unexpectedCents: money, everydayCents: money, investmentCents: money,
@@ -153,8 +161,13 @@ export const noticedSchema = z.object({
 export type Noticed = z.infer<typeof noticedSchema>;
 export const usualComparisonSchema = z.object({
   period: periodSchema, baseline: periodSchema, monthCount: z.number().int().positive(),
+  elapsedDays: z.number().int().positive(), daysInMonth: z.number().int().positive(),
   rows: z.array(z.object({ category: z.string(), currentCents: money, usualCents: money,
+    flag: z.enum(["over", "ahead", "under"]).nullable(), sharePercent: z.number().int().nonnegative().nullable(),
     paymentDates: z.array(dateSchema), count: z.number().int().nonnegative() })),
+  // headline kind drives card styling; message is the full deterministic reply.
+  insight: z.object({ kind: z.enum(["over", "ahead", "none"]), headline: z.string().min(1),
+    supporting: z.array(z.string().min(1)).max(2), message: z.string().min(1) }).strict(),
   evidence: z.array(evidenceSchema),
 }).strict();
 export type UsualComparison = z.infer<typeof usualComparisonSchema>;
@@ -176,7 +189,7 @@ export const activitySchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("analysis"), analysis: analysisSchema }),
   z.object({ kind: z.literal("jar") }),
   z.object({ kind: z.literal("pace") }),
-  z.object({ kind: z.literal("overspend") }),
+  z.object({ kind: z.literal("overspend"), insight: overspendInsightSchema.nullable() }),
   z.object({ kind: z.literal("usual"), comparison: usualComparisonSchema }),
   z.object({ kind: z.literal("save"), save: safeToSaveSchema }),
   z.object({ kind: z.literal("goal"), verdict: goalVerdictSchema }),

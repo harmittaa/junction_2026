@@ -34,12 +34,12 @@ describe("verified model-written replies", () => {
     const ask = { action: "ask" as const, revision: 0, text: "Explore" };
     const plan = { ...scopePlan, kind: "whatif" as const, query, percent: 20, reply: "none" as const };
     const whatif = replyFacts(transition(initialState(), ask, plan), plan);
-    expect(whatif.fallback).toContain("Projection basis: 2026-03-01 to 2026-08-31.");
-    expect(whatif.values).toEqual(expect.arrayContaining([
-      expect.objectContaining({ amountCents: 18891 }), expect.objectContaining({ amountCents: 3778 }),
-      expect.objectContaining({ amountCents: 45336 }),
-    ]));
+    expect(whatif.fallback.replaceAll("\u00a0", " ")).toContain("37,78 €");
     expect(verifyReply(whatif.fallback, whatif)).toBe(true);
+    expect(verifyReply(`${whatif.fallback} You've got this.`, whatif)).toBe(true);
+    expect(verifyReply(whatif.fallback.replace("37,78", "38,78"), whatif)).toBe(false);
+    expect(verifyReply(`${whatif.fallback} Restaurants are a bad habit.`, whatif)).toBe(false);
+    expect(speechText(whatif.fallback).match(/euros?/g)).toHaveLength(1);
     expect(speechText(whatif.fallback).length).toBeLessThanOrEqual(600);
     const proxyPlan = { ...plan, kind: "spending" as const, percent: null, direct: true, reply: "items" as const };
     const proxy = replyFacts(transition(initialState(), ask, proxyPlan), proxyPlan);
@@ -86,6 +86,15 @@ describe("verified model-written replies", () => {
       weeklyCompletedDates: ["2026-09-02", "2026-09-09"],
       query: { categories: ["Groceries"], baskets: [], merchantType: null, start: "2026-08-01", end: "2026-08-31" } });
     expect(migrateSessionState({ ...old, demoDate: "2026-09-01" }).weeklyCompletedDates).toEqual([]);
+  });
+
+  it("speaks and verifies d.M. dates", () => {
+    expect(speechText("From 1.3. – 16.9. you spent 12,50 €.")).toBe("From 1 March – 16 September you spent about thirteen euros.");
+    expect(quantities("Projection basis: 1.3. – 31.8. and 12.50")).toEqual(["date:1.3.", "date:31.8.", "number:12.5"]);
+    const facts: ReplyFacts = { kind: "whatif", subject: "x", period: "", values: [], notes: [],
+      required: ["Hypothetically, from 1.3. – 31.8. costs 37,78 €."], fallback: "" };
+    expect(verifyReply("Hypothetically, from 1.3. – 31.8. costs 37,78 €.", facts)).toBe(true);
+    expect(verifyReply("Hypothetically, from 1.4. – 31.8. costs 37,78 €.", facts)).toBe(false);
   });
 
   it("converts Finnish euro amounts to rounded whole euros in spoken text", () => {

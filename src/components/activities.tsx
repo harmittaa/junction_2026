@@ -1,8 +1,9 @@
 "use client";
 
-import { formatDay } from "@/domain/dates";
+import { formatDay, formatRange } from "@/domain/dates";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { basketLabels, type Analysis, type Basket, type CoachRequest, type CoachView, type Habit, type Spending, type SpendingQuery } from "@/shared/contracts";
+import { seasonFacts, whatIfFacts } from "@/domain/exploration";
 import { euros, percentageScenario, queryLabel } from "@/domain/spending";
 import {
   CountAmount,
@@ -132,12 +133,44 @@ export function AnalysisSections({ analysis, skip = 0 }: { analysis: Analysis; s
   </>;
 }
 
+function WhatIfCard({ analysis }: { analysis: Analysis }) {
+  const { periodCents, count, basis } = whatIfFacts(analysis);
+  const insight = analysis.insight!;
+  return <Card title={analysis.title}>
+    <p className="sp-meta">Hypothetical</p>
+    <p className="whatif-headline">{insight.headline}</p>
+    {insight.supporting.map(line => <p className="sp-meta" key={line}>{line}</p>)}
+    <ul className="sp-analysis-rows">
+      <li><div className="sp-bar-label"><span>So far ({formatRange(analysis.query.start, analysis.query.end)})</span><strong>{euros(periodCents)}</strong></div>
+        <p className="sp-meta">{count} {count === 1 ? "payment" : "payments"}</p></li>
+      {basis && <li><div className="sp-bar-label"><span>Usual month ({basis.label})</span><strong>{euros(basis.averageCents)}</strong></div></li>}
+    </ul>
+  </Card>;
+}
+
 export function AnalysisCard({ analysis }: Actions & { analysis: Analysis }) {
+  if (analysis.kind === "whatif" && analysis.insight) return <WhatIfCard analysis={analysis} />;
   return <Card title={analysis.title}>
     <p className="sp-meta">{queryLabel(analysis.query)}</p>
     <Period query={analysis.query} count={analysis.kind === "comparison" || analysis.kind === "whatif" ? undefined : analysis.evidenceCount} />
-    {analysis.kind === "whatif" && <p className="sp-meta">Hypothetical calculation · no money has been saved or moved.</p>}
+    {analysis.kind === "whatif" && <p className="sp-meta">Hypothetical calculation</p>}
     <AnalysisSections analysis={analysis} />
+  </Card>;
+}
+
+export function SeasonCard({ analysis }: { analysis: Analysis }) {
+  const { normal, months, winterAverage, extraCents, percent } = seasonFacts(analysis);
+  return <Card title={analysis.title}>
+    <p className="sp-meta">Transportation · {normal.label}</p>
+    <p className="sp-season-headline"><strong>+{euros(extraCents)}</strong> a month in winter</p>
+    <p className="sp-meta">{percent}% more than your normal month</p>
+    <div className="sp-bar-label"><span>Normal month</span><strong>{euros(normal.amountCents)}</strong></div>
+    <div className="sp-track" aria-hidden="true"><div className="sp-bar sp-bar-guess" style={{ width: `${normal.amountCents / winterAverage.amountCents * 100}%` }} /></div>
+    <div className="sp-bar-label"><span>Dec–Jan average</span><strong>{euros(winterAverage.amountCents)}</strong></div>
+    <div className="sp-track" aria-hidden="true"><div className="sp-bar sp-bar-warning" /></div>
+    <ul className="sp-analysis-rows">{months.map(row => <li key={row.label}>
+      <div className="sp-bar-label"><span>{row.label}<small> · {row.count} payments</small></span><strong>{euros(row.amountCents)}</strong></div>
+    </li>)}</ul>
   </Card>;
 }
 
@@ -314,7 +347,7 @@ export function ScenarioCard({ spending, confirmed, busy, revision, onAction }: 
       <div className="sp-scenario"><span>Everyday base <strong>{euros(preview.baseCents)}</strong></span>
         <span>Hypothetical reduction <strong>{euros(preview.reductionCents)}</strong></span>
         <span>Would remain <strong>{euros(preview.remainingCents)}</strong></span></div>
-      <p className="sp-meta">{matches ? `Calculation confirmed: ${euros(confirmed.reductionCents)} hypothetical reduction. No money has been saved or moved.` : "Instant preview · ask Sponky to confirm the calculation. Historical spending stays unchanged."}</p>
+      <p className="sp-meta">{matches ? `Calculation confirmed: ${euros(confirmed.reductionCents)} hypothetical reduction.` : "Instant preview · ask Sponky to confirm the calculation. Historical spending stays unchanged."}</p>
       <button type="button" disabled={!!matches} onClick={() => onAction({ action: "scenario", revision, percent })}>{matches ? "Calculation confirmed" : "Confirm what-if"}</button>
     </fieldset>
   </Card>;
@@ -381,7 +414,8 @@ export function Activities({ view, busy, countActive = true, onAction }: { view:
     {activity.kind === "analysis" && activity.analysis.kind === "profile" && (
       <SpenderCard analysis={activity.analysis} noticed={view.noticed} merchantNoticed={view.merchantNoticed} countActive={countActive} {...actions} />
     )}
-    {activity.kind === "analysis" && activity.analysis.kind !== "profile" && <AnalysisCard analysis={activity.analysis} {...actions} />}
+    {activity.kind === "analysis" && activity.analysis.kind === "season" && <SeasonCard analysis={activity.analysis} />}
+    {activity.kind === "analysis" && activity.analysis.kind !== "profile" && activity.analysis.kind !== "season" && <AnalysisCard analysis={activity.analysis} {...actions} />}
     {activity.kind === "pace" && <Card title={jar.overCents ? "Let's take a closer look" : "A little room each day"}>
       <div className="checkup-pace"><p className="sp-amount">{euros(jar.overCents || jar.dailyRemainingCents)}</p><p>{jar.overCents ? "over this month's everyday limit" : `per day for the ${jar.daysLeft} days left`}</p></div>
       <div className="sp-bar-label"><span>Your pace so far</span><strong>{euros(jar.dailySpentCents)} / day</strong></div>
@@ -389,21 +423,41 @@ export function Activities({ view, busy, countActive = true, onAction }: { view:
       <p className="sp-meta">{formatDay(jar.period.start)} – {formatDay(jar.period.end)}. {jar.projectedOverCents > 0 ? `At the same pace, the month would finish ${euros(jar.projectedOverCents)} over.` : "The same pace would stay inside the limit."}</p>
     </Card>}
     {activity.kind === "usual" && <Card title="This month, compared with usual">
-      <p className="sp-meta">So far: {formatDay(activity.comparison.period.start)} – {formatDay(activity.comparison.period.end)}. Usual is a full month, averaged across {formatDay(activity.comparison.baseline.start)} – {formatDay(activity.comparison.baseline.end)}.</p>
-      <div className="checkup-usual-strip">{activity.comparison.rows.map(row => {
+      <p className="sp-meta">{formatDay(activity.comparison.period.start)} – {formatDay(activity.comparison.period.end)} so far. Usual is a full month, averaged across {formatDay(activity.comparison.baseline.start)} – {formatDay(activity.comparison.baseline.end)}</p>
+      <p className="checkup-usual-headline" data-flagged={activity.comparison.insight.kind !== "none"}>{activity.comparison.insight.headline}</p>
+      <div className="checkup-usual-strip">{[...activity.comparison.rows].sort((x, y) => {
+        const rank = (r: typeof x) => r.flag === "over" ? 0 : r.flag === "ahead" ? 1 : r.flag === "under" ? 3 : 2;
+        return rank(x) - rank(y) || y.currentCents - x.currentCents;
+      }).map(row => {
         const maximum = Math.max(row.currentCents, row.usualCents, 1) * 1.15;
+        const tag = row.flag === "over" ? "Over usual" : row.flag === "ahead" ? "Ahead of pace" : row.flag === "under" ? "Well below" : null;
         return <section key={row.category} className="sp-analysis-section">
-          <div className="checkup-usual-label"><span>{row.category}</span><strong>{euros(row.currentCents)}</strong></div>
-          <div className="checkup-usual-track" data-over={row.currentCents > row.usualCents} aria-hidden="true"><b style={{ width: `${row.currentCents / maximum * 100}%` }} /><i style={{ left: `${row.usualCents / maximum * 100}%` }} /></div>
+          <div className="checkup-usual-label"><span>{row.category}{tag && <small className="checkup-usual-tag" data-flag={row.flag}> · {tag}</small>}</span><strong>{euros(row.currentCents)}</strong></div>
+          <div className="checkup-usual-track" data-over={row.flag === "over" || row.flag === "ahead"} aria-hidden="true"><b style={{ width: `${row.currentCents / maximum * 100}%` }} /><i style={{ left: `${row.usualCents / maximum * 100}%` }} /></div>
           <p className="sp-meta">Usual month {euros(row.usualCents)}</p>
         </section>;
       })}</div>
     </Card>}
-    {activity.kind === "overspend" && <Card title="The days that filled your jar">
-      <p className="sp-meta">{formatDay(jar.contributionPeriod.start)} – {formatDay(jar.contributionPeriod.end)}</p>
-      {jar.topDays.map(day => <section key={day.date} className="sp-analysis-section"><div className="checkup-usual-label"><span>{formatDay(day.date)}<small> · {day.count} payments</small></span><strong>{euros(day.amountCents)}</strong></div>
-        <ul className="sp-analysis-rows">{jar.evidence.filter(row => row.date === day.date && row.basket === "everyday").map(row => <li key={row.id}><div className="sp-bar-label"><span>{row.category}<small> · {row.merchant}</small></span><strong>{euros(row.amountCents)}</strong></div></li>)}</ul>
-      </section>)}
+    {activity.kind === "overspend" && <Card title="Why your jar went over">
+      <p className="sp-meta">{formatRange(jar.period.start, jar.period.end)} · {euros(jar.overCents)} over your {euros(jar.limitCents)} limit</p>
+      {activity.insight ? <>
+        <p className="checkup-usual-headline" data-flagged="true">{activity.insight.headline}</p>
+        <div className="checkup-usual-strip">
+          {activity.insight.kind === "large_payments"
+            ? activity.insight.payments.map(row => <section key={`${row.date}${row.category}`} className="sp-analysis-section">
+              <div className="checkup-usual-label"><span>{row.category} · {formatDay(row.date)}<small className="checkup-usual-tag"> · Largest in 6 months</small></span><strong>{euros(row.amountCents)}</strong></div>
+            </section>)
+            : activity.insight.categories.map(row => {
+              const maximum = Math.max(row.currentCents, row.usualCents, 1) * 1.15;
+              return <section key={row.category} className="sp-analysis-section">
+                <div className="checkup-usual-label"><span>{row.category}<small className="checkup-usual-tag" data-flag="over"> · Over usual</small></span><strong>{euros(row.currentCents)}</strong></div>
+                <div className="checkup-usual-track" data-over="true" aria-hidden="true"><b style={{ width: `${row.currentCents / maximum * 100}%` }} /><i style={{ left: `${row.usualCents / maximum * 100}%` }} /></div>
+                <p className="sp-meta">Usual month {euros(row.usualCents)}</p>
+              </section>;
+            })}
+        </div>
+        <p className="sp-meta">The jar went over on {formatDay(activity.insight.wentOverOn)}, with {activity.insight.daysLeftAfter} {activity.insight.daysLeftAfter === 1 ? "day" : "days"} of the month left.</p>
+      </> : <p className="sp-meta">This jar stayed inside its limit.</p>}
       <p className="sp-meta">Only everyday spending counts towards the rim.</p>
     </Card>}
   </div>;

@@ -5,3 +5,7 @@ const day = new Intl.DateTimeFormat("fi-FI", { day: "numeric", month: "numeric",
 export function formatDay(iso: string): string {
   return day.format(new Date(`${iso.slice(0, 10)}T12:00:00Z`));
 }
+
+export function formatRange(start: string, end: string): string {
+  return `${formatDay(start)} – ${formatDay(end)}`;
+}

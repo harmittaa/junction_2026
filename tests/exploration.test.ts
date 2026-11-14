@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { calculateAnalysis, recentCompleteQuery } from "@/domain/exploration";
+import raw from "../data/demo-transactions.json";
+import { calculateAnalysis, recentCompleteQuery, seasonFacts, whatIfFacts, whatIfInsight, winterQuery } from "@/domain/exploration";
 import { merchantTypes } from "@/domain/merchant-types";
 import type { Analysis, AnalysisOperation, SpendingQuery, Transaction } from "@/shared/contracts";
 
@@ -217,5 +218,63 @@ describe("analysis date and operation validation", () => {
     expect(() => analyze("breakdown")).toThrow("dimension");
     expect(() => analyze("whatif")).toThrow("percentage");
     expect(() => analyze("whatif", { percent: 101 })).toThrow();
+  });
+
+  it("compares last winter's Transportation with a normal month, counting zero months", () => {
+    const real = raw.transactions as unknown as Transaction[];
+    const customerId = raw.customerId;
+    const ref = "2026-09-16";
+    const run = (date: string) => calculateAnalysis(real, customerId,
+      operation("season", { query: winterQuery(date) }), {}, date, "2025-09-01");
+    const result = run(ref);
+    const facts = seasonFacts(result);
+    expect(result.title).toBe("Winter transport vs a normal month");
+    expect(facts.normal).toMatchObject({ label: "Sep 2025 – Aug 2026", amountCents: 20057, count: 10 });
+    expect(facts.months.map(row => [row.label, row.amountCents, row.count])).toEqual([["December 2025", 72989, 16], ["January 2026", 78009, 17]]);
+    expect(facts.winterAverage.amountCents).toBe(75499);
+    expect([facts.extraCents, facts.percent]).toEqual([55442, 276]);
+    expect(result.evidenceCount).toBe(33);
+    expect(result.evidence.reduce((sum, row) => sum + row.amountCents, 0)).toBe(150998);
+    expect(() => run("2026-01-15")).toThrow("No complete winter");
+  });
+});
+
+describe("what-if insight", () => {
+  const nbsp = (text: string) => text.replaceAll("\u00a0", " ");
+  const rows = [transaction("w1", "2026-06-05", -10000, "Restaurants"), transaction("w2", "2026-07-05", -20000, "Restaurants"),
+    transaction("w3", "2026-08-05", -30000, "Restaurants"), transaction("w4", "2026-09-05", -25000, "Restaurants")];
+  const insight = (percent: number, context: Partial<Parameters<typeof whatIfInsight>[1]> = {}, data = rows, changes: Partial<SpendingQuery> = {}) => {
+    const result = calculateAnalysis(data, "C", operation("whatif", { percent, query: { ...query, start: "2026-09-01", end: "2026-09-10", categories: ["Restaurants"], ...changes } }), {}, referenceDate, "2026-06-01");
+    return whatIfInsight(whatIfFacts(result), { goalMonthlyCents: 0, safeToSaveCents: 0, referenceDate, ...context });
+  };
+  it("compares with safe to save, then with a goal, else not at all", () => {
+    // Usual month 20000 cents; 20% is 4000.
+    const safe = insight(20, { safeToSaveCents: 1500 });
+    expect(nbsp(safe.headline)).toBe("Trimming Restaurants by 20% would free 40,00 € a month, or 480,00 € over a year.");
+    expect(nbsp(safe.supporting[0])).toBe("That's more than double the 15,00 € that usually stays free to save.");
+    expect(safe.supporting[1]).toContain("Restaurants spending is already past a usual month, so the rest of September");
+    expect(nbsp(safe.message)).toContain("would free 40,00 € a month, more than double what usually stays free to save.");
+    expect(nbsp(insight(20, { safeToSaveCents: 4000 }).supporting[0])).toContain("more than the 40,00 €");
+    expect(nbsp(insight(20, { safeToSaveCents: 10000 }).supporting[0])).toContain("about 40% of the 100,00 €");
+    expect(insight(20, { safeToSaveCents: 4000, goalMonthlyCents: 4000 }).supporting[0]).toBe("That covers what your goal needs each month.");
+    expect(nbsp(insight(20, { goalMonthlyCents: 8000 }).message)).toContain("about 50% of what your goal needs each month");
+    expect(insight(20).supporting).toEqual([expect.stringContaining("past a usual month")]);
+    expect(nbsp(insight(20, { safeToSaveCents: 1500 }).message).match(/\d+,\d\d €/g)).toHaveLength(1);
+  });
+  it("handles 0%, 100%, tiny, zero baseline and missing complete months", () => {
+    expect(insight(0).headline).toBe("A 0% trim leaves spending unchanged.");
+    expect(insight(100).headline).toContain("Skipping Restaurants entirely would free");
+    const tiny = insight(1, { safeToSaveCents: 500 }, [transaction("t1", "2026-08-05", -300, "Restaurants")]);
+    expect(tiny.supporting.join(" ")).toContain("Bigger categories may matter more.");
+    expect(tiny.supporting[0]).not.toContain("%");
+    expect(insight(20, {}, []).headline).toBe("No Restaurants spending in a usual month, so a trim frees nothing.");
+    const none = calculateAnalysis(rows, "C", operation("whatif", { percent: 20, query: { ...query, start: "2026-09-01", end: "2026-09-10", categories: ["Restaurants"] } }), {}, referenceDate, "2026-09-01");
+    const result = whatIfInsight(whatIfFacts(none), { goalMonthlyCents: 0, safeToSaveCents: 0, referenceDate });
+    expect(nbsp(result.headline)).toBe("Trimming Restaurants by 20% would come to 50,00 € in this period.");
+    expect(result.supporting).toEqual(["There isn't a full month yet for a monthly figure."]);
+  });
+  it("adds the essentials note outside the everyday basket only", () => {
+    expect(insight(20).supporting.join(" ")).toContain("Everyday spending can include essentials.");
+    expect(insight(20, {}, rows, { baskets: ["everyday"] }).supporting.join(" ")).not.toContain("essentials");
   });
 });

@@ -9,6 +9,7 @@ import {
 } from "@/domain/coaching";
 import { calculateJar, calculateUsualComparison } from "@/domain/checkup";
 import { calculateAnalysis } from "@/domain/exploration";
+import { carSeasonQuestion } from "@/domain/coaching";
 import { merchantTypes } from "@/domain/merchant-types";
 import { euros } from "@/domain/spending";
 import {
@@ -497,7 +498,7 @@ describe("noticed rules", () => {
     expect(notice).toMatchObject({
       rule: "car_season",
       text: `Winter tire season is ahead. Last December your transport costs hit ${euros(72989)}.`,
-      question: "What did I spend on transport last winter?",
+      question: carSeasonQuestion,
     });
     expect(notice?.text).toContain(euros(72989));
   });

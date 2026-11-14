@@ -61,6 +61,8 @@
 .sp-track{height:12px;border-radius:9999px;background:var(--surfaceSubtle);overflow:hidden;margin:8px 0 16px}
 .sp-bar{height:100%;background:var(--primary);border-radius:inherit;transform-origin:left;animation:sp-grow .95s cubic-bezier(.16,1,.3,1) both}
 .sp-bar-guess{background:var(--textMuted);animation-duration:.5s}
+.sp-bar-warning{background:var(--status-warningBorder)}
+.sp-season-headline{margin:8px 0 0;font-size:20px}
 .sp-comparison{margin-top:20px;font-size:14px}
 .sp-basket-list,.sp-evidence{list-style:none;margin:16px 0;padding:0}
 .sp-basket{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px;border-radius:12px;margin:8px 0;font-size:14px}

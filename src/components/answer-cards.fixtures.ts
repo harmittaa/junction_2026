@@ -227,8 +227,6 @@ const baseView: Omit<CoachView, "activity" | "noticed"> = {
     projectedOverCents: 133652,
     unexpectedCents: 12507,
     months: [{ month: "2026-08", spentCents: 333652, inside: false }],
-    contributionPeriod: { start: "2026-08-01", end: "2026-08-31" },
-    topDays: [],
     evidence: [],
   },
   move: null,

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, 
 import { NoticedRow } from "./answer-cards";
 import type { BasketMove, CoachRequest, Goal, JarStatus, Noticed, SafeToSpendWeek } from "@/shared/contracts";
 import { euros } from "@/domain/spending";
+import { carSeasonQuestion } from "@/domain/coaching";
 import "./checkup-visuals.css";
 
 const motionQuery = "(prefers-reduced-motion: reduce)";
@@ -41,6 +42,9 @@ export function CheckupWelcome({ firstName, date, due }: { firstName: string; da
     <p key={date}><time dateTime={date}>{dateFormat.format(calendarDate(date))}</time>{due ? " · your check-up day" : ""}</p>
   </section>;
 }
+
+// Over the limit the liquid keeps rising past the limit line (y 44) and that part turns amber.
+const riseFor = (dome: number) => Math.min(16, Math.max(0, dome) * .55);
 
 type LiquidState = { fill: number; velocity: number; dome: number; mini: number; amount: number; spent: number };
 const clamp = (n: number) => Math.max(0, Math.min(1, n));
@@ -116,7 +120,6 @@ export function Jar({
     const contents = element.querySelector<SVGGElement>("[data-liquid]")!;
     const front = element.querySelector<SVGPathElement>("[data-liquid-front]")!;
     const back = element.querySelector<SVGPathElement>("[data-liquid-back]")!;
-    const dome = element.querySelector<SVGEllipseElement>("[data-dome]")!;
     const mini = element.querySelector<SVGRectElement>("[data-mini-liquid]")!;
     const spentAmount = element.querySelector<SVGTextElement>("[data-spent-amount]")!;
     const spentLabel = element.querySelector<SVGTextElement>("[data-spent-label]")!;
@@ -179,7 +182,7 @@ export function Jar({
       counter.textContent = reveal && !calm && !pouring
         ? `${String(Math.floor(elapsed / 70) % 10).repeat(3)},${String(Math.floor(elapsed / 90) % 10).repeat(2)} €`
         : euros(Math.round(state.amount));
-      const y = 220 - 176 * clamp(state.fill);
+      const y = 220 - 176 * clamp(state.fill) - (reveal && state.fill < .999 ? 0 : riseFor(state.dome));
       const amplitude = calm || state.fill <= 0
         ? 0
         : elapsed > pause + 2400
@@ -189,7 +192,6 @@ export function Jar({
       contents.setAttribute("visibility", state.fill > 0 ? "visible" : "hidden");
       front.setAttribute("d", wave(y, amplitude, phase));
       back.setAttribute("d", wave(y - 4, amplitude * 1.3, phase * .8 + 2));
-      dome.setAttribute("ry", String(reveal && state.fill < .999 ? 0 : Math.max(0, state.dome)));
       mini.setAttribute("y", String(220 - 98 * state.mini));
       const yAmount = Math.min(182, Math.max(80, y + 44));
       spentAmount.setAttribute("y", String(yAmount));
@@ -212,6 +214,7 @@ export function Jar({
     return () => cancelAnimationFrame(frame);
   }, [calm, heroAmount, jar.limitCents, jar.overCents, jar.period.start, jar.spentCents, jar.unexpectedCents, move, moveKey, movesToUnexpected, over, revealKey]);
 
+  const initialRise = over ? riseFor(Math.min(30, 6 + jar.overCents / Math.max(1, jar.limitCents) * 300)) : 0;
   const initialFill = jar.limitCents > 0 ? clamp(jar.spentCents / jar.limitCents) : jar.spentCents > 0 ? 1 : 0;
   const months = jar.months.filter(result => result.month < currentMonth);
   return <section className="checkup-jar" ref={root} data-over={over} data-two={showUnexpected} aria-label={`${month} spending jar`}>
@@ -237,14 +240,21 @@ export function Jar({
       <desc id={`${id}-description`}>{`Monthly limit ${euros(jar.limitCents)}.${showUnexpected ? ` Unexpected necessities ${euros(jar.unexpectedCents)}. Both fill levels are relative to the monthly limit.` : ""}`}</desc>
       <defs>
         <clipPath id={`${id}-jar`}><path d="M42 26V180a38 38 0 0 0 38 38H160a38 38 0 0 0 38-38V26Z" /></clipPath>
+        <linearGradient id={`${id}-front`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="100">
+          <stop offset=".44" style={{ stopColor: "var(--status-warningBorder)" }} />
+          <stop offset=".44" style={{ stopColor: "var(--fill-action, var(--primaryPressed))" }} />
+        </linearGradient>
+        <linearGradient id={`${id}-back`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="100">
+          <stop offset=".44" style={{ stopColor: "var(--status-warningBorder)" }} />
+          <stop offset=".44" style={{ stopColor: "var(--brand-greenBright)" }} />
+        </linearGradient>
         <clipPath id={`${id}-mini`}><rect x="242" y="122" width="52" height="98" rx="14" /></clipPath>
       </defs>
       <g className="checkup-main-jar" aria-hidden="true">
         <g className="checkup-jar-body">
-          <ellipse className="checkup-jar-dome" data-dome cx="120" cy="44" rx="77" ry={over ? Math.min(30, 6 + jar.overCents / Math.max(1, jar.limitCents) * 300) : 0} />
           <g data-liquid visibility={initialFill > 0 ? "visible" : "hidden"} clipPath={`url(#${id}-jar)`}>
-            <path className="checkup-liquid-back" data-liquid-back d={wave(216 - initialFill * 176, 0, 0)} />
-            <path className="checkup-liquid-front" data-liquid-front d={wave(220 - initialFill * 176, 0, 0)} />
+            <path className="checkup-liquid-back" data-liquid-back style={over ? { fill: `url(#${id}-back)` } : undefined} d={wave(216 - initialFill * 176 - initialRise, 0, 0)} />
+            <path className="checkup-liquid-front" data-liquid-front style={over ? { fill: `url(#${id}-front)` } : undefined} d={wave(220 - initialFill * 176 - initialRise, 0, 0)} />
             <text className="checkup-spent-amount" data-spent-amount x="120" y={Math.min(182, 224 - initialFill * 176)} textAnchor="middle">{initialFill > .18 ? euros(jar.spentCents) : ""}</text>
             <text className="checkup-spent-label" data-spent-label x="120" y={Math.min(204, 246 - initialFill * 176)} textAnchor="middle">{initialFill > .18 ? "spent" : ""}</text>
           </g>
@@ -370,7 +380,7 @@ const ideaQuestions = [
   "What have I spent more on than usual?",
   "What kind of spender am I?",
   "What if I cut dining out by 20%?",
-  "What did I spend on transport last winter?",
+  carSeasonQuestion,
 ];
 
 export function IdeasButton({

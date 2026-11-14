@@ -304,7 +304,7 @@ export function GoalCard({
       ) : (
         <>
           {noticed && (
-            <div style={{ marginBottom: 10 }}>
+            <div style={{ marginBottom: 20 }}>
               <NoticedRow noticed={noticed} busy={busy} revision={revision} onAction={onAction} index={4} />
             </div>
           )}

@@ -61,7 +61,6 @@
 .checkup-glass { fill: none; stroke: var(--textBrand); stroke-width: 4; stroke-linecap: round; }
 .checkup-liquid-front { fill: var(--fill-action, var(--primaryPressed)); }
 .checkup-liquid-back { fill: var(--brand-greenBright); opacity: .65; }
-.checkup-jar-dome { fill: var(--status-warningBorder); }
 .checkup-spent-amount { fill: var(--onPrimary); font: 800 34px/1 var(--font-display), sans-serif; font-variant-numeric: tabular-nums; }
 .checkup-spent-label { fill: var(--brand-greenMintSoft); font: 600 16px/1 var(--font-ux), sans-serif; }
 .checkup-rim-group { animation: checkup-rise 300ms var(--checkup-glide) both; }

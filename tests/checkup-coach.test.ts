@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { speechText, verifyReply } from "@/domain/replies";
+import { overspendQuestion } from "@/domain/checkup";
 import { euros } from "@/domain/spending";
 import { replyFacts, toView, transition } from "@/server/coach";
 import { scopePlan, type Interpretation } from "@/server/providers/gemini";
@@ -19,6 +20,14 @@ function nextWeek(): SessionState {
 }
 
 describe("weekly coordinator contract", () => {
+  it("routes the overspend question without a plan and keeps one euro amount", () => {
+    const state = transition(nextWeek(), { action: "ask", revision: 1, text: overspendQuestion });
+    expect(toView(state).activity).toMatchObject({ kind: "overspend", insight: { kind: "large_payments" } });
+    expect(state.message.match(/€/g)).toHaveLength(1);
+    expect(state.message.length).toBeLessThan(480);
+    expect(verifyReply(state.message, replyFacts(state))).toBe(true);
+  });
+
   it.each(["jar", "pace", "usual", "overspend"] as const)("explores %s without awarding weekly credit", kind => {
     const before = initialState();
     const state = ask(before, "Show my spending", { ...scopePlan, kind });
@@ -228,7 +237,7 @@ describe("financial reply clauses", () => {
     expect(swappedPace).not.toBe(pace.fallback);
     expect(verifyReply(swappedPace, pace)).toBe(false);
     const usual = replyFacts(ask(initialState(), "Compare with usual", { ...scopePlan, kind: "usual" }));
-    const swappedUsual = usual.fallback.replace(/so far/, "in your usual month");
+    const swappedUsual = usual.fallback.replace(/over a usual month/, "under a usual month");
     expect(swappedUsual).not.toBe(usual.fallback);
     expect(verifyReply(swappedUsual, usual)).toBe(false);
   });
@@ -286,8 +295,9 @@ describe("month selection and past-month jar questions", () => {
 
     const usual = ask(augustState, "Compare with usual", { ...scopePlan, kind: "usual" });
     expect(usual.mode).toBe("usual");
-    expect(usual.message).toContain("in August 2026.");
-    expect(usual.message).toContain("The full comparison is on screen. Your usual month averages the previous 6 complete months.");
+    expect(usual.message).toContain("finished");
+    expect(usual.message).toContain("over a usual month in August 2026.");
+    expect(usual.message).toContain("Usual is your average month from February to July.");
     const usualView = toView(usual);
     expect(usualView.demoDate).toBe("2026-09-16");
     expect(usualView.checkup.completed).toBe(false);

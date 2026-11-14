@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { transition, toView } from "@/server/coach";
-import { changeGoalText } from "@/domain/replies";
+import { carSeasonQuestion } from "@/domain/coaching";
+import { changeGoalText, quantities } from "@/domain/replies";
 import { euros } from "@/domain/spending";
 import { dataset } from "@/server/data";
 import { initialState } from "@/server/storage/state";
@@ -28,6 +29,13 @@ describe("coordinator boundaries", () => {
     const next = transition(state, { ...ask, text: "Still worth it to you?" }, operation);
     expect(next).toEqual({ ...state, message: "What did you value about those payments? You can decide whether they still fit your priorities." });
     expect(toView(next).merchantNoticed?.merchantId).toBe("MRC-ENT-0052");
+  });
+  it("answers the winter car question deterministically without an interpretation", () => {
+    const next = transition(initialState(), { action: "ask", text: carSeasonQuestion, revision: 0 });
+    expect(next.mode).toBe("analysis");
+    expect(analysisOf(next).kind).toBe("season");
+    expect(next.message).toMatch(/754,99\s€ a month, 276% more than a normal month/);
+    expect(quantities(next.message).filter(value => value.startsWith("money:"))).toHaveLength(1);
   });
   it("answers directly with calculated amounts and evidence, distinguishing empty matches", () => {
     const revealed = toView(transition(initialState(), ask, operation));

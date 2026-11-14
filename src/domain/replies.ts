@@ -41,6 +41,10 @@ function decimal(raw: string): number {
   return Number(value);
 }
 
+// Finnish d.M. dates (see formatDay); the month check keeps "12.50." from matching.
+const dayMonth = /\b(?:[1-9]|[12]\d|3[01])\.(?:[1-9]|1[0-2])\.(?!\d)/g;
+const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
 /** Extract ALL quantities, including spelled numbers; unknown syntax fails closed. */
 export function quantities(text: string): string[] {
   let rest = digits(text.normalize("NFKC")).replace(/\b(?:minus|negative)\s+(?=\d)/gi, "-");
@@ -49,6 +53,7 @@ export function quantities(text: string): string[] {
     rest = rest.replace(regex, (...args) => { found.push(convert(...args)); return " "; });
   };
   take(/\b\d{4}-\d{2}(?:-\d{2})?\b/g, value => `date:${value}`);
+  take(dayMonth, value => `date:${value}`);
   take(/\b(?:\d{1,2} )?(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{4}\b/gi,
     value => `date:${value.toLowerCase()}`);
   take(new RegExp(`(?:€|EUR\\b)\\s*(${numeral})|(${numeral})\\s*(?:€|euros?\\b|EUR\\b)(?:\\s+and\\s+(\\d{1,2})\\s+cents?)?`, "gi"),
@@ -72,7 +77,8 @@ function spokenInteger(value: number): string {
 }
 
 export function speechText(text: string): string {
-  return text.replace(/([−-]?\d(?:[\d.\u00a0\u202f ]*\d)?),(\d{2})\s*€/g, (_match, euros: string, cents: string) => {
+  const spoken = text.replace(dayMonth, value => { const [d, m] = value.split("."); return `${d} ${monthNames[Number(m) - 1]}`; });
+  return spoken.replace(/([−-]?\d(?:[\d.\u00a0\u202f ]*\d)?),(\d{2})\s*€/g, (_match, euros: string, cents: string) => {
     const negative = euros.startsWith("-") || euros.startsWith("−");
     const whole = Number(euros.replace(/[\s.\u00a0\u202f−-]/g, ""));
     const centValue = Number(cents);
@@ -90,7 +96,7 @@ export function verifyReply(text: string, facts: ReplyFacts): boolean {
   if (/\b(?:was any|were any|was that|was this)\b.{0,50}\b(?:must|necessity|necessary|essential)\b/i.test(text)) return false;
   if (/\b(?:goal saved|you(?:'ve| have)?\s+(?:actually\s+)?saved)\b/i.test(text)) return false;
   if (quantities(text).filter(value => value.startsWith("money:")).length > 1) return false;
-  if (["jar", "pace", "usual", "overspend", "save", "goal", "spend_week"].includes(facts.kind)) {
+  if (["jar", "pace", "usual", "overspend", "save", "goal", "spend_week", "whatif"].includes(facts.kind)) {
     if (!facts.required?.length || facts.required.some(note => text.split(note).length !== 2)) return false;
     const extra = facts.required.reduce((rest, note) => rest.replace(note, ""), text).trim();
     return ["", "We can look at it together.", "One step at a time.", "You've got this."].includes(extra);
@@ -115,7 +121,6 @@ export function verifyReply(text: string, facts: ReplyFacts): boolean {
   if (/\b(?:because you|you (?:always|never)|your (?:salary|balance|debt|savings goal))\b/i.test(text)) return false;
   if (/\b(?:pizza|coffee|sandwich|burger)\b/i.test(text) && !/\b(?:items?|cannot|can't|not available)\b/i.test(text)) return false;
   if (["invitation", "chat", "clarify", "explain"].includes(facts.kind) && /\b(?:you spent|your spending (?:is|was|has)|you earned|you invested|your transactions? (?:show|was|were)|your (?:largest|smallest|highest|lowest|biggest)|you spend (?:most|more|less))\b/i.test(text)) return false;
-  if (facts.kind === "whatif" && !/hypothetical/i.test(text)) return false;
   if (facts.kind === "cashflow" && (!/recorded transfers to investments/i.test(text)
     || /\bsavings\b/i.test(text.replace(/not (?:proof of |verified )?savings\b/gi, "")))) return false;
   return true;

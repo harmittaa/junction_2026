@@ -22,6 +22,8 @@ import { calculateSpending, euros, nextDate } from "@/domain/spending";
 import { recentCompleteQuery } from "@/domain/exploration";
 import { isoWeekStart } from "@/domain/checkup";
 
+export const carSeasonQuestion = "What did I spend on transport last winter?";
+
 const monthNameFormatter = new Intl.DateTimeFormat("en", {
   month: "long",
   timeZone: "UTC",
@@ -418,7 +420,7 @@ export function noticed(input: NoticedInput): Noticed | null {
       return noticedSchema.parse({
         rule: "car_season",
         text: `Winter tire season is ahead. Last December your transport costs hit ${euros(decemberTransportCents)}.`,
-        question: "What did I spend on transport last winter?",
+        question: carSeasonQuestion,
       });
     }
   }

@@ -1,7 +1,8 @@
 import { analysisOperationSchema, analysisSchema, basketLabels, dateSchema, type Analysis,
   type AnalysisOperation, type Basket, type Spending, type SpendingQuery, type Transaction } from "@/shared/contracts";
+import { formatDay, formatRange } from "@/domain/dates";
 import { merchantTypes } from "@/domain/merchant-types";
-import { calculateSpending, defaultBasket, percentageScenario, queryLabel } from "@/domain/spending";
+import { calculateSpending, defaultBasket, euros, percentageScenario, queryLabel } from "@/domain/spending";
 
 type AnalysisRow = Analysis["sections"][number]["rows"][number];
 type Section = Analysis["sections"][number];
@@ -38,6 +39,80 @@ export function recentCompleteQuery(referenceDate: string, datasetStart: string,
   const end = monthEnd(monthStart(referenceDate, -1));
   if (start > end) throw new Error("No complete month is available before the current month.");
   return { start, end, categories: [], baskets: [], merchantType: null };
+}
+
+/** Latest complete 1 Dec - 31 Jan before the current month, all Transportation. */
+export function winterQuery(referenceDate: string): SpendingQuery {
+  dateSchema.parse(referenceDate);
+  const month = Number(referenceDate.slice(5, 7));
+  if (month < 2 || month > 11) throw new Error("No complete winter is available yet.");
+  const year = Number(referenceDate.slice(0, 4));
+  return { start: `${year - 1}-12-01`, end: `${year}-01-31`, categories: ["Transportation"], baskets: [], merchantType: null };
+}
+
+const monthName = (month: string, style: "long" | "short") =>
+  new Date(`${month.slice(0, 7)}-01T12:00:00Z`).toLocaleString("en-US", { month: style, year: "numeric", timeZone: "UTC" });
+// Round half up to cents.
+const averageCents = (sum: number, count: number) => Math.floor((sum + count / 2) / count);
+
+/** Reads the figures back out of a "season" analysis so the card and reply never recompute them. */
+export function seasonFacts(analysis: Analysis) {
+  const [normalSection, winterSection, extraSection] = analysis.sections;
+  const winterAverage = winterSection.rows[winterSection.rows.length - 1];
+  return { normal: normalSection.rows[0], months: winterSection.rows.slice(0, -1), winterAverage,
+    extraCents: extraSection.rows[0].amountCents, percent: Number(/\+(\d+)%/.exec(extraSection.label)?.[1] ?? NaN) };
+}
+
+/** Reads the figures back out of a "whatif" analysis so the card and reply never recompute them. */
+export function whatIfFacts(analysis: Analysis) {
+  const [periodSection, basisSection] = analysis.sections;
+  const { query } = analysis;
+  const [total, reduction] = periodSection.rows;
+  return { query, periodCents: total.amountCents, count: total.count ?? 0, periodReductionCents: reduction.amountCents,
+    percent: Number(/\((\d+)%\)/.exec(reduction.label)?.[1] ?? NaN),
+    name: query.categories.length ? query.categories.join(", ") : query.baskets.length ? query.baskets.map(basket => basketLabels[basket]).join(", ") : "spending",
+    basis: basisSection ? { label: basisSection.label.replace("Projection basis: ", ""), averageCents: basisSection.rows[1].amountCents,
+      months: basisSection.rows[1].count ?? 0, monthlyCents: basisSection.rows[2].amountCents, annualCents: basisSection.rows[3].amountCents } : null };
+}
+
+const TINY_CENTS = 100;
+/** Deterministic headline, next step and spoken message for a what-if; one euro amount in the message. */
+export function whatIfInsight(facts: ReturnType<typeof whatIfFacts>,
+  context: { goalMonthlyCents: number; safeToSaveCents: number; referenceDate: string }) {
+  const { name, percent, basis, query } = facts;
+  const verb = percent === 100 ? `skipping ${name} entirely` : `trimming ${name} by ${percent}%`;
+  const cap = (text: string) => text[0].toUpperCase() + text.slice(1);
+  const edge = (headline: string, supporting: string[] = []) => ({ headline, supporting,
+    message: [`Hypothetically: ${headline}`, ...supporting].join(" ") });
+  if (percent === 0) return edge("A 0% trim leaves spending unchanged.");
+  if (!basis) return edge(`${cap(verb)} would come to ${euros(facts.periodReductionCents)} in this period.`, ["There isn't a full month yet for a monthly figure."]);
+  if (basis.averageCents === 0) return edge(`No ${name} spending in a usual month, so a trim frees nothing.`);
+  const cut = basis.monthlyCents;
+  const { goalMonthlyCents, safeToSaveCents } = context;
+  // Integer ratios, floored. Goal first, then safe to save, else no comparison.
+  let card = "", spoken = "";
+  if (cut >= TINY_CENTS && goalMonthlyCents > 0) {
+    const share = Math.floor(cut * 100 / goalMonthlyCents);
+    [card, spoken] = cut >= goalMonthlyCents
+      ? ["That covers what your goal needs each month.", "covering what your goal needs each month"]
+      : [`That's about ${share}% of the ${euros(goalMonthlyCents)} your goal needs each month.`, `about ${share}% of what your goal needs each month`];
+  } else if (cut >= TINY_CENTS && safeToSaveCents > 0) {
+    const share = Math.floor(cut * 100 / safeToSaveCents);
+    const free = "that usually stays free to save";
+    [card, spoken] = cut >= 2 * safeToSaveCents ? [`That's more than double the ${euros(safeToSaveCents)} ${free}.`, `more than double what usually stays free to save`]
+      : cut >= safeToSaveCents ? [`That's more than the ${euros(safeToSaveCents)} ${free}.`, `more than what usually stays free to save`]
+      : [`That's about ${share}% of the ${euros(safeToSaveCents)} ${free}.`, `about ${share}% of what usually stays free to save`];
+  }
+  const month = new Date(`${context.referenceDate.slice(0, 7)}-01T12:00:00Z`).toLocaleString("en-US", { month: "long", timeZone: "UTC" });
+  const current = query.start.slice(0, 7) === context.referenceDate.slice(0, 7) && query.end.slice(0, 7) === context.referenceDate.slice(0, 7);
+  const next = [current && facts.periodCents > basis.averageCents
+    ? `${name} spending is already past a usual month, so the rest of ${month} is an easy place to try it.`
+    : "Try it for a month, then ask me to compare it with your usual.",
+  ...(cut < TINY_CENTS ? ["Bigger categories may matter more."] : []),
+  ...(query.baskets.length === 1 && query.baskets[0] === "everyday" ? [] : ["Everyday spending can include essentials."])].join(" ");
+  return { headline: `${cap(verb)} would free ${euros(cut)} a month, or ${euros(basis.annualCents)} over a year.`,
+    supporting: [...(card ? [card] : []), next],
+    message: `Hypothetically, ${verb} would free ${euros(cut)} a month${spoken ? `, ${spoken}` : ""}. ${next}` };
 }
 
 function resultRow(label: string, amountCents: number, count: number | null = null, total?: number): AnalysisRow {
@@ -92,6 +167,7 @@ export function calculateAnalysis(
     for (const row of value.evidence) evidence.set(row.id, row);
     assumptions.push(...value.assumptions);
   };
+  let title: string | undefined;
   const totalRow = resultRow("Total spending", spending.totalCents, spending.evidenceCount);
 
   switch (kind) {
@@ -131,8 +207,8 @@ export function calculateAnalysis(
       include(previous);
       const difference = spending.totalCents - previous.totalCents;
       sections.push({ label: "Period comparison", rows: [
-        resultRow(`${query.start} to ${query.end}`, spending.totalCents, spending.evidenceCount),
-        resultRow(`${previous.query.start} to ${previous.query.end}`, previous.totalCents, previous.evidenceCount),
+        resultRow(formatRange(query.start, query.end), spending.totalCents, spending.evidenceCount),
+        resultRow(formatRange(previous.query.start, previous.query.end), previous.totalCents, previous.evidenceCount),
         resultRow("Difference (selected period minus comparison period)", difference),
       ] });
       assumptions.push("Periods use the same category, basket and merchant filters; totals are not normalized for period length. Overlapping source rows are retained once in evidence.");
@@ -171,7 +247,7 @@ export function calculateAnalysis(
       if (datasetStart === undefined) throw new Error("What-if projections require the explicit dataset start date.");
       dateSchema.parse(datasetStart);
       const scenario = percentageScenario(spending.totalCents, operation.percent);
-      sections.push({ label: `Selected period: ${query.start} to ${query.end}`, rows: [totalRow,
+      sections.push({ label: `Selected period: ${formatRange(query.start, query.end)}`, rows: [totalRow,
         resultRow(`Hypothetical reduction (${operation.percent}%)`, scenario.reductionCents),
         resultRow("Hypothetical remaining spending", scenario.remainingCents),
       ] });
@@ -185,15 +261,40 @@ export function calculateAnalysis(
         const average = Math.floor(baseline.totalCents / months.length);
         const monthlyReduction = percentageScenario(average, operation.percent).reductionCents;
         const projection = monthlyReduction * 12;
-        sections.push({ label: `Projection basis: ${recent.start} to ${recent.end}`, rows: [
+        sections.push({ label: `Projection basis: ${formatRange(recent.start, recent.end)}`, rows: [
           resultRow("Baseline recorded spending", baseline.totalCents, baseline.evidenceCount),
           resultRow("Monthly average (complete months)", average, months.length),
           resultRow(`Hypothetical monthly reduction (${operation.percent}%)`, monthlyReduction),
           resultRow(`Hypothetical annual reduction (${operation.percent}%)`, projection),
         ] });
-        assumptions.push(`Annual projection uses ${months.length} available complete months before the current month: ${months.map(month => month.slice(0, 7)).join(", ")}, including zero months. Records begin ${datasetStart}. The same filters and corrections apply; fewer than six complete months are used only when data availability requires it.`);
+        assumptions.push(`Annual projection uses ${months.length} available complete months before the current month: ${months.map(month => month.slice(0, 7)).join(", ")}, including zero months. Records begin ${formatDay(datasetStart)}. The same filters and corrections apply; fewer than six complete months are used only when data availability requires it.`);
       } else assumptions.push("No complete months available for a baseline; annual projection is unavailable, not zero.");
       assumptions.push("Hypothetical only, not recorded or verified savings. Round the selected-period reduction once, half up to cents. Floor the usual monthly average to cents, round its percentage reduction half up to cents, then multiply that monthly reduction by 12; this is not a forecast.");
+      break;
+    }
+    case "season": {
+      if (datasetStart === undefined) throw new Error("Season analysis requires the explicit dataset start date.");
+      const winter = winterQuery(referenceDate);
+      if (query.start !== winter.start || query.end !== winter.end || query.categories.join() !== "Transportation" || query.baskets.length || query.merchantType) {
+        throw new Error("Season analysis uses the latest complete winter and all Transportation.");
+      }
+      const normalQuery = { ...recentCompleteQuery(referenceDate, datasetStart, 12), categories: ["Transportation"] };
+      // Zero-spending months count; December and January are the winter being compared.
+      const normalMonths = monthlyRows(calculateSpending(rows, customerId, normalQuery, corrections, referenceDate))
+        .filter(row => !["12", "01"].includes(row.label.slice(5, 7)));
+      if (!normalMonths.length) throw new Error("No normal months are available for a baseline.");
+      const normalCents = averageCents(normalMonths.reduce((sum, row) => sum + row.amountCents, 0), normalMonths.length);
+      const winterMonths = monthlyRows(spending).map(row => ({ ...row, label: monthName(row.label, "long") }));
+      const winterCents = averageCents(spending.totalCents, winterMonths.length);
+      const extraCents = winterCents - normalCents;
+      const percent = normalCents > 0 ? Math.floor((extraCents * 100 + normalCents / 2) / normalCents) : null;
+      title = "Winter transport vs a normal month";
+      sections.push(
+        { label: "Normal month", rows: [resultRow(`${monthName(normalQuery.start, "short")} – ${monthName(normalQuery.end, "short")}`, normalCents, normalMonths.length)] },
+        { label: "Winter", rows: [...winterMonths, resultRow("Winter month average", winterCents, winterMonths.length)] },
+        { label: `Extra per winter month${percent === null ? "" : ` (+${percent}%)`}`, rows: [resultRow("Winter minus normal month", extraCents)] },
+      );
+      assumptions.push("The normal month averages the complete months of the last 12 outside December and January, including zero-spending months. Averages round half up to cents; the percentage rounds half up to a whole number.");
       break;
     }
     case "profile": {
@@ -215,6 +316,6 @@ export function calculateAnalysis(
       break;
     }
   }
-  return analysisSchema.parse({ kind, query, title: `${kind === "whatif" ? "What-if" : kind[0].toUpperCase() + kind.slice(1)} · ${queryLabel(query)}`,
+  return analysisSchema.parse({ kind, query, title: title ?? `${kind === "whatif" ? "What-if" : kind[0].toUpperCase() + kind.slice(1)} · ${queryLabel(query)}`,
     sections, evidence: [...evidence.values()], evidenceCount: evidence.size, assumptions: [...new Set(assumptions)] });
 }

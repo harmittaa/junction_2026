@@ -1,9 +1,9 @@
 import "server-only";
 import { merchantSpike, merchantReflectionQuestion } from "@/domain/merchant-spike";
 import { calculateSpending, euros, nextDate, percentageScenario, queryLabel } from "@/domain/spending";
-import { calculateAnalysis, recentCompleteQuery } from "@/domain/exploration";
-import { calculateJar, calculateUsualComparison, completeWeeklyCheckup, weeklyCheckup } from "@/domain/checkup";
-import { goalVerdict, noticed, safeToSave, safeToSpendWeek, usualMonth } from "@/domain/coaching";
+import { calculateAnalysis, recentCompleteQuery, seasonFacts, whatIfFacts, whatIfInsight, winterQuery } from "@/domain/exploration";
+import { calculateJar, calculateUsualComparison, completeWeeklyCheckup, overspendInsight, overspendLead, overspendQuestion, weeklyCheckup } from "@/domain/checkup";
+import { carSeasonQuestion, goalVerdict, noticed, safeToSave, safeToSpendWeek, usualMonth } from "@/domain/coaching";
 import { changeGoalText, quantities, speechText, type ReplyFacts } from "@/domain/replies";
 import { analysisKindSchema, analysisOperationSchema, basketLabels, type Analysis, type CoachRequest, type CoachView, type Activity, type Noticed, viewSchema, noticedSchema } from "@/shared/contracts";
 import { categories, dataset } from "./data";
@@ -30,7 +30,11 @@ function spending(state: SessionState) {
 }
 function analysis(state: SessionState) {
   if (!state.analysis) throw new AppError("Ask an exploration question first.");
-  return calculateAnalysis(dataset.transactions, state.customerId, state.analysis, state.corrections, state.demoDate, dataset.period.start);
+  const result = calculateAnalysis(dataset.transactions, state.customerId, state.analysis, state.corrections, state.demoDate, dataset.period.start);
+  if (result.kind !== "whatif") return result;
+  const usual = usualMonth({ rows: dataset.transactions, customerId: state.customerId, referenceDate: state.demoDate, corrections: state.corrections, datasetStart: dataset.period.start });
+  return { ...result, insight: whatIfInsight(whatIfFacts(result), { referenceDate: state.demoDate, safeToSaveCents: safeToSave(usual).safeToSaveCents,
+    goalMonthlyCents: state.goal ? goalVerdict(state.goal, usual, state.demoDate).monthlyCents : 0 }) };
 }
 function lastDayOfMonth(m: string): string {
   const [year, mon] = m.split("-").map(Number);
@@ -62,10 +66,10 @@ function checkupInput(state: SessionState) {
 function jarMessage(state: SessionState, welcome = false) {
   const jar = calculateJar(checkupInput(state));
   if (activeMonth(state) < state.demoDate.slice(0, 7)) {
-    if (jar.overCents) return `Your ${month.format(utc(jar.period.start))} jar went ${euros(jar.overCents)} over the rim. ${jar.topDays.length ? `The biggest days were ${jar.topDays.map(row => fullDate.format(utc(row.date))).join(" and ")}.` : "We can take a closer look together."}`;
+    if (jar.overCents) return `${overspendLead(jar, state.demoDate)} ${overspendInsight(checkupInput(state))!.headline}`;
     return `${euros(jar.leftCents)} left in your ${month.format(utc(jar.period.start))} jar, finishing inside your ${euros(jar.limitCents)} limit.`;
   }
-  if (jar.overCents) return `${welcome ? "Welcome back. " : ""}Your jar is ${euros(jar.overCents)} over the rim. ${jar.topDays.length ? `The biggest days this past week were ${jar.topDays.map(row => fullDate.format(utc(row.date))).join(" and ")}.` : "We can take a closer look together."}`;
+  if (jar.overCents) return `${welcome ? "Welcome back. " : ""}${overspendLead(jar, state.demoDate)} ${overspendInsight(checkupInput(state))!.headline}`;
   return `${euros(jar.leftCents)} left in your ${month.format(utc(state.demoDate))} jar, with ${jar.daysLeft} days to go.${jar.daysLeft ? " Your daily room is on screen." : ""}`;
 }
 // Response bounds for listed payments. A profile is one whole calendar month, so it
@@ -88,19 +92,19 @@ function currentEvidence(state: SessionState) {
 const itemNotice = "Single items and real merchant names aren't in the data. This is a wider total, not an item total.";
 function analysisSummary(result: Analysis) {
   const rows = result.sections.flatMap(section => section.rows);
-  const selected = result.kind === "whatif" ? rows.filter(row => /reduction|annual|year/i.test(row.label)) : rows.slice(0, 3);
-  const basis = result.kind === "whatif" ? result.sections.find(section => section.label.startsWith("Projection basis:"))?.label : undefined;
+  const selected = rows.slice(0, 3);
   if (result.kind === "profile") {
     if (!result.evidenceCount) return `No matching spending records ${period(result.query)}. That does not establish spending outside this dataset.`;
     const baskets = result.sections[0].rows.map(row => `${row.label}: ${row.sharePercent}%`).join(", ");
     const top = result.sections[1].rows[0];
     return `Your recorded spending ${period(result.query)}: ${baskets}. ${top ? `Top category: ${top.label}, ${euros(top.amountCents)}. ` : ""}The full breakdown is on screen. These are patterns, not personality labels.`;
   }
-  if (result.kind === "cashflow") return `Recorded ${period(result.query)}: recorded transfers to investments came to ${euros(rows[2].amountCents)}. Income and spending are on screen. Investment deposits are not a verified goal result.`;
-  if (result.kind === "whatif") {
-    const row = rows.find(r => /monthly reduction/i.test(r.label)) ?? selected[0];
-    return `${result.title} ${period(result.query)}: ${row ? `${row.label}: ${euros(row.amountCents)}. ` : ""}${basis ? `${basis}. ` : ""}Hypothetical only; no money has been saved. The full breakdown is on screen.`;
+  if (result.kind === "season") {
+    const { months, winterAverage, percent } = seasonFacts(result);
+    return `Last winter, in ${months[0].label} and ${months[1].label}, transport averaged ${euros(winterAverage.amountCents)} a month, ${percent}% more than a normal month. Winter may bring this again.`;
   }
+  if (result.kind === "cashflow") return `Recorded ${period(result.query)}: recorded transfers to investments came to ${euros(rows[2].amountCents)}. Income and spending are on screen. Investment deposits are not a verified goal result.`;
+  if (result.kind === "whatif") return result.insight!.message;
   const headline = selected[0];
   return `${result.title} ${period(result.query)}: ${headline ? `${headline.label}: ${euros(headline.amountCents)}. ` : ""}The breakdown is on screen. The card shows the payments and calculation.`;
 }
@@ -140,7 +144,7 @@ function checkin(state: SessionState): SessionState {
 function scenario(state: SessionState, percent: number): SessionState {
   if (state.mode !== "reveal") throw new AppError("Reveal the spending first, then explore a what-if.");
   const result = percentageScenario(spending(state).baskets.everyday, percent);
-  return { ...state, percent, message: `Let's play pretend: trimming ${percent}% off your everyday spending would free up ${euros(result.reductionCents)}. Purely hypothetical, nothing's actually saved. Move any must-haves out of Everyday first so the maths stays fair.` };
+  return { ...state, percent, message: `Let's play pretend: trimming ${percent}% off your everyday spending would free up ${euros(result.reductionCents)}. Purely hypothetical. Move any must-haves out of Everyday first so the maths stays fair.` };
 }
 
 // Spoken input has no reliable punctuation or apostrophes, so grammar is anchored
@@ -164,6 +168,16 @@ export function transition(current: SessionState, request: CoachRequest, interpr
   if (request.action === "ask" && request.text === merchantReflectionQuestion) {
     return { ...state, message: "What did you value about those payments? You can decide whether they still fit your priorities." };
   }
+  if (request.action === "ask" && request.text === carSeasonQuestion) {
+    const query = winterQuery(state.demoDate);
+    const operation = analysisOperationSchema.parse({ kind: "season", query, comparePeriod: null, by: null, top: null, percent: null });
+    state = { ...state, mode: "analysis", query, analysis: operation, itemLimitation: false, guessCents: null, percent: null };
+    return { ...state, message: analysisSummary(analysis(state)) };
+  }
+  if (request.action === "ask" && request.text === overspendQuestion) {
+    state = { ...state, mode: "overspend", query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null };
+    return { ...state, message: overspendInsight(checkupInput(state))?.message ?? jarMessage(state) };
+  }
   if (request.action === "ask") {
     const result = validatePlan(interpretation, { categories, ...dataset.period, referenceDate: state.demoDate, previousQuery: state.query, selectedMonth: activeMonth(state) });
     if (result.kind === "weekly_checkup") {
@@ -176,7 +190,6 @@ export function transition(current: SessionState, request: CoachRequest, interpr
       state = { ...state, mode, query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null };
       const jar = calculateJar(checkupInput(state));
       const usual = mode === "usual" ? calculateUsualComparison(checkupInput(state)) : null;
-      const topOver = usual?.rows.filter(row => row.currentCents > row.usualCents).sort((a, b) => (b.currentCents - b.usualCents) - (a.currentCents - a.usualCents))[0];
       const isPast = activeMonth(state) < state.demoDate.slice(0, 7);
       const paceMessage = isPast
         ? jar.overCents
@@ -187,10 +200,7 @@ export function transition(current: SessionState, request: CoachRequest, interpr
           : jar.daysLeft
             ? `That's ${euros(jar.dailyRemainingCents)} a day for the ${jar.daysLeft} days left to stay inside your limit. The card shows your full pace details.`
             : `This month is complete at ${euros(jar.dailySpentCents)} a day. The card shows your full pace details.`;
-      const usualMessage = isPast
-        ? `${topOver ? `${topOver.category}: ${euros(topOver.currentCents)} in ${month.format(utc(jar.period.start))}. ` : "No category was above its usual month. "}The full comparison is on screen. Your usual month averages the previous 6 complete months.`
-        : `${topOver ? `${topOver.category}: ${euros(topOver.currentCents)} so far. ` : "No category is above its usual full month yet. "}The full comparison is on screen. Your usual month averages the previous 6 complete months.`;
-      return { ...state, message: mode === "pace" ? paceMessage : mode === "usual" ? usualMessage : jarMessage(state) };
+      return { ...state, message: mode === "pace" ? paceMessage : mode === "usual" ? usual!.insight.message : mode === "overspend" ? overspendInsight(checkupInput(state))?.message ?? jarMessage(state) : jarMessage(state) };
     }
     if (result.kind === "save") {
       state = { ...state, mode: "save", query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null };
@@ -363,7 +373,8 @@ export function transition(current: SessionState, request: CoachRequest, interpr
 export function toView(state: SessionState): CoachView {
   let activity: Activity = { kind: "none" };
   const jar = calculateJar(checkupInput(state));
-  if (state.mode === "jar" || state.mode === "pace" || state.mode === "overspend" || state.mode === "spend_week") activity = { kind: state.mode };
+  if (state.mode === "jar" || state.mode === "pace" || state.mode === "spend_week") activity = { kind: state.mode };
+  if (state.mode === "overspend") activity = { kind: "overspend", insight: overspendInsight(checkupInput(state)) };
   if (state.mode === "save") {
     const usual = usualMonth({ rows: dataset.transactions, customerId: state.customerId, referenceDate: state.demoDate, corrections: state.corrections, datasetStart: dataset.period.start });
     activity = { kind: "save", save: safeToSave(usual) };
@@ -444,7 +455,9 @@ export async function coach(id: string, request: CoachRequest, signal?: AbortSig
   // calls atomically; an SDK retry cannot exceed the three-call turn ceiling.
   const deadline = AbortSignal.any([AbortSignal.timeout(27000), ...(signal ? [signal] : [])]);
   const merchantReflection = request.action === "ask" && request.text === merchantReflectionQuestion;
-  if (request.action === "ask" && !merchantReflection) {
+  const carSeason = request.action === "ask" && request.text === carSeasonQuestion;
+  const overspend = request.action === "ask" && request.text === overspendQuestion;
+  if (request.action === "ask" && !merchantReflection && !carSeason && !overspend) {
     if (request.text === changeGoalText) {
       interpretation = { ...scopePlan, kind: "goal", goal: null, reply: "none" };
     } else {
@@ -453,7 +466,7 @@ export async function coach(id: string, request: CoachRequest, signal?: AbortSig
     }
   }
   let next = transition(state, request, interpretation);
-  const skipCompose = merchantReflection || interpretation && (
+  const skipCompose = merchantReflection || carSeason || overspend || interpretation && (
     ["checkin", "habit", "scenario", "weekly_checkup", "move"].includes(interpretation.kind) ||
     (interpretation.kind === "goal" && interpretation.goal === null)
   );
@@ -511,8 +524,7 @@ export function replyFacts(state: SessionState, plan?: Interpretation): ReplyFac
     base.notes = result.assumptions;
     if (state.analysis?.percent !== null && state.analysis?.percent !== undefined) base.values.push({ label: "Requested hypothetical reduction", percent: state.analysis.percent });
     if (result.kind === "whatif") {
-      const basis = result.sections.find(section => section.label.startsWith("Projection basis:"));
-      base.required!.push(basis ? `${basis.label}.` : "No complete months are available for an annual projection.");
+      base.required = [state.message];
     }
   } else {
     base.kind = plan?.kind ?? "chat";

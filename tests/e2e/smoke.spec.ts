@@ -117,8 +117,8 @@ test("welcome, weekly reward, jar, spoken necessity correction, undo and hidden 
   await expect(jar.locator("[data-counter]")).toHaveText(/127,20/);
   await page.screenshot({ path: testInfo.outputPath("over-limit.png"), fullPage: true });
   const days = await heard(say, questions.days);
-  expect(days.jar.topDays).toEqual([{ date: "2026-09-21", amountCents: 35915, count: 4 }, { date: "2026-09-19", amountCents: 28004, count: 6 }]);
-  await expect(page.getByRole("heading", { name: "The days that filled your jar" })).toBeVisible();
+  expect(days.activity).toMatchObject({ kind: "overspend", insight: { kind: "large_payments" } });
+  await expect(page.getByRole("heading", { name: "Why your jar went over" })).toBeVisible();
   await expect(page.locator(".sp-activities")).toContainText("177,96");
   const exactWords = "The 177,96 € payment on 2026-09-21 was necessary because of a burst pipe.";
   const corrected = await heard(say, exactWords);
@@ -197,7 +197,7 @@ test("free questions, profile, taxi and six-month hypothetical reduction remain 
   expect(whatif.activity.kind).toBe("analysis");
   if (whatif.activity.kind !== "analysis") throw new Error("Expected hypothetical reduction");
   expect(whatif.activity.analysis.kind).toBe("whatif");
-  const basis = whatif.activity.analysis.sections.find(section => section.label === "Projection basis: 2026-03-01 to 2026-08-31");
+  const basis = whatif.activity.analysis.sections.find(section => section.label === "Projection basis: 1.3. – 31.8.");
   expect(basis).toBeDefined();
   expect(basis?.rows).toEqual(expect.arrayContaining([
     expect.objectContaining({ label: "Monthly average (complete months)", amountCents: 18891 }),
@@ -248,23 +248,17 @@ test("welcome car-cost notice opens the verified winter breakdown at phone width
   expect(result.activity.kind).toBe("analysis");
   if (result.activity.kind !== "analysis") throw new Error("Expected winter transport breakdown");
   expect(result.activity.analysis).toMatchObject({
-    kind: "breakdown", evidenceCount: 33,
+    kind: "season", evidenceCount: 33,
     query: { start: "2025-12-01", end: "2026-01-31", categories: ["Transportation"], merchantType: null },
   });
   expect(result.activity.analysis.sections.flatMap(section => section.rows)).toEqual(expect.arrayContaining([
-    expect.objectContaining({ label: "Total spending", amountCents: 150998, count: 33 }),
-    expect.objectContaining({ label: "Fuel merchants", amountCents: 55678, count: 13 }),
-    expect.objectContaining({ label: "Parking merchants", amountCents: 29066, count: 7 }),
-    expect.objectContaining({ label: "Local transit merchants", amountCents: 28702, count: 5 }),
-    expect.objectContaining({ label: "Taxicabs and limousines (including ride-share)", amountCents: 17318, count: 4 }),
+    expect.objectContaining({ label: "Winter month average", amountCents: 75499 }),
+    expect.objectContaining({ amountCents: 20057, count: 10 }),
+    expect.objectContaining({ label: "Winter minus normal month", amountCents: 55442 }),
   ]));
   const card = page.locator(".sp-activities");
-  await expect(card).toContainText("2025-12-01 – 2026-01-31");
-  await expect(card).toContainText(/1\s509,98\s€/);
-  await expect(card.getByText("Fuel merchants", { exact: true })).toBeVisible();
-  await expect(card.getByText("Parking merchants", { exact: true })).toBeVisible();
-  await expect(card.getByText("Local transit merchants", { exact: true })).toBeVisible();
-  await expect(card.getByText("Taxicabs and limousines (including ride-share)", { exact: true })).toBeVisible();
+  await expect(card).toContainText(/754,99\s€/);
+  await expect(card).toContainText("276% more than your normal month");
   expect(result.checkup).toMatchObject({ due: true, completed: false, streak: 2 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole("button", { name: /Ideas to ask/ }).click();
@@ -324,8 +318,8 @@ test("selecting a past month jar updates the display and answers jar questions i
 
   const overspend = await heard(say, questions.days);
   expect(overspend.activity.kind).toBe("overspend");
-  await expect(page.getByRole("heading", { name: "The days that filled your jar" })).toBeVisible();
-  await expect(page.locator(".sp-meta").first()).toContainText("2026-08-01 – 2026-08-31");
+  await expect(page.getByRole("heading", { name: "Why your jar went over" })).toBeVisible();
+  await expect(page.locator(".sp-meta").first()).toContainText("1.8. – 31.8.");
 
   await heard(say, questions.jar);
   await expect(page.getByLabel("August spending jar")).toBeVisible();
