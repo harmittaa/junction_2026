@@ -21,7 +21,7 @@ was imported, and no age, household, motive or affordability is inferred.
 - Full source SHA-256:
   `49b3265d8e44e751de305a074dcffcda732bb79aa1e07b46fcca774ce76f1e63`.
 - Generated JSON SHA-256:
-  `96f2a4a8da60bad84f649a134747a53950582d026c2f9b99bc60152ad3d0b69c`.
+  `31862d5c41ef3a07493d1a4b670e12e4819bfa41ffa9569f8c8d06682ebb6f4a`.
 
 `sourceRow` is the 1-based physical CSV line where the record starts, including
 the header as line 1. The source has one record per line. Customer/account/date,
@@ -29,8 +29,9 @@ category, transaction type, and source timestamp strings are preserved. For
 example `03OCT24:09:04:04` is **not** converted to UTC: the CSV supplies no timezone.
 Dates are ISO calendar dates. Signed euro decimals become signed integer cents
 without floating-point arithmetic or rounding. Blank or `.` merchant/MCC fields
-map to JSON `null`; MCCs remain strings. Account balances are not in the agreed
-export contract. No source row is removed because it is income or a transfer.
+map to JSON `null`; MCCs remain strings. Account balances after each transaction
+are imported as integer cents (`balanceAfterCents`). No source row is removed
+because it is income or a transfer.
 
 ## Reproduce (Python 3.11+, standard library only)
 

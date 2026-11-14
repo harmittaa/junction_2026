@@ -77,4 +77,10 @@ describe("source-backed spending", () => {
     expect(requestSchema.safeParse({ action: "habit", revision: 0, habit: { category: "Groceries", action: "Review my spending", goal: "" } }).success).toBe(false);
     expect(requestSchema.safeParse({ action: "ask", revision: 0, text: "My spending", customerId: "OTHER" }).success).toBe(false);
   });
+  it("imports account balances after transactions matching verified dates", () => {
+    const txs2025 = rows.filter(row => row.date === "2025-09-16");
+    const txs2026 = rows.filter(row => row.date === "2026-09-16");
+    expect(txs2025.at(-1)?.balanceAfterCents).toBe(839065);
+    expect(txs2026.at(-1)?.balanceAfterCents).toBe(664122);
+  });
 });

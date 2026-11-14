@@ -81,7 +81,7 @@ describe("verified model-written replies", () => {
     const old = { ...initialState(), version: 1, query: { category: "Groceries", start: "2026-08-01", end: "2026-08-31" },
       habit: { category: "Groceries", action: "Notice my shopping", goal: "" }, corrections: { "row-2898292": "regular" }, revision: 7, completedDates: ["2026-09-01"] };
     const migrated = migrateSessionState(old);
-    expect(migrated).toMatchObject({ version: 4, mode: "none", move: null, skipGuess: true, revision: 7, habit: old.habit, corrections: old.corrections, completedDates: old.completedDates,
+    expect(migrated).toMatchObject({ version: 5, mode: "none", move: null, goal: null, proposedGoal: null, skipGuess: true, revision: 7, habit: old.habit, corrections: old.corrections, completedDates: old.completedDates,
       profile: { firstName: "Matti", everydayLimit: { amountCents: 220000, activeSince: "2026-02" } },
       weeklyCompletedDates: ["2026-09-02", "2026-09-09"],
       query: { categories: ["Groceries"], baskets: [], merchantType: null, start: "2026-08-01", end: "2026-08-31" } });
