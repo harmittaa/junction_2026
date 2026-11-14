@@ -20,7 +20,10 @@
 .checkup-welcome-checkup { width: 100%; min-height: 52px; border: 0; border-radius: 9999px; background: var(--fill-action); color: var(--onPrimary); font: 700 17px/1.5 var(--font-ux), sans-serif; cursor: pointer; }
 .checkup-ideas-answer { position: absolute; right: 16px; bottom: 10px; gap: 38px; z-index: 2; }
 .sponky-entry.has-bubble { align-items: flex-end; text-align: left; }
-.sponky-entry-bubble {
+button.sponky-entry-bubble {
+  border: 0;
+  font: inherit;
+  cursor: pointer;
   width: 236px;
   max-width: min(236px, calc(100vw - 120px));
   box-sizing: border-box;
@@ -29,8 +32,29 @@
   border-radius: 16px 16px 4px 16px;
   box-shadow: 0 2px 8px rgb(0 0 0 / .12);
   color: var(--textPrimary);
+  text-align: left;
   transform-origin: bottom right;
   animation: sponky-entry-bubble-rise 400ms var(--checkup-spring) 500ms both;
+}
+button.sponky-entry-trigger {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  display: flex;
+  color: var(--textBrand);
+}
+button.sponky-entry-label-btn {
+  border: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: var(--surface);
+  padding: 8px 14px;
+  border-radius: 9999px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / .12);
+  font-size: 14px;
 }
 .sponky-entry-bubble .sponky-entry-kicker { display: block; font-size: 11px; line-height: 16px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--textBrand); }
 .sponky-entry-bubble .sponky-entry-text { display: block; margin-top: 2px; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--textPrimary); }

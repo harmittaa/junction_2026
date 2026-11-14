@@ -196,22 +196,28 @@ export function Sponky() {
   if (!entered) return <main className="app bank">
     <header className="bank-header"><h1>S-Bank</h1></header>
     <ul className="bank-cards">{bankCards.map(([title, detail]) => <li key={title}><span className="bank-icon" aria-hidden="true">{ribbon}</span><span><strong>{title}</strong>{detail}</span><span className="bank-chevron" aria-hidden="true">›</span></li>)}</ul>
-    <button className={`sponky-entry${view?.entryNoticed ? " has-bubble" : ""}`} onClick={() => {
-      unlockSound();
-      setEntered(true);
-      if (view) {
-        if (view.entryNoticed) void send({ action: "ask", revision: view.revision, text: view.entryNoticed.question });
-        else void voice.speak(view.revision, true);
-      }
-    }}>
-      {view?.entryNoticed ? <span className="sponky-entry-bubble">
+    <div className={`sponky-entry${view?.entryNoticed ? " has-bubble" : ""}`}>
+      {view?.entryNoticed ? <button type="button" className="sponky-entry-bubble" onClick={() => {
+        unlockSound();
+        setEntered(true);
+        if (view && view.entryNoticed) void send({ action: "ask", revision: view.revision, text: view.entryNoticed.question });
+      }}>
         <span className="sponky-entry-kicker">Sponky noticed</span>
         <span className="sponky-entry-text">{view.entryNoticed.text}</span>
         <span className="sponky-entry-action">{view.entryNoticed.rule === "balance_lower" ? "Ask Sponky why ›" : `${view.entryNoticed.question} ›`}</span>
-      </span> : <span className="sponky-entry-label">Ask Sponky</span>}
-      <span className="sponky-entry-orb" aria-hidden="true">{ribbon}</span>
-      <span className="sr-only">{view?.entryNoticed ? `Talk to Sponky. Sponky noticed: ${view.entryNoticed.text} ${view.entryNoticed.question}` : "Talk to Sponky"}</span>
-    </button>
+      </button> : <button type="button" className="sponky-entry-label-btn" onClick={() => {
+        unlockSound();
+        setEntered(true);
+        if (view) void voice.speak(view.revision, true);
+      }}>Ask Sponky</button>}
+      <button type="button" className="sponky-entry-trigger" aria-label="Talk to Sponky" onClick={() => {
+        unlockSound();
+        setEntered(true);
+        if (view) void voice.speak(view.revision, true);
+      }}>
+        <span className="sponky-entry-orb" aria-hidden="true">{ribbon}</span>
+      </button>
+    </div>
     <nav className="bank-tabs" aria-label="Bank app"><span>Home</span><span>S-Etukortti</span><span aria-current="page">Bank</span><span>Me</span></nav>
   </main>;
 
