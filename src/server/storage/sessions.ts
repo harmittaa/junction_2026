@@ -17,7 +17,7 @@ function sessionRef(id: string) {
 }
 function parseState(value: unknown) {
   const state = migrateSessionState(value);
-  if (state.customerId !== dataset.customerId) throw new AppError("This session uses an older demo dataset. Start a new browser session.", 409);
+  if (state.customerId !== dataset.customerId) throw new AppError("This session needs a fresh start to use the current records.", 409);
   return state;
 }
 export async function readSession(id: string): Promise<SessionState> {
@@ -49,7 +49,7 @@ export async function consumeBudget(id: string, kind: "reasoning" | "speech" | "
     const globalCount = Number(globalDoc.data()?.[kind] ?? 0);
     const last = Number(sessionDoc.data()?.[`${kind}Last`] ?? 0);
     if (now.getTime() - last < 700 || localCount + units > limits[0] || globalCount + units > limits[1]) {
-      throw new AppError("The demo's voice or reasoning limit is reached. Try typing later; saved activities still work.", 429, true);
+      throw new AppError("Sponky's voice or question limit is reached. Try again later; your saved check-ups are safe.", 429, true);
     }
     // Reserve the maximum calls for this turn, including one composition retry.
     tx.set(ref, { [kind]: localCount + units, [`${kind}Last`]: now.getTime() }, { merge: true });

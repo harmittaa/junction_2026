@@ -1,0 +1,48 @@
+.checkup-screen { --checkup-spring: linear(0,.6 10%,1.12 35%,.94 55%,1.03 75%,1); position: relative; max-width: 480px; height: 100dvh; min-height: 620px; padding: 14px 16px 136px; display: flex; flex-direction: column; gap: 12px; background: var(--screen-bg); overflow: hidden; }
+.checkup-header { display: flex; align-items: center; gap: 4px; flex: none; }
+.checkup-back { min-width: 28px; padding: 4px; margin-left: -8px; }
+.checkup-heading { flex: 1; min-width: 0; }
+.checkup-heading h1 { margin: 0; font: 800 28px/1 var(--font-display),sans-serif; letter-spacing: .3px; text-transform: uppercase; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.checkup-heading time { display: block; color: var(--textMuted); font-size: 12px; padding-top: 4px; user-select: none; -webkit-user-select: none; }
+.checkup-streak { display: inline-flex; gap: 6px; white-space: nowrap; align-items: center; border-radius: 999px; padding: 6px 10px; background: var(--disc); color: var(--textBrand); font-size: 13px; font-weight: 700; }
+.checkup-setting { background: transparent; color: var(--textBrand); padding: 4px; min-width: 44px; min-height: 44px; font-size: 22px; }
+.checkup-canvas { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; overflow-y: auto; scrollbar-width: thin; }
+.checkup-answer { min-height: 0; width: 100%; margin-block: auto; }
+.checkup-canvas .checkup-welcome { position: absolute; inset: 108px 16px auto; }
+.checkup-canvas .checkup-jar-stage { max-width: 268px; max-height: 228px; }
+.checkup-talk { display: flex; flex: none; flex-direction: column; gap: 8px; margin-top: auto; }
+.checkup-question { align-self: flex-end; max-width: 88%; background: var(--surfaceAccent); color: var(--textSecondary); border-radius: 16px 16px 4px 16px; padding: 8px 12px; font-size: 14px; margin: 0; animation: checkup-rise .4s var(--checkup-spring) both; }
+.checkup-screen .coach-message { font-size: 16px; line-height: 1.4; text-align: center; text-wrap: balance; margin: 0; max-height: 116px; overflow-y: auto; }
+.checkup-screen .error { margin: 0; max-height: 150px; overflow-y: auto; }
+.checkup-try { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--textMuted); margin: 4px 0 -4px; }
+.checkup-chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 6px; margin: 0 -16px; scrollbar-width: none; }
+.checkup-chips button { flex: none; min-height: 44px; padding: 8px 14px; border: 1.5px solid var(--border); background: var(--surface); color: var(--textBrand); font-size: 14px; white-space: nowrap; animation: checkup-rise .45s var(--checkup-spring) both; }
+.checkup-chips button.main { background: var(--fill-action); color: var(--onPrimary); border-color: transparent; }
+.checkup-orb { position: absolute; width: 168px; left: calc(50% - 84px); bottom: 2px; transform-origin: 50% 36px; z-index: 101; }
+.checkup-orb .sp-coach-trigger { padding: 4px 0 8px; gap: 6px; }
+.checkup-orb .sp-coach-orb { width: 64px; height: 64px; margin: 0; transition: transform .3s var(--checkup-spring); }
+.checkup-orb .sp-coach-label strong { display: none; }
+.checkup-orb .sp-coach-label span { font-size: 12px; }
+.checkup-screen.intro .checkup-orb { top: 34%; bottom: auto; }
+.checkup-screen.intro .sp-coach-orb { width: 168px; height: 168px; }
+.checkup-screen.intro .sp-coach-trigger { gap: 24px; }
+.checkup-screen .sp-card { margin: 8px 0; padding: 14px; }
+.checkup-screen .sp-card h2 { font-size: 19px; margin-bottom: 8px; }
+.checkup-screen .sp-card h3 { font-size: 12px; color: var(--textMuted); }
+.checkup-screen .sp-analysis-section { margin: 12px 0; }
+.checkup-screen .sp-analysis-rows>li { padding: 8px 0; }
+.checkup-screen .sp-analysis-rows .sp-bar-label { font-size: 14px; }
+.checkup-screen .sp-amount { font: 800 60px/1 var(--font-display),sans-serif; text-align: center; }
+.checkup-screen .sp-meta { font-size: 12px; }
+.checkup-screen .sp-bar { animation-timing-function: var(--checkup-spring); }
+.checkup-screen .meta { margin: 0; }
+.checkup-screen .checkup-usual-label { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.checkup-usual-label strong { white-space: nowrap; }
+.checkup-usual-track { position: relative; height: 8px; margin: 8px 0; background: var(--surfaceSubtle); border-radius: 999px; }
+.checkup-usual-track b { display: block; height: 100%; transform-origin: left; background: var(--primary); border-radius: inherit; animation: sp-grow .9s var(--checkup-spring) both; }
+.checkup-usual-track[data-over=true] b { background: var(--status-warningBorder); }
+.checkup-usual-track i { position: absolute; width: 2px; top: -3px; bottom: -3px; background: var(--textPrimary); }
+.checkup-screen .checkup-pace { text-align: center; }
+.checkup-pace .sp-amount { font-size: 52px; }
+@media(max-height: 720px) { .checkup-screen { gap: 6px; padding-bottom: 118px; } .checkup-canvas .checkup-jar-stage { max-height: 168px; } .checkup-screen .coach-message { max-height: 90px; font-size: 15px; } .checkup-canvas .checkup-welcome { top: 96px; } .checkup-screen.intro .checkup-orb { top: 31%; } }
+@media(prefers-reduced-motion: reduce) { .checkup-screen *, .checkup-screen *::before, .checkup-screen *::after { animation: none !important; transition: none !important; } }

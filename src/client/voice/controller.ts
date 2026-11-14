@@ -7,14 +7,14 @@ type Playback = "ready" | "loading" | "speaking";
 export type VoiceSnapshot = { state: Capture | Playback; muted: boolean };
 export type VoiceCallbacks = { onTranscript: (text: string) => void; onError: (message: string) => void };
 const failures = {
-  microphone: "Could not start the microphone. Check microphone permission, then hold again or type your question.",
-  token: "Could not connect to voice transcription. Please try again or type your question.",
-  transcription: "Voice transcription was interrupted. Please try again or type your question.",
-  capture: "Could not capture microphone audio. Please try again or type your question.",
-  flush: "Could not finish recording. Please try again or type your question.",
-  transcript: "Could not finish transcription. Please try again or type your question.",
-  speech: "Could not load the spoken reply. Read the reply or continue typing.",
-  playback: "Could not play the spoken reply. Read the reply or continue typing.",
+  microphone: "Could not start the microphone. Check permission, hold again or choose a suggestion.",
+  token: "Could not connect to voice transcription. Try again or choose a suggestion.",
+  transcription: "Voice transcription was interrupted. Try again or choose a suggestion.",
+  capture: "Could not capture microphone audio. Try again or choose a suggestion.",
+  flush: "Could not finish recording. Try again or choose a suggestion.",
+  transcript: "Could not finish transcription. Try again or choose a suggestion.",
+  speech: "Could not load the spoken reply. Read the caption or choose a suggestion.",
+  playback: "Could not play the spoken reply. Read the caption or choose a suggestion.",
 };
 type Phase = keyof typeof failures;
 type Turn = {
@@ -34,7 +34,7 @@ type Turn = {
   pending?: Uint8Array[];
   connected?: Promise<void>;
 };
-const failure = "Voice is unavailable. Please try again or type your question.";
+const failure = "Voice is unavailable. Try again or choose a suggestion.";
 // Single-use tokens expire after 15 minutes; refetch well before that.
 const tokenLifetime = 10 * 60_000;
 
@@ -263,16 +263,16 @@ export class VoiceController {
       this.cancel();
       this.prepare();
       if (text) this.callbacks.onTranscript(text);
-      else this.callbacks.onError("No speech was detected. Please try again or type your question.");
+      else this.callbacks.onError("No speech was detected. Try again or choose a suggestion.");
     } catch { this.failed(turn); }
   };
 
-  speak = async (revision: number) => {
+  speak = async (revision: number, entry = false) => {
     this.cancel();
     if (this.snapshot.muted) return;
     let turn: Turn | undefined;
     try {
-      const request = speechRequestSchema.parse({ revision });
+      const request = speechRequestSchema.parse({ revision, ...(entry ? { entry: true } : {}) });
       turn = { phase: "playback", abort: new AbortController(), context: new AudioContext(), nodes: [] };
       const active = turn;
       this.current = active;

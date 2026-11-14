@@ -382,7 +382,7 @@ describe("browser voice lifecycle", () => {
     expectInactiveBands();
     expect(track.stop).toHaveBeenCalled();
     expect(transcript).not.toHaveBeenCalled();
-    expect(error).toHaveBeenCalledExactlyOnceWith("Voice transcription was interrupted. Please try again or type your question.");
+    expect(error).toHaveBeenCalledExactlyOnceWith("Voice transcription was interrupted. Try again or choose a suggestion.");
     expect(warning).toHaveBeenCalledExactlyOnceWith("Voice failed", { phase: "transcription" });
     await listen();
     expect(snapshot!.state).toBe("listening");
@@ -402,7 +402,7 @@ describe("browser voice lifecycle", () => {
     expect(error).not.toHaveBeenCalled();
   });
 
-  it("handles permission denial, autoplay denial and API errors with typing recovery", async () => {
+  it("handles permission denial, autoplay denial and API errors with suggestion recovery", async () => {
     microphone.mockRejectedValueOnce(new Error("Permission denied"));
     await controller.start();
     expect(snapshot!.state).toBe("ready");
@@ -414,10 +414,10 @@ describe("browser voice lifecycle", () => {
     await controller.start();
     await drain(); // Transcription connects after capture starts.
     expect(error.mock.calls.map(([message]) => message)).toEqual([
-      "Could not start the microphone. Check microphone permission, then hold again or type your question.",
-      "Could not play the spoken reply. Read the reply or continue typing.",
-      "Could not load the spoken reply. Read the reply or continue typing.",
-      "Could not connect to voice transcription. Please try again or type your question.",
+      "Could not start the microphone. Check permission, hold again or choose a suggestion.",
+      "Could not play the spoken reply. Read the caption or choose a suggestion.",
+      "Could not load the spoken reply. Read the caption or choose a suggestion.",
+      "Could not connect to voice transcription. Try again or choose a suggestion.",
     ]);
     expect(warning.mock.calls).toEqual(["microphone", "playback", "speech", "token"].map(phase => ["Voice failed", { phase }]));
     expect(snapshot!.state).toBe("ready");
@@ -438,7 +438,7 @@ describe("browser voice lifecycle", () => {
       expect(fetch).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(20_000);
       expect(snapshot!.state).toBe("ready");
-      expect(error).toHaveBeenCalledExactlyOnceWith("Could not play the spoken reply. Read the reply or continue typing.");
+      expect(error).toHaveBeenCalledExactlyOnceWith("Could not play the spoken reply. Read the caption or choose a suggestion.");
       expect(warning).toHaveBeenCalledExactlyOnceWith("Voice failed", { phase: "playback" });
       expect(Context.instances[0].state).toBe("closed");
       resumeLate();

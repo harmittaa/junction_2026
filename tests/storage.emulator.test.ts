@@ -59,10 +59,10 @@ describe("Firestore server persistence", () => {
     const ref = getFirestore().collection("demoSessionsV1").doc(id);
     await ref.set({ state: legacy });
     const loaded = await readSession(id);
-    expect(loaded).toMatchObject({ version: 3, revision: 4, habit: legacy.habit, corrections: legacy.corrections,
+    expect(loaded).toMatchObject({ version: 4, mode: "none", revision: 4, habit: legacy.habit, corrections: legacy.corrections,
       completedDates: legacy.completedDates, query: { categories: ["Groceries"], baskets: [], merchantType: null } });
     await updateSession(id, 4, state => transition(state, { action: "checkin", revision: 4 }));
-    expect((await ref.get()).data()?.state.version).toBe(3);
+    expect((await ref.get()).data()?.state.version).toBe(4);
     await ref.set({ state: { ...legacy, customerId: "CUST00001" } });
     await expect(readSession(id)).rejects.toMatchObject({ status: 409 });
   });

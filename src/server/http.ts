@@ -9,7 +9,7 @@ export function failure(error: unknown) {
   if (error instanceof AppError) return json({ error: error.message, retryable: error.retryable }, error.status);
   if (error instanceof z.ZodError || error instanceof SyntaxError) return json({ error: "Please check your input and try again.", retryable: false }, 400);
   // Never expose provider responses, credential errors, or stored session data.
-  return json({ error: "The demo couldn't connect just now. Your saved state is safe. Please retry.", retryable: true }, 503);
+  return json({ error: "Sponky couldn't connect just now. Your saved state is safe. Please retry.", retryable: true }, 503);
 }
 export async function body<T>(request: Request, schema: z.ZodType<T>): Promise<T> {
   const origin = request.headers.get("origin");

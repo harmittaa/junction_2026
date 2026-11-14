@@ -35,7 +35,7 @@ export function recentCompleteQuery(referenceDate: string, datasetStart: string,
   const requested = monthStart(referenceDate, -count);
   const start = firstComplete > requested ? firstComplete : requested;
   const end = monthEnd(monthStart(referenceDate, -1));
-  if (start > end) throw new Error("No complete historical month is available before the simulated reference month.");
+  if (start > end) throw new Error("No complete month is available before the current month.");
   return { start, end, categories: [], baskets: [], merchantType: null };
 }
 
@@ -176,21 +176,23 @@ export function calculateAnalysis(
       ] });
       const firstComplete = datasetStart === monthStart(datasetStart) ? datasetStart : monthStart(datasetStart, 1);
       if (firstComplete < monthStart(referenceDate)) {
-        const recent = { ...recentCompleteQuery(referenceDate, datasetStart), categories: query.categories,
+        const recent = { ...recentCompleteQuery(referenceDate, datasetStart, 6), categories: query.categories,
           baskets: query.baskets, merchantType: query.merchantType };
         const baseline = calculateSpending(rows, customerId, recent, corrections, referenceDate);
         include(baseline);
         const months = monthsIn(recent);
-        const average = Math.floor((baseline.totalCents + months.length / 2) / months.length);
-        const projection = percentageScenario(average * 12, operation.percent).reductionCents;
+        const average = Math.floor(baseline.totalCents / months.length);
+        const monthlyReduction = percentageScenario(average, operation.percent).reductionCents;
+        const projection = monthlyReduction * 12;
         sections.push({ label: `Projection basis: ${recent.start} to ${recent.end}`, rows: [
           resultRow("Baseline recorded spending", baseline.totalCents, baseline.evidenceCount),
           resultRow("Monthly average (complete months)", average, months.length),
+          resultRow(`Hypothetical monthly reduction (${operation.percent}%)`, monthlyReduction),
           resultRow(`Hypothetical annual reduction (${operation.percent}%)`, projection),
         ] });
-        assumptions.push(`Annual projection uses ${months.length} available complete months before the simulated reference month: ${months.map(month => month.slice(0, 7)).join(", ")}, including zero months. Dataset begins ${datasetStart}. The same filters and corrections apply; fewer than three complete months are used only when dataset availability requires it.`);
-      } else assumptions.push("No complete historical months available for a baseline; annual projection is unavailable, not zero.");
-      assumptions.push("Hypothetical only, not recorded or verified savings. Round the selected-period reduction once, half up to cents. Round the baseline monthly average half up to cents, multiply it by 12, then apply the requested percentage and round once half up; this is not a forecast.");
+        assumptions.push(`Annual projection uses ${months.length} available complete months before the current month: ${months.map(month => month.slice(0, 7)).join(", ")}, including zero months. Records begin ${datasetStart}. The same filters and corrections apply; fewer than six complete months are used only when data availability requires it.`);
+      } else assumptions.push("No complete months available for a baseline; annual projection is unavailable, not zero.");
+      assumptions.push("Hypothetical only, not recorded or verified savings. Round the selected-period reduction once, half up to cents. Floor the usual monthly average to cents, round its percentage reduction half up to cents, then multiply that monthly reduction by 12; this is not a forecast.");
       break;
     }
     case "profile": {

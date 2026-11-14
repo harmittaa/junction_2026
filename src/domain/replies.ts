@@ -76,6 +76,13 @@ export function speechText(text: string): string {
 
 export function verifyReply(text: string, facts: ReplyFacts): boolean {
   if (!replySchema.shape.text.safeParse(text).success || speechText(text).length > 600) return false;
+  if (/\b(?:demo|simulated|historical|assumptions?)\b/i.test(text)) return false;
+  if (/\b(?:was any|were any|was that|was this)\b.{0,50}\b(?:must|necessity|necessary|essential)\b/i.test(text)) return false;
+  if (["jar", "pace", "usual", "overspend"].includes(facts.kind)) {
+    if (!facts.required?.length || facts.required.some(note => text.split(note).length !== 2)) return false;
+    const extra = facts.required.reduce((rest, note) => rest.replace(note, ""), text).trim();
+    return ["", "We can look at it together.", "One step at a time.", "You've got this."].includes(extra);
+  }
   if (/\d(?:e[+-]?\d|[kmb]\b)|\d\s*\/\s*\d|[$£¥]|\bpoint\b/i.test(text)) return false;
   const allowed = new Set<string>();
   for (const value of facts.values) {

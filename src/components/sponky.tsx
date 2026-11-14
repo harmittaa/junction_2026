@@ -1,15 +1,21 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { apiErrorSchema, viewSchema, type CoachView, type CoachRequest } from "@/shared/contracts";
 import { useVoice } from "@/client/use-voice";
 import { Coach } from "./coach";
 import { Activities } from "./activities";
-import { History } from "./history";
+import { CheckupWelcome, Jar, WeeklyReward } from "./checkup-visuals";
+import "./checkup-screen.css";
 
 type RequestState = { kind: "idle" } | { kind: "sending" } | { kind: "error"; message: string; outdated?: boolean };
 const ribbon = <svg viewBox="0 0 120 120"><path d="M69 10C107 34 39 80 77 110M43 10C81 34 13 80 51 110" /></svg>;
 const bankCards = [["Accounts", "S-Tili · Taloustili"], ["Payments and e-invoices", "Make a new payment or view e-invoices"], ["Cards", "S-Etukortti Visa Credit/Debit"], ["Säästäjä", "Oma tavoitteeni"], ["Investments", "Value of your investments"]];
-type HistoryEntry = { role: "user" | "coach"; text: string };
+const dateFormat = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+const questions = {
+  pace: "Am I still on track?", usual: "What have I spent more on than usual?",
+  profile: "What kind of spender am I?", taxi: "How much did I spend on taxis this year?",
+  whatif: "What if I cut dining out by 20%?", days: "Which days pushed me over?", jar: "Show my jar",
+};
 
 class SessionLoadError extends Error {
   constructor(message: string, readonly outdated = false) { super(message); }
@@ -31,77 +37,103 @@ async function loadSession(signal?: AbortSignal, restart = false) {
 export function Sponky() {
   const [entered, setEntered] = useState(false);
   const [view, setView] = useState<CoachView | null>(null);
-  const [text, setText] = useState("");
   const [requestState, setRequestState] = useState<RequestState>({ kind: "idle" });
   const [voiceError, setVoiceError] = useState("");
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
-  const [celebrate, setCelebrate] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [content, setContent] = useState(false);
+  const [reward, setReward] = useState(false);
+  const [revealKey, setRevealKey] = useState<number | undefined>();
+  const [entryCaption, setEntryCaption] = useState(true);
   const [dark, setDark] = useState(false);
   const activeRequest = useRef<AbortController | null>(null);
   const requestId = useRef(0);
-  const lastRequest = useRef<{ request: CoachRequest; draft?: number } | null>(null);
-  const draftVersion = useRef(0);
+  const lastRequest = useRef<CoachRequest | null>(null);
+  const orb = useRef<HTMLDivElement>(null);
+  const travelFrom = useRef<DOMRect | null>(null);
+  const titleHold = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dateTaps = useRef<number[]>([]);
+  const sounds = useRef<AudioContext | null>(null);
   const voice = useVoice({
-    onTranscript: transcript => {
-      if (view) void send({ action: "ask", revision: view.revision, text: transcript });
-    },
-    onError: message => setVoiceError(message),
+    onTranscript: transcript => { if (view) void send({ action: "ask", revision: view.revision, text: transcript }); },
+    onError: setVoiceError,
   });
   const busy = requestState.kind === "sending";
-
-  async function refresh(signal?: AbortSignal) {
-    const next = await loadSession(signal);
-    setView(next);
-    return next;
-  }
-  useEffect(() => {
-    const controller = new AbortController();
-    void loadSession(controller.signal).then(next => {
-      if (!controller.signal.aborted) setView(next);
-    }).catch(error => {
-      if (!controller.signal.aborted) setRequestState(sessionError(error));
-    });
-    return () => { controller.abort(); activeRequest.current?.abort(); };
-  }, []);
-  // The session cookie exists once the view loads; prefetch so holding to talk starts capture at once.
+  const hasContent = content || !!view?.jar.overCents;
   const { prepare } = voice;
   const ready = entered && view !== null;
   useEffect(() => { if (ready) prepare(); }, [ready, prepare]);
   useEffect(() => {
-    if (!celebrate) return;
-    const timer = setTimeout(() => setCelebrate(false), 900);
-    return () => clearTimeout(timer);
-  }, [celebrate]);
+    const controller = new AbortController();
+    void loadSession(controller.signal).then(next => {
+      if (!controller.signal.aborted) setView(next);
+    }).catch(error => { if (!controller.signal.aborted) setRequestState(sessionError(error)); });
+    return () => { controller.abort(); activeRequest.current?.abort(); sounds.current?.close(); if (titleHold.current) clearTimeout(titleHold.current); };
+  }, []);
+  useLayoutEffect(() => {
+    const from = travelFrom.current;
+    const element = orb.current;
+    travelFrom.current = null;
+    if (!from || !element || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const to = element.querySelector(".sp-coach-orb")!.getBoundingClientRect();
+    const x = from.x + from.width / 2 - to.x - to.width / 2;
+    const y = from.y + from.height / 2 - to.y - to.height / 2;
+    const animation = element.animate([
+      { transform: `translate(${x}px,${y}px) scale(${from.width / to.width})`, offset: 0 },
+      { transform: `translate(${x + 62}px,${y * .48}px) scale(1.5)`, offset: .45 },
+      { transform: "translate(-5px,5px) scale(.94)", offset: .84 },
+      { transform: "translate(0,-3px) scale(1.03)", offset: .94 },
+      { transform: "none", offset: 1 },
+    ], { duration: 1150, easing: "cubic-bezier(.22,1,.36,1)" });
+    return () => animation.cancel();
+  }, [hasContent]);
 
+  function unlockSound() {
+    if (voice.muted) return;
+    try { sounds.current ??= new AudioContext(); void sounds.current.resume(); } catch { /* Sound is optional. */ }
+  }
+  function chime() {
+    const context = sounds.current;
+    if (!context || voice.muted || context.state !== "running") return;
+    [523.25, 659.25, 783.99].forEach((frequency, index) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const start = context.currentTime + index * .09;
+      oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(.035, start + .015);
+      gain.gain.exponentialRampToValueAtTime(.001, start + .35);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start(start); oscillator.stop(start + .36);
+      oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+    });
+  }
+  function beginAnswer() {
+    if (!hasContent) travelFrom.current = orb.current?.querySelector(".sp-coach-orb")?.getBoundingClientRect() ?? null;
+    setContent(true); setEntryCaption(false);
+  }
   function cancelRequest() {
-    requestId.current++;
-    activeRequest.current?.abort();
-    activeRequest.current = null;
+    requestId.current++; activeRequest.current?.abort(); activeRequest.current = null;
     setRequestState({ kind: "idle" });
   }
   async function openSession(restart = false) {
-    cancelRequest();
-    const controller = new AbortController();
-    activeRequest.current = controller;
+    cancelRequest(); voice.cancel(); setReward(false);
+    const controller = new AbortController(); activeRequest.current = controller;
     setRequestState({ kind: "sending" });
     try {
       const next = await loadSession(controller.signal, restart);
       if (controller.signal.aborted) return;
-      setView(next);
-      setRequestState({ kind: "idle" });
-    } catch (error) {
-      if (!controller.signal.aborted) setRequestState(sessionError(error));
-    }
+      setView(next); setRequestState({ kind: "idle" }); setVoiceError("");
+      setContent(false); setQuestion(""); setEntryCaption(true); setRevealKey(undefined);
+      if (entered) void voice.speak(next.revision, true);
+    } catch (error) { if (!controller.signal.aborted) setRequestState(sessionError(error)); }
   }
-  async function send(request: CoachRequest, submittedDraft?: number) {
-    cancelRequest();
-    voice.cancel();
-    setVoiceError("");
-    const controller = new AbortController();
-    activeRequest.current = controller;
-    const current = ++requestId.current;
-    lastRequest.current = { request, draft: submittedDraft };
+  async function send(request: CoachRequest) {
+    cancelRequest(); voice.cancel(); setVoiceError(""); unlockSound(); beginAnswer();
+    if (request.action === "ask") setQuestion(request.text);
+    if (request.action === "weekly-checkup") setQuestion("Let's do my check-up");
+    if (request.action === "next-week") setQuestion("");
+    const controller = new AbortController(); activeRequest.current = controller;
+    const current = ++requestId.current; lastRequest.current = request;
     setRequestState({ kind: "sending" });
     try {
       const response = await fetch("/api/coach", {
@@ -112,75 +144,92 @@ export function Sponky() {
       if (!response.ok) {
         if (response.status === 409) {
           lastRequest.current = null;
-          await refresh(controller.signal);
-          throw new Error("This session changed. Review the current activity before confirming a new action.");
+          setView(await loadSession(controller.signal));
+          throw new Error("This session changed. Review the current answer before choosing another action.");
         }
         throw new Error(apiErrorSchema.parse(data).error);
       }
       const next = viewSchema.parse(data);
       if (current !== requestId.current) return;
-      setView(next);
-      setHistory(previous => [...previous, ...(request.action === "ask" ? [{ role: "user" as const, text: request.text }] : []), { role: "coach" as const, text: next.message }].slice(-20));
-      if (request.action === "ask" && draftVersion.current === submittedDraft) setText("");
-      if (request.action === "complete" && view && next.completedDates.length > view.completedDates.length) setCelebrate(true);
-      setRequestState({ kind: "idle" });
-      void voice.speak(next.revision);
+      setView(next); setRequestState({ kind: "idle" });
+      const completed = view && next.checkup.completedDates.length > view.checkup.completedDates.length;
+      if (completed) setReward(true);
+      else {
+        const moved = next.move && (!view?.move || next.move.transactionId !== view.move.transactionId
+          || next.move.from !== view.move.from || next.move.to !== view.move.to);
+        if (moved) setRevealKey(undefined);
+        else if (next.activity.kind === "jar") setRevealKey(next.revision);
+        void voice.speak(next.revision);
+      }
     } catch (error) {
       if (current !== requestId.current || controller.signal.aborted) return;
       setRequestState({ kind: "error", message: error instanceof Error ? error.message : "Please retry. Your saved state is safe." });
     }
   }
-  function startCoach() {
-    cancelRequest();
-    setVoiceError("");
-    void voice.start();
-  }
+  const nextWeek = useEffectEvent(() => { if (entered && view && !busy && !reward) void send({ action: "next-week", revision: view.revision }); });
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === "n" && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey
+        && !(event.target instanceof HTMLElement && event.target.closest("input,textarea,[contenteditable=true]"))) nextWeek();
+    };
+    window.addEventListener("keydown", onKey);
+    const cancelHold = () => { if (titleHold.current) clearTimeout(titleHold.current); titleHold.current = null; };
+    window.addEventListener("blur", cancelHold);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("blur", cancelHold); };
+  }, []);
+  function startCoach() { cancelRequest(); setVoiceError(""); unlockSound(); void voice.start(); }
+  function clearHold() { if (titleHold.current) clearTimeout(titleHold.current); titleHold.current = null; }
   const coachState = voice.state === "listening" ? "listening" : voice.state === "speaking" ? "speaking"
-    : busy || ["starting", "transcribing", "loading"].includes(voice.state) ? "thinking" : celebrate ? "celebrate" : "ready";
-  function toggleTheme() {
-    setDark(!dark);
-    document.documentElement.dataset.theme = dark ? "light" : "dark";
-  }
+    : busy || ["starting", "transcribing", "loading"].includes(voice.state) ? "thinking" : "ready";
+  const suggested = view?.jar.overCents
+    ? [questions.days, questions.usual, questions.whatif, questions.profile, questions.taxi, questions.jar]
+    : [questions.pace, questions.usual, questions.profile, questions.taxi, questions.whatif, questions.jar];
+  const suggestions = suggested.filter(value => value !== question);
 
   if (!entered) return <main className="app bank">
     <header className="bank-header"><h1>S-Bank</h1></header>
-    <ul className="bank-cards">
-      {bankCards.map(([title, detail]) => <li key={title}><span className="bank-icon" aria-hidden="true">{ribbon}</span><span><strong>{title}</strong>{detail}</span><span className="bank-chevron" aria-hidden="true">›</span></li>)}
-    </ul>
-    <button className="sponky-entry" onClick={() => setEntered(true)}><span className="sponky-entry-label">Ask Sponky</span><span className="sponky-entry-orb" aria-hidden="true">{ribbon}</span><span className="sr-only">Talk to Sponky</span></button>
+    <ul className="bank-cards">{bankCards.map(([title, detail]) => <li key={title}><span className="bank-icon" aria-hidden="true">{ribbon}</span><span><strong>{title}</strong>{detail}</span><span className="bank-chevron" aria-hidden="true">›</span></li>)}</ul>
+    <button className="sponky-entry" onClick={() => { unlockSound(); setEntered(true); if (view) void voice.speak(view.revision, true); }}><span className="sponky-entry-label">Ask Sponky</span><span className="sponky-entry-orb" aria-hidden="true">{ribbon}</span><span className="sr-only">Talk to Sponky</span></button>
     <nav className="bank-tabs" aria-label="Bank app"><span>Home</span><span>S-Etukortti</span><span aria-current="page">Bank</span><span>Me</span></nav>
   </main>;
 
-  return <main className="app">
-    <header className="app-header"><button className="icon-button" aria-label="Back to entry" onClick={() => { voice.cancel(); if (view) cancelRequest(); setEntered(false); }}>‹</button><h1>Sponky<span>Your money, a little clearer</span></h1><button className="icon-button" aria-label={dark ? "Light appearance" : "Dark appearance"} onClick={toggleTheme}>{dark ? "☀" : "◐"}</button></header>
-    <div className="toolbar"><button className="text-button" aria-pressed={voice.muted} onClick={voice.toggleMute}>{voice.muted ? "Sound off" : "Sound on"}</button><button className="text-button" aria-expanded={showHistory} onClick={() => setShowHistory(!showHistory)}>History</button></div>
-    {showHistory && <History entries={history} onClose={() => setShowHistory(false)} />}
-    {!view && requestState.kind === "error" && <div className="error" role="alert">
-      <p>{requestState.message}</p>
-      {requestState.outdated ? <><p>The demo data has changed. Start fresh to use the updated demo. Previous habits and check-ins will not carry over.</p><button className="text-button" onClick={() => void openSession(true)}>Start new demo session</button></>
-        : <button className="text-button" onClick={() => void openSession()}>Retry</button>}
-    </div>}
-    {view && <Coach state={coachState} readBands={voice.readBands} onStart={startCoach}
-      onRelease={() => void voice.stop()} onCancel={voice.cancel} starting={voice.state === "starting"}
-      />}
-    {voice.state === "starting" && <p className="meta" role="status">Starting microphone…</p>}
-    {voice.state === "transcribing" && <p className="meta" role="status">Finishing your words…</p>}
-    {["starting", "transcribing", "loading"].includes(voice.state) && <button className="text-button replay" onClick={voice.cancel}>Cancel voice</button>}
-    <p className="coach-message" aria-live="polite">{view?.message ?? (requestState.kind === "error" ? "Your coach could not open." : "Opening your coach…")}</p>
-    <form className="typing" data-visible={!!voiceError} onSubmit={event => { event.preventDefault(); if (view && text.trim()) void send({ action: "ask", revision: view.revision, text }, draftVersion.current); }}><label><span className="sr-only">Message</span><input value={text} maxLength={600} onChange={event => { draftVersion.current++; setText(event.target.value); }} placeholder="Type a message" /></label><button disabled={!view || busy || !text.trim()}>Send</button></form>
-    {!view?.habit && view?.activity.kind === "none" && <div className="starters">
-      <button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "Show my August spending by category." })}>Break down my August spending ↗</button>
-      <button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "How much did I spend on taxis last month?" })}>Taxis last month ↗</button>
-      <button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "What kind of spender am I?" })}>Explore my spending profile ↗</button>
-      <button disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text: "Show my groceries spending trend by month." })}>My groceries over time ↗</button>
-    </div>}
-    {view && <Activities view={view} busy={busy} onAction={request => void send(request)} />}
-    {view?.habit && view.activity.kind !== "checkin" && <button className="checkin-entry" disabled={busy} onClick={() => void send({ action: "checkin", revision: view.revision })}>Daily check-in <span aria-hidden="true">↗</span></button>}
-    {view && requestState.kind === "error" && <div className="error" role="alert"><p>{requestState.message}</p><button className="text-button" onClick={() => {
-      if (lastRequest.current) void send(lastRequest.current.request, lastRequest.current.draft);
-      else void refresh().then(() => setRequestState({ kind: "idle" })).catch(() => setRequestState({ kind: "error", message: "Still unavailable. Please try again shortly." }));
-    }}>Retry</button></div>}
-    {voiceError && <div className="error" role="alert"><p>{voiceError}</p><p>Typing is always available.</p><button className="text-button" onClick={() => setVoiceError("")}>Dismiss</button></div>}
-    {view && busy && <button className="text-button" onClick={cancelRequest}>Stop waiting</button>}
+  return <main className={`app checkup-screen${hasContent ? "" : " intro"}`}>
+    <header className="checkup-header">
+      <button className="icon-button checkup-back" aria-label="Back to entry" onClick={() => { voice.cancel(); cancelRequest(); setEntered(false); }}>‹</button>
+      <div className="checkup-heading"><h1 onPointerDown={event => { if (event.button !== 0) return; clearHold(); titleHold.current = setTimeout(() => void openSession(true), 1100); }}
+        onPointerUp={clearHold} onPointerLeave={clearHold} onPointerCancel={clearHold} onContextMenu={event => event.preventDefault()}>Sponky</h1>
+        <time dateTime={view?.demoDate} onClick={() => { const now = performance.now(); dateTaps.current = [...dateTaps.current.filter(t => now - t < 800), now]; if (dateTaps.current.length === 3) { dateTaps.current = []; if (view && !busy) void send({ action: "next-week", revision: view.revision }); } }}>{view ? dateFormat.format(new Date(`${view.demoDate}T12:00:00Z`)) : ""}</time>
+      </div>
+      <span className="checkup-streak" aria-label={`${view?.checkup.streak ?? 0} week check-up streak`}><span aria-hidden="true">♨</span> {view?.checkup.streak ?? 0} weeks</span>
+      <button className="checkup-setting" aria-label={voice.muted ? "Sound off" : "Sound on"} aria-pressed={voice.muted} onClick={() => { voice.toggleMute(); if (!voice.muted) void sounds.current?.suspend(); }}>{voice.muted ? "♪̸" : "♪"}</button>
+      <button className="checkup-setting" aria-label={dark ? "Light appearance" : "Dark appearance"} onClick={() => { setDark(!dark); document.documentElement.dataset.theme = dark ? "light" : "dark"; }}>{dark ? "☀" : "◐"}</button>
+    </header>
+    <section className="checkup-canvas" aria-label="Current answer" aria-busy={busy}>
+      {view && !hasContent && <CheckupWelcome firstName={view.profile.firstName} date={view.demoDate} due={view.checkup.due} />}
+      {view && hasContent && !reward && <div className="checkup-answer" key={view.activity.kind === "jar" ? "jar" : `${view.activity.kind}:${view.revision}`}>
+        {(entryCaption && view.jar.overCents > 0) || view.activity.kind === "jar" ? <Jar jar={view.jar} move={view.move} revealKey={revealKey} /> : <Activities view={view} busy={busy} onAction={request => void send(request)} />}
+      </div>}
+    </section>
+    <section className="checkup-talk" aria-label="Conversation">
+      {question && <p className="checkup-question">{question}</p>}
+      <p className="coach-message" aria-live="polite">{view ? entryCaption ? view.entryMessage : view.message : busy ? "Opening your coach…" : "Your coach could not open."}</p>
+      {(requestState.kind === "error" || voiceError) && <div className="error" role="alert">
+        <p>{requestState.kind === "error" ? requestState.message : voiceError}</p>
+        {requestState.kind === "error" && <button className="text-button" onClick={() => { if (!view) void openSession(!!requestState.outdated); else if (lastRequest.current) void send(lastRequest.current); else void openSession(); }}>{requestState.outdated ? "Start fresh" : "Retry"}</button>}
+        {voiceError && <button className="text-button" onClick={() => setVoiceError("")}>Dismiss</button>}
+      </div>}
+      {view && <><p className="checkup-try">Try asking</p><div className="checkup-chips">
+        {view.checkup.due && <button className="main" disabled={busy} onClick={() => void send({ action: "weekly-checkup", revision: view.revision })}>Let&apos;s do my check-up</button>}
+        {view.move && <button disabled={busy} onClick={() => void send({ action: "undo-move", revision: view.revision })}>Undo basket move</button>}
+        {suggestions.map(text => <button key={text} disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text })}>{text}</button>)}
+      </div></>}
+      {voice.state === "starting" && <p className="meta" role="status">Starting microphone…</p>}
+      {voice.state === "transcribing" && <p className="meta" role="status">Finishing your words…</p>}
+      {["starting", "transcribing", "loading"].includes(voice.state) && <button className="text-button" onClick={voice.cancel}>Cancel voice</button>}
+      {busy && <button className="text-button" onClick={cancelRequest}>Stop waiting</button>}
+    </section>
+    <div ref={orb} className="checkup-orb"><Coach state={coachState} readBands={voice.readBands} onStart={startCoach}
+      onRelease={() => void voice.stop()} onCancel={voice.cancel} starting={voice.state === "starting"} disabled={!view || reward} /></div>
+    {view && reward && <WeeklyReward streak={view.checkup.streak} onChime={chime} onFinish={() => { setReward(false); setRevealKey(view.revision); void voice.speak(view.revision); }} />}
   </main>;
 }

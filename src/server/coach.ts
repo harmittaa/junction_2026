@@ -1,8 +1,8 @@
 import "server-only";
 import { calculateSpending, euros, nextDate, percentageScenario, queryLabel } from "@/domain/spending";
 import { calculateAnalysis, recentCompleteQuery } from "@/domain/exploration";
-import { completeWeeklyCheckup } from "@/domain/checkup";
-import { speechText, type ReplyFacts } from "@/domain/replies";
+import { calculateJar, calculateUsualComparison, completeWeeklyCheckup, weeklyCheckup } from "@/domain/checkup";
+import { quantities, speechText, type ReplyFacts } from "@/domain/replies";
 import { analysisKindSchema, analysisOperationSchema, basketLabels, type Analysis, type CoachRequest, type CoachView, type Activity, viewSchema } from "@/shared/contracts";
 import { categories, dataset } from "./data";
 import { AppError } from "./errors";
@@ -30,6 +30,22 @@ function analysis(state: SessionState) {
   if (!state.analysis) throw new AppError("Ask an exploration question first.");
   return calculateAnalysis(dataset.transactions, state.customerId, state.analysis, state.corrections, state.demoDate, dataset.period.start);
 }
+function checkupInput(state: SessionState) {
+  return { rows: dataset.transactions, customerId: state.customerId, referenceDate: state.demoDate,
+    corrections: state.corrections, limit: state.profile.everydayLimit };
+}
+function jarMessage(state: SessionState, welcome = false) {
+  const jar = calculateJar(checkupInput(state));
+  if (jar.overCents) return `${welcome ? "Welcome back. " : ""}Your jar is ${euros(jar.overCents)} over the rim. ${jar.topDays.length ? `The biggest days this past week were ${jar.topDays.map(row => fullDate.format(utc(row.date))).join(" and ")}.` : "We can take a closer look together."}`;
+  return `${euros(jar.leftCents)} left in your ${month.format(utc(state.demoDate))} jar, with ${jar.daysLeft} days to go.${jar.daysLeft ? ` That's ${euros(jar.dailyRemainingCents)} a day to stay inside your limit.` : ""}`;
+}
+function currentEvidence(state: SessionState) {
+  if (["jar", "pace", "overspend"].includes(state.mode)) return calculateJar(checkupInput(state)).evidence;
+  if (state.mode === "usual") return calculateUsualComparison(checkupInput(state)).evidence;
+  if (state.mode === "reveal") return spending(state).evidence.slice(0, 40);
+  if (state.mode === "analysis" && state.analysis?.kind !== "cashflow") return analysis(state).evidence.slice(0, 40);
+  return [];
+}
 const itemNotice = "Single items and real merchant names aren't in the data. This is a wider total, not an item total.";
 function analysisSummary(result: Analysis) {
   const rows = result.sections.flatMap(section => section.rows);
@@ -43,7 +59,7 @@ function analysisSummary(result: Analysis) {
     return `Your recorded spending ${period(result.query)}: ${baskets}. ${top ? `Top category: ${top.label}, ${euros(top.amountCents)}. ` : ""}${variable ? `Largest monthly range: ${variable.label}, ${euros(variable.amountCents)}.` : "No matching categories."} These are patterns, not personality labels.`;
   }
   if (result.kind === "cashflow") return `Recorded ${period(result.query)}: income ${euros(rows[0].amountCents)}, spending ${euros(rows[1].amountCents)}, and recorded transfers to investments ${euros(rows[2].amountCents)}. Investment deposits are not a verified goal result.`;
-  return `${result.title} ${period(result.query)}: ${selected.map(row => `${row.label}: ${euros(row.amountCents)}`).join("; ")}. ${basis ? `${basis}. ` : ""}${result.kind === "whatif" ? "Hypothetical only; no money has been saved." : "The card shows the full calculation and assumptions."}`;
+  return `${result.title} ${period(result.query)}: ${selected.map(row => `${row.label}: ${euros(row.amountCents)}`).join("; ")}. ${basis ? `${basis}. ` : ""}${result.kind === "whatif" ? "Hypothetical only; no money has been saved." : "The card shows the payments and calculation."}`;
 }
 function guessReaction(guessCents: number, totalCents: number) {
   const gap = Math.abs(totalCents - guessCents);
@@ -89,8 +105,47 @@ export function transition(current: SessionState, request: CoachRequest, interpr
   let state = structuredClone(current);
   if (request.action === "ask") {
     const result = validatePlan(interpretation, { categories, ...dataset.period, referenceDate: state.demoDate, previousQuery: state.query });
+    if (result.kind === "weekly_checkup") {
+      // Questions about a check-up are not permission to complete one.
+      if (!/\b(?:do|start|begin|complete|finish) (?:my|the|a) (?:weekly )?check[- ]?up\b/i.test(request.text)
+        || /\b(?:not|don't|do not|never|skip|if|when|would|example|suppose|imagine)\b/i.test(request.text)) return { ...state, message: "Ready when you are. Choose “Let's do my check-up” to begin." };
+      return transition(state, { action: "weekly-checkup", revision: request.revision });
+    }
+    if (result.kind === "jar" || result.kind === "pace" || result.kind === "usual" || result.kind === "overspend") {
+      const mode = result.kind;
+      state = { ...state, mode, query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null };
+      const jar = calculateJar(checkupInput(state));
+      const usual = mode === "usual" ? calculateUsualComparison(checkupInput(state)) : null;
+      return { ...state, message: mode === "pace"
+        ? `So far, ${euros(jar.dailySpentCents)} a day. ${jar.overCents ? `You're already ${euros(jar.overCents)} over this month's limit.` : jar.daysLeft ? `${euros(jar.dailyRemainingCents)} a day for the ${jar.daysLeft} days left stays inside the limit.` : "This month is complete."} ${jar.projectedOverCents ? `At this pace, the month would finish ${euros(jar.projectedOverCents)} over.` : ""}`.trim()
+        : usual ? `${usual.rows.filter(row => row.currentCents > row.usualCents).map(row => `${row.category}: ${euros(row.currentCents)} so far, against ${euros(row.usualCents)} in your usual full month`).join("; ") || "No category is above its usual full month yet"}. Your usual month averages the previous 6 complete months.`
+          : jarMessage(state) };
+    }
+    if (result.kind === "move") {
+      const criteria = result.correction;
+      const quote = criteria?.necessityQuote.toLowerCase() ?? "";
+      const stated = criteria && request.text.toLowerCase().includes(quote)
+        && /\b(?:must|had to|needed|necessary|necessity|essential|emergency|burst|urgent)\b/.test(quote)
+        && !/\b(?:not|wasn't|was not|unnecessary|didn't|did not|if|suppose|example|imagine|would be|would have)\b/i.test(request.text);
+      const amount = criteria?.amountCents;
+      const suppliedAmount = !amount || quantities(request.text).some(value =>
+        value === `money:${amount}` || value === `number:${amount / 100}`);
+      const named = (value: string | null | undefined) => !value || request.text.toLowerCase().includes(value.toLowerCase());
+      const matches = stated && suppliedAmount && named(criteria.date) && named(criteria.merchant) && named(criteria.category)
+        && (criteria.amountCents || criteria.date || criteria.merchant || criteria.category)
+        ? currentEvidence(state).filter(row => (criteria.amountCents === null || row.amountCents === criteria.amountCents)
+          && (criteria.date === null || row.date === criteria.date) && (criteria.merchant === null || row.merchant === criteria.merchant)
+          && (criteria.category === null || row.category === criteria.category)) : [];
+      if (matches.length !== 1) return { ...state, message: "Which payment do you mean? Tell me its amount and date from the payments shown." };
+      const row = matches[0];
+      if (row.basket === "unexpected") return { ...state, message: "That payment is already in Unexpected. It doesn't count against your everyday limit." };
+      state.corrections[row.id] = "unexpected";
+      state = { ...state, mode: "jar", query: null, analysis: null, itemLimitation: false, percent: null,
+        move: { transactionId: row.id, amountCents: row.amountCents, from: row.basket, to: "unexpected" } };
+      return { ...state, message: `${euros(row.amountCents)} moved to Unexpected. The payment amount hasn't changed. ${jarMessage(state)}` };
+    }
     if (analysisKindSchema.safeParse(result.kind).success) {
-      const query = result.kind === "profile" ? recentCompleteQuery(state.demoDate, dataset.period.start) : result.query;
+      const query = result.kind === "profile" ? recentCompleteQuery(state.demoDate, dataset.period.start, 1) : result.query;
       const operation = analysisOperationSchema.parse({ kind: result.kind, query, comparePeriod: result.comparePeriod, by: result.by, top: result.top, percent: result.percent });
       state = { ...state, mode: "analysis", query, analysis: operation, itemLimitation: result.reply === "items", guessCents: null, percent: null };
       return { ...state, message: analysisSummary(analysis(state)) };
@@ -98,20 +153,18 @@ export function transition(current: SessionState, request: CoachRequest, interpr
     if (result.kind === "spending" && result.query) {
       calculateSpending(dataset.transactions, state.customerId, result.query, state.corrections, state.demoDate);
       state = { ...state, query: result.query, analysis: null, itemLimitation: result.reply === "items", guessCents: null, percent: null };
-      if (result.direct || state.skipGuess || state.itemLimitation) return reveal({ ...state, skipGuess: result.direct || state.skipGuess }, null);
-      return { ...state, mode: "invitation", message: `Ooh, ${queryLabel(result.query).toLowerCase()} ${period(result.query)}! Want to guess before I show you?` };
+      return reveal({ ...state, skipGuess: true }, null);
     }
     if (result.kind === "reveal" && state.mode === "invitation") return reveal({ ...state, skipGuess: true }, null);
     if (result.kind === "scenario" && result.percent !== null) return scenario(state, result.percent);
-    if (result.kind === "checkin") return checkin(state);
-    if (result.kind === "habit") return { ...state, message: "Love that idea! Tap Keep an eye on it or Edit habit to pick your action. I'll save it once you confirm." };
+    if (result.kind === "checkin" || result.kind === "habit") return { ...state, message: "We can explore any question, or you can choose “Let's do my check-up”." };
     // The model plans, then writes from application-calculated facts. Only a
     // verified reply reaches text/speech; these sentences are its safe fallback.
     const message = result.kind === "explain" && result.concept ? concepts[result.concept] : result.kind === "chat"
       ? result.reply === "tired" ? "Oof, sounds like a long day. Want to tell me what made it tough? We can skip the money talk."
         : result.reply === "positive" ? "Love hearing that! What was the best bit of your day?"
           : "I'm all ears. What's on your mind? We don't have to talk money."
-      : result.reply === "scope" ? "I can explore only your selected historical records. I can't access other customers, move money, forecast safe spending or compare you with peers. Want to look at your own spending instead?"
+      : result.reply === "scope" ? "I can explore your own spending and everyday limit. I can't access other customers, move money or compare you with peers. Want to look at your jar instead?"
         : result.reply === "items" ? `${itemNotice} We can look at a category or merchant type instead, such as Restaurants or fast food.`
           : "Happy to dig in! What would you like to explore, and for which period? I can show totals, comparisons, monthly patterns or a breakdown.";
     return { ...state, mode: "none", query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null,
@@ -122,17 +175,31 @@ export function transition(current: SessionState, request: CoachRequest, interpr
     return reveal({ ...state, skipGuess: request.guessCents === null || state.skipGuess }, request.guessCents);
   }
   if (request.action === "correct") {
-    const evidence = state.mode === "reveal" ? spending(state).evidence
-      : state.mode === "analysis" && state.analysis?.kind !== "cashflow" ? analysis(state).evidence : [];
-    if (!evidence.slice(0, 40).some(row => row.id === request.transactionId)) throw new AppError("Choose a transaction in the revealed evidence.");
+    const row = currentEvidence(state).find(row => row.id === request.transactionId);
+    if (!row) throw new AppError("Choose a transaction in the revealed evidence.");
     state.corrections[request.transactionId] = request.basket;
-    return { ...state, percent: null, message: `Got it, that's ${basketLabels[request.basket]} now. You know your life best! The amount stays the same; only the basket changes.` };
+    return { ...state, percent: null, move: { transactionId: row.id, amountCents: row.amountCents, from: row.basket, to: request.basket },
+      message: `Got it, that's ${basketLabels[request.basket]} now. You know your life best! The amount stays the same; only the basket changes.` };
   }
   if (request.action === "scenario") return scenario(state, request.percent);
   if (request.action === "weekly-checkup") {
     const result = completeWeeklyCheckup(state.weeklyCompletedDates, state.demoDate);
-    return { ...state, weeklyCompletedDates: result.completedDates,
-      message: `Your weekly check-up is complete. ${result.streak} weeks in a row — that's showing up for yourself.` };
+    return { ...state, mode: "jar", query: null, analysis: null, itemLimitation: false,
+      weeklyCompletedDates: result.completedDates,
+      message: `${result.streak} weeks in a row — that's showing up for yourself. ${jarMessage(state)}` };
+  }
+  if (request.action === "next-week") {
+    let date = state.demoDate;
+    for (let day = 0; day < 7; day++) date = nextDate(date);
+    if (date > dataset.period.end) throw new AppError("You've reached the last available week.");
+    state = { ...state, demoDate: date, mode: "jar", query: null, analysis: null, itemLimitation: false, move: null };
+    return { ...state, message: jarMessage(state, true) };
+  }
+  if (request.action === "undo-move") {
+    if (!state.move || state.corrections[state.move.transactionId] !== state.move.to) throw new AppError("There is no basket move to undo.");
+    state.corrections[state.move.transactionId] = state.move.from;
+    state = { ...state, mode: "jar", query: null, analysis: null, itemLimitation: false, move: null };
+    return { ...state, message: `Basket move undone. ${jarMessage(state)}` };
   }
   if (request.action === "habit") {
     if (!categories.includes(request.habit.category)) throw new AppError("Choose an available spending category.");
@@ -159,6 +226,9 @@ export function transition(current: SessionState, request: CoachRequest, interpr
 
 export function toView(state: SessionState): CoachView {
   let activity: Activity = { kind: "none" };
+  const jar = calculateJar(checkupInput(state));
+  if (state.mode === "jar" || state.mode === "pace" || state.mode === "overspend") activity = { kind: state.mode };
+  if (state.mode === "usual") activity = { kind: "usual", comparison: calculateUsualComparison(checkupInput(state)) };
   if (state.mode === "invitation" && state.query) activity = { kind: "invitation", query: state.query };
   if (state.mode === "reveal") {
     const result = spending(state);
@@ -170,6 +240,8 @@ export function toView(state: SessionState): CoachView {
   if (activity.kind === "reveal" || activity.kind === "checkin") activity.spending.evidence = activity.spending.evidence.slice(0, 40);
   if (activity.kind === "analysis") activity.analysis.evidence = activity.analysis.evidence.slice(0, 40);
   return viewSchema.parse({ revision: state.revision, demoDate: state.demoDate, message: state.message, activity,
+    entryMessage: jar.overCents ? jarMessage(state, true) : "A little check-up, or something on your mind? I'm here for both.",
+    profile: state.profile, checkup: weeklyCheckup(state.weeklyCompletedDates, state.demoDate), jar, move: state.move,
     habit: state.habit, completedDates: state.completedDates, categories, period: { start: dataset.period.start, end: state.demoDate } });
 }
 
@@ -185,7 +257,7 @@ export async function coach(id: string, request: CoachRequest, signal?: AbortSig
     interpretation = await interpret(request.text, { categories, ...dataset.period, referenceDate: state.demoDate, previousQuery: state.query }, deadline);
   }
   let next = transition(state, request, interpretation);
-  if ((request.action === "ask" && !["checkin", "habit", "scenario"].includes(interpretation!.kind)) || request.action === "reveal") {
+  if ((request.action === "ask" && !["checkin", "habit", "scenario", "weekly_checkup", "move"].includes(interpretation!.kind)) || request.action === "reveal") {
     if (request.action === "reveal") await consumeBudget(id, "reasoning", new Date(), 2);
     next = { ...next, message: await compose(replyFacts(next, interpretation), deadline) };
   }
@@ -209,6 +281,16 @@ export function replyFacts(state: SessionState, plan?: Interpretation): ReplyFac
     period: state.query ? period(state.query) : "", values: [], notes: [], required: [], fallback: state.message };
   // Do not calculate, serialize or forward the hidden answer to the writer.
   if (state.mode === "invitation") return base;
+  if (["jar", "pace", "usual", "overspend"].includes(state.mode)) {
+    // These captions include guidance and comparisons, so preserve the entire
+    // verified financial clause rather than accepting a bag of valid numbers
+    // that could swap "left"/"spent" or "so far"/"usual".
+    base.subject = state.mode === "usual" ? "Everyday spending against your usual month" : "Everyday monthly limit";
+    base.period = period({ start: `${state.demoDate.slice(0, 7)}-01`, end: state.demoDate });
+    base.required = [state.message];
+    base.notes = [state.message];
+    return base;
+  }
   if (state.mode === "reveal") {
     const result = spending(state);
     base.values = [{ label: `${queryLabel(result.query)} recorded spending`, amountCents: result.totalCents, count: result.evidenceCount }];
@@ -237,7 +319,7 @@ export function replyFacts(state: SessionState, plan?: Interpretation): ReplyFac
   if (state.itemLimitation) base.required!.unshift(itemNotice);
   if (base.required!.length) base.fallback = [base.fallback, ...base.required!.filter(note => !base.fallback.includes(note))].join(" ");
   if (base.fallback.length > 480 || speechText(base.fallback).length > 600) {
-    base.fallback = `The card shows the calculated results ${base.period}, with the source records and assumptions. ${base.required!.join(" ")}`.trim();
+    base.fallback = `The card shows your results ${base.period}, with the payments and calculation details. ${base.required!.join(" ")}`.trim();
   }
   return base;
 }

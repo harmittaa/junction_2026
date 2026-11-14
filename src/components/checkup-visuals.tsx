@@ -56,7 +56,7 @@ export function Jar({ jar, move = null, revealKey }: { jar: JarStatus; move?: Ba
   const currentMonth = jar.period.start.slice(0, 7);
   const moveKey = move ? `${move.transactionId}:${move.from}:${move.to}:${move.amountCents}` : "";
   const movesToUnexpected = move?.to === "unexpected" && move.from !== "unexpected";
-  const showUnexpected = jar.unexpectedCents > 0 || movesToUnexpected;
+  const showUnexpected = movesToUnexpected;
   const label = `${over ? "over the rim of" : "left in"} your ${month} jar`;
 
   useEffect(() => {
@@ -82,6 +82,16 @@ export function Jar({ jar, move = null, revealKey }: { jar: JarStatus; move?: Ba
     const reveal = revealKey !== undefined && (!previous.current || previous.current.revealKey !== revealKey);
     const flight = !reveal && movesToUnexpected && previous.current?.move !== moveKey;
     if (reveal && !calm) liquid.current = { fill: 0, velocity: 0, dome: 0, mini: 0, amount: 0, spent: 0 };
+    if (flight && !calm && !liquid.current && move) {
+      // A correction can arrive from an evidence card, with no jar mounted yet.
+      // Reconstruct its previous level from the confirmed move, not an invented value.
+      const spent = jar.spentCents + (move.from === "everyday" ? move.amountCents : 0);
+      const excess = Math.max(0, spent - jar.limitCents);
+      liquid.current = { fill: clamp(spent / Math.max(1, jar.limitCents)), velocity: 0,
+        dome: excess ? Math.min(30, 6 + excess / Math.max(1, jar.limitCents) * 300) : 0,
+        mini: clamp((jar.unexpectedCents - move.amountCents) / Math.max(1, jar.limitCents)),
+        amount: excess || Math.max(0, jar.limitCents - spent), spent };
+    }
     const state = liquid.current ??= { ...target, velocity: 0 };
     const fromAmount = state.amount;
     const fromSpent = state.spent;
@@ -140,7 +150,7 @@ export function Jar({ jar, move = null, revealKey }: { jar: JarStatus; move?: Ba
     }
     frame = requestAnimationFrame(paint);
     return () => cancelAnimationFrame(frame);
-  }, [amount, calm, jar.limitCents, jar.overCents, jar.spentCents, jar.unexpectedCents, moveKey, movesToUnexpected, over, revealKey]);
+  }, [amount, calm, jar.limitCents, jar.overCents, jar.spentCents, jar.unexpectedCents, move, moveKey, movesToUnexpected, over, revealKey]);
 
   const initialFill = jar.limitCents > 0 ? clamp(jar.spentCents / jar.limitCents) : jar.spentCents > 0 ? 1 : 0;
   const months = jar.months.filter(result => result.month < currentMonth);
