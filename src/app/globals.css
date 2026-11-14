@@ -1,4 +1,4 @@
-* { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 :root { --fill-action: var(--primaryPressed); --screen-bg: var(--brand-greenTintSubtle); --disc: var(--brand-greenMintSoft); color-scheme: light; }
 [data-theme=dark] { --fill-action: var(--primary); --screen-bg: var(--background); --disc: var(--surfaceAccent); color-scheme: dark; }
 body { margin: 0; background: var(--screen-bg); color: var(--textPrimary); font-family: var(--font-ux),-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; line-height: 1.5; font-variant-numeric: tabular-nums; }

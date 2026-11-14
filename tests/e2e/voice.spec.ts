@@ -330,6 +330,24 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
     .toEqual({ selected: false, canceled: 0, unhandledMenus: 0 });
   // Chromium cannot prove iOS's native callout; explicitly verify the context-menu guard too.
   expect(await label.evaluate(element => element.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true })))).toBe(false);
+  expect(await page.evaluate(() => {
+    const target = document.querySelector(".coach-message") ?? document.body;
+    const copyAllowed = target.dispatchEvent(new Event("copy", { bubbles: true, cancelable: true }));
+    const selectAllowed = target.dispatchEvent(new Event("selectstart", { bubbles: true, cancelable: true }));
+    const selection = window.getSelection();
+    selection?.selectAllChildren(target);
+    return {
+      userSelect: getComputedStyle(document.body).userSelect,
+      copyAllowed,
+      selectAllowed,
+      selectedText: selection?.toString() ?? "",
+    };
+  })).toEqual({
+    userSelect: "none",
+    copyAllowed: false,
+    selectAllowed: false,
+    selectedText: "",
+  });
   await touch.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
   await expect(coach).toHaveAttribute("data-state", "ready");
   await expect.poll(() => closed).toBe(1);

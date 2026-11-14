@@ -179,7 +179,15 @@ export function Sponky() {
     window.addEventListener("keydown", onKey);
     const cancelHold = () => { if (titleHold.current) clearTimeout(titleHold.current); titleHold.current = null; };
     window.addEventListener("blur", cancelHold);
-    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("blur", cancelHold); };
+    const prevent = (event: Event) => event.preventDefault();
+    document.addEventListener("copy", prevent);
+    document.addEventListener("selectstart", prevent);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("blur", cancelHold);
+      document.removeEventListener("copy", prevent);
+      document.removeEventListener("selectstart", prevent);
+    };
   }, []);
   function startCoach() { cancelRequest(); setVoiceError(""); unlockSound(); void voice.start(); }
   function clearHold() { if (titleHold.current) clearTimeout(titleHold.current); titleHold.current = null; }
