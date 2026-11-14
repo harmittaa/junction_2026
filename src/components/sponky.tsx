@@ -62,10 +62,14 @@ export function Sponky() {
   const { prepare } = voice;
   const ready = entered && view !== null;
   useEffect(() => { if (ready) prepare(); }, [ready, prepare]);
+  const initialSessionLoaded = useEffectEvent((next: CoachView) => {
+    setView(next);
+    if (entered) void voice.speak(next.revision, true);
+  });
   useEffect(() => {
     const controller = new AbortController();
     void loadSession(controller.signal).then(next => {
-      if (!controller.signal.aborted) setView(next);
+      if (!controller.signal.aborted) initialSessionLoaded(next);
     }).catch(error => { if (!controller.signal.aborted) setRequestState(sessionError(error)); });
     return () => { controller.abort(); activeRequest.current?.abort(); sounds.current?.close(); if (titleHold.current) clearTimeout(titleHold.current); };
   }, []);
@@ -212,13 +216,13 @@ export function Sponky() {
     </section>
     <section className="checkup-talk" aria-label="Conversation">
       {question && <p className="checkup-question">{question}</p>}
-      <p className="coach-message" aria-live="polite">{view ? entryCaption ? view.entryMessage : view.message : busy ? "Opening your coach…" : "Your coach could not open."}</p>
+      <p className="coach-message" aria-live="polite">{view ? entryCaption ? view.entryMessage : view.message : requestState.kind === "error" ? "Your coach could not open." : "Opening your coach…"}</p>
       {(requestState.kind === "error" || voiceError) && <div className="error" role="alert">
         <p>{requestState.kind === "error" ? requestState.message : voiceError}</p>
         {requestState.kind === "error" && <button className="text-button" onClick={() => { if (!view) void openSession(!!requestState.outdated); else if (lastRequest.current) void send(lastRequest.current); else void openSession(); }}>{requestState.outdated ? "Start fresh" : "Retry"}</button>}
         {voiceError && <button className="text-button" onClick={() => setVoiceError("")}>Dismiss</button>}
       </div>}
-      {view && <><p className="checkup-try">Try asking</p><div className="checkup-chips">
+      {view && <><p className="checkup-try">Try asking</p><div className="checkup-chips" key={view.revision}>
         {view.checkup.due && <button className="main" disabled={busy} onClick={() => void send({ action: "weekly-checkup", revision: view.revision })}>Let&apos;s do my check-up</button>}
         {view.move && <button disabled={busy} onClick={() => void send({ action: "undo-move", revision: view.revision })}>Undo basket move</button>}
         {suggestions.map(text => <button key={text} disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text })}>{text}</button>)}

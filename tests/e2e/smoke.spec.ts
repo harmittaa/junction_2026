@@ -58,6 +58,39 @@ async function installVoice(page: Page) {
   };
 }
 
+test("entry before session load speaks the welcome once without replaying on rerender", async ({ page }) => {
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/api/session", async route => { await held; await route.continue(); });
+  const speech: object[] = [];
+  page.on("request", request => { if (request.url().endsWith("/api/speech")) speech.push(request.postDataJSON()); });
+  const loading = page.waitForRequest(request => request.url().endsWith("/api/session"));
+  await page.goto("/");
+  await loading;
+  await page.getByRole("button", { name: /Talk to Sponky/ }).click();
+  await expect(page.getByRole("heading", { name: "Hey Matti" })).toHaveCount(0);
+  await expect(page.locator(".coach-message")).toHaveText("Opening your coach…");
+  expect(speech).toEqual([]);
+  release();
+  await expect(page.getByRole("heading", { name: "Hey Matti" })).toBeVisible();
+  await expect(page.locator(".coach-message")).toContainText("check-up");
+  await expect.poll(() => speech).toEqual([{ revision: 0, entry: true }]);
+  await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "speaking");
+  await page.getByRole("button", { name: "Dark appearance", exact: true }).click();
+  await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "ready", { timeout: 8000 });
+  await page.getByRole("button", { name: "Light appearance", exact: true }).click();
+  expect(speech).toEqual([{ revision: 0, entry: true }]);
+});
+
+test("an answer resets a scrolled suggestion strip to its first action", async ({ page }) => {
+  await enter(page);
+  await page.getByRole("button", { name: questions.jar, exact: true }).scrollIntoViewIfNeeded();
+  await expect.poll(() => page.locator(".checkup-chips").evaluate(element => element.scrollLeft)).toBeGreaterThan(30);
+  expect((await chip(page, questions.jar)).activity.kind).toBe("jar");
+  await expect.poll(() => page.locator(".checkup-chips").evaluate(element => element.scrollLeft)).toBe(0);
+  await expect(page.getByRole("button", { name: "Let's do my check-up", exact: true })).toBeInViewport({ ratio: 1 });
+});
+
 test("welcome, weekly reward, jar, spoken necessity correction, undo and hidden reset", async ({ page }, testInfo) => {
   test.setTimeout(60000);
   const say = await installVoice(page);
@@ -101,6 +134,8 @@ test("welcome, weekly reward, jar, spoken necessity correction, undo and hidden 
   expect(days.jar.topDays).toEqual([{ date: "2026-09-21", amountCents: 35915, count: 4 }, { date: "2026-09-19", amountCents: 28004, count: 6 }]);
   await expect(page.getByRole("heading", { name: "The days that filled your jar" })).toBeVisible();
   await expect(page.locator(".sp-activities")).toContainText("177,96");
+  await page.getByRole("button", { name: questions.jar, exact: true }).scrollIntoViewIfNeeded();
+  await expect.poll(() => page.locator(".checkup-chips").evaluate(element => element.scrollLeft)).toBeGreaterThan(30);
   const exactWords = "The 177,96 € payment on 2026-09-21 was necessary because of a burst pipe.";
   const correctedResponse = await say(exactWords);
   expect(correctedResponse.status()).toBe(200);
@@ -110,6 +145,8 @@ test("welcome, weekly reward, jar, spoken necessity correction, undo and hidden 
   expect(spoken).toEqual([questions.days, exactWords]);
   await expect(jar).toContainText(/50,76\s€ left/);
   await expect(jar.locator("[data-counter]")).toHaveText(/50,76/);
+  await expect.poll(() => page.locator(".checkup-chips").evaluate(element => element.scrollLeft)).toBe(0);
+  await expect(page.getByRole("button", { name: "Undo basket move", exact: true })).toBeInViewport({ ratio: 1 });
   await page.screenshot({ path: testInfo.outputPath("corrected.png"), fullPage: true });
   const undone = await chip(page, "Undo basket move");
   expect(undone.jar).toMatchObject({ spentCents: 232720, overCents: 12720 });
