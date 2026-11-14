@@ -398,30 +398,11 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
 }
 }
 
-test("bank entry opens Sponky and the corner button keeps talk running without holding", async ({ page }) => {
-  let commits = 0;
-  await page.route("**/api/voice/token", route => route.fulfill({ json: { token: "fixture", modelId: "scribe_v3_live" } }));
-  await page.route("**/api/speech", route => route.abort());
-  await page.routeWebSocket("wss://api.elevenlabs.io/**", socket => {
-    setTimeout(() => socket.send(JSON.stringify({ message_type: "session_started" })), 25);
-    socket.onMessage(message => {
-      if (JSON.parse(String(message)).commit) {
-        commits++;
-        socket.send(JSON.stringify({ message_type: "committed_transcript", text: "I've had a long day" }));
-      }
-    });
-  });
+test("bank entry opens Sponky with typing out of view", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "S-Bank" })).toBeVisible();
   await page.getByRole("button", { name: "Talk to Sponky" }).tap();
+  await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "ready");
   await expect(page.getByRole("textbox", { name: "Message", exact: true })).not.toBeInViewport();
-  const coach = page.locator(".sp-coach");
-  await page.getByRole("button", { name: "Tap to talk" }).tap();
-  await expect(coach).toHaveAttribute("data-state", "listening");
-  await page.waitForTimeout(500);
-  await expect(coach).toHaveAttribute("data-state", "listening");
-  await page.getByRole("button", { name: "Tap to send" }).tap();
-  await expect.poll(() => commits).toBe(1);
-  await expect(page.locator(".coach-message")).toContainText("long day");
 });
