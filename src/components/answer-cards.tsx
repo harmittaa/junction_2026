@@ -7,6 +7,7 @@ import {
   type Basket,
   type Analysis,
   type CoachRequest,
+  type CoachView,
   type GoalVerdict,
   type Noticed,
   type SafeToSave,
@@ -333,6 +334,7 @@ export function GoalCard({
 
 export function PaymentsSheet({
   analysis,
+  merchantNoticed,
   monthLabel,
   busy,
   revision,
@@ -340,6 +342,7 @@ export function PaymentsSheet({
   onClose,
 }: {
   analysis: Analysis;
+  merchantNoticed?: CoachView["merchantNoticed"];
   monthLabel: string;
   busy: boolean;
   revision: number;
@@ -392,6 +395,8 @@ export function PaymentsSheet({
   const shownSum = filteredEvidence.reduce((sum, r) => sum + r.amountCents, 0);
 
   const dates = Array.from(new Set(filteredEvidence.map(r => r.date))).sort((a, b) => b.localeCompare(a));
+  const noticedRow = merchantNoticed ? dates.flatMap(date => filteredEvidence.filter(row => row.date === date))
+    .find(row => row.merchant === merchantNoticed.merchantId && row.date.slice(0, 7) === merchantNoticed.month) : undefined;
 
   if (typeof document === "undefined") return null;
 
@@ -498,6 +503,14 @@ export function PaymentsSheet({
                         <span className="ac-payment-amount">{euros(row.amountCents)}</span>
                         <span className="ac-payment-chevron" aria-hidden="true">›</span>
                       </button>
+                      {merchantNoticed && row.id === noticedRow?.id && (
+                        <NoticedRow
+                          noticed={merchantNoticed.noticed}
+                          busy={busy}
+                          revision={revision}
+                          onAction={request => { onClose(); onAction(request); }}
+                        />
+                      )}
                       {isExpanded && (
                         <div className="ac-payment-panel">
                           <p className="ac-panel-title">Move to another basket</p>

@@ -1,4 +1,5 @@
 import "server-only";
+import { merchantSpike, merchantReflectionQuestion } from "@/domain/merchant-spike";
 import { calculateSpending, euros, nextDate, percentageScenario, queryLabel } from "@/domain/spending";
 import { calculateAnalysis, recentCompleteQuery } from "@/domain/exploration";
 import { calculateJar, calculateUsualComparison, completeWeeklyCheckup, weeklyCheckup } from "@/domain/checkup";
@@ -150,6 +151,9 @@ export function transition(current: SessionState, request: CoachRequest, interpr
     state = { ...state, jarMonth: request.month === state.demoDate.slice(0, 7) ? null : request.month,
       mode: "jar", query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null };
     return { ...state, message: jarMessage(state) };
+  }
+  if (request.action === "ask" && request.text === merchantReflectionQuestion) {
+    return { ...state, message: "What did you value about those payments? You can decide whether they still fit your priorities." };
   }
   if (request.action === "ask") {
     const result = validatePlan(interpretation, { categories, ...dataset.period, referenceDate: state.demoDate, previousQuery: state.query, selectedMonth: activeMonth(state) });
@@ -395,6 +399,14 @@ export function toView(state: SessionState): CoachView {
     datasetStart: dataset.period.start,
   });
 
+  const upcomingNoticed = noticed({
+    place: "upcoming", rows: dataset.transactions, customerId: state.customerId, referenceDate: state.demoDate,
+  });
+
+  const merchantNoticed = activity.kind === "analysis" && activity.analysis.kind === "profile"
+    ? merchantSpike({ rows: dataset.transactions, customerId: state.customerId, month: activity.analysis.query.start.slice(0, 7), referenceDate: state.demoDate })
+    : null;
+
   const checkup = weeklyCheckup(state.weeklyCompletedDates, state.demoDate);
   const streakCount = Math.min(checkup.streak, 4);
   const recentCompleted = streakCount > 0 ? checkup.completedDates.slice(-streakCount) : [];
@@ -406,7 +418,7 @@ export function toView(state: SessionState): CoachView {
   return viewSchema.parse({ revision: state.revision, demoDate: state.demoDate, message: state.message, activity,
     entryMessage: jar.overCents ? jarMessage(state, true) : "A little check-up, or something on your mind? I'm here for both.",
     profile: state.profile, checkup, streakJars, jar, move: state.move,
-    goal: state.goal ?? null, noticed: noticedRow, entryNoticed,
+    goal: state.goal ?? null, noticed: noticedRow, entryNoticed, upcomingNoticed, merchantNoticed,
     spendWeek: safeToSpendWeek(jar, state.demoDate),
     habit: state.habit, completedDates: state.completedDates, categories, period: { start: dataset.period.start, end: state.demoDate } });
 }
@@ -418,7 +430,8 @@ export async function coach(id: string, request: CoachRequest, signal?: AbortSig
   // All model work shares the existing browser turn deadline. Reserve worst-case
   // calls atomically; an SDK retry cannot exceed the three-call turn ceiling.
   const deadline = AbortSignal.any([AbortSignal.timeout(27000), ...(signal ? [signal] : [])]);
-  if (request.action === "ask") {
+  const merchantReflection = request.action === "ask" && request.text === merchantReflectionQuestion;
+  if (request.action === "ask" && !merchantReflection) {
     if (request.text === changeGoalText) {
       interpretation = { ...scopePlan, kind: "goal", goal: null, reply: "none" };
     } else {
@@ -427,7 +440,7 @@ export async function coach(id: string, request: CoachRequest, signal?: AbortSig
     }
   }
   let next = transition(state, request, interpretation);
-  const skipCompose = interpretation && (
+  const skipCompose = merchantReflection || interpretation && (
     ["checkin", "habit", "scenario", "weekly_checkup", "move"].includes(interpretation.kind) ||
     (interpretation.kind === "goal" && interpretation.goal === null)
   );

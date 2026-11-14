@@ -147,7 +147,7 @@ export const goalVerdictSchema = z.object({
 }).strict();
 export type GoalVerdict = z.infer<typeof goalVerdictSchema>;
 export const noticedSchema = z.object({
-  rule: z.enum(["balance_lower", "invest_over_left", "largest_category", "jar_pace", "month_over_usual", "merchant_spike"]),
+  rule: z.enum(["balance_lower", "invest_over_left", "largest_category", "jar_pace", "month_over_usual", "merchant_spike", "car_season"]),
   text: z.string().min(1).max(300), question: z.string().min(1).max(200),
 }).strict();
 export type Noticed = z.infer<typeof noticedSchema>;
@@ -188,6 +188,8 @@ export const viewSchema = z.object({
   message: z.string().max(1200), entryMessage: z.string().max(1200), activity: activitySchema,
   profile: customerProfileSchema, checkup: weeklyCheckupSchema, jar: jarSchema, move: basketMoveSchema.nullable(),
   goal: goalSchema.nullable(), spendWeek: safeToSpendWeekSchema, noticed: noticedSchema.nullable(), entryNoticed: noticedSchema.nullable(),
+  upcomingNoticed: noticedSchema.nullable().optional(),
+  merchantNoticed: z.object({ merchantId: z.string().min(1), month, noticed: noticedSchema }).strict().nullable().optional(),
   habit: habitSchema.nullable(), completedDates: z.array(dateSchema),
   categories: z.array(z.string()), period: z.object({ start: dateSchema, end: dateSchema }),
   streakJars: z.array(z.object({ date: dateSchema, leftCents: money })).optional(),

@@ -246,6 +246,7 @@ export function Sponky() {
         <CheckupWelcome firstName={view.profile.firstName} date={view.demoDate} due={view.checkup.due} />
         <div className="checkup-welcome-stack">
           {view.entryNoticed && <NoticedRow noticed={view.entryNoticed} busy={busy} revision={view.revision} onAction={request => void send(request)} />}
+          {view.upcomingNoticed && <NoticedRow noticed={view.upcomingNoticed} busy={busy} revision={view.revision} onAction={request => void send(request)} />}
           <IdeasButton due={view.checkup.due} onClick={() => setIdeasOpen(true)} className="checkup-ideas-welcome" />
           {view.checkup.due && <button type="button" className="checkup-welcome-checkup" disabled={busy} onClick={() => void send({ action: "weekly-checkup", revision: view.revision })}>Let&apos;s do my check-up</button>}
         </div>
