@@ -9,14 +9,16 @@ env:
   - variable: GOOGLE_CLOUD_PROJECT
     value: sponky-junction-2026
     availability: [RUNTIME]
+  # Explicit versions avoid granting the runtime account secret metadata access.
+  # Rotation requires updating these pins and deploying again.
   - variable: GEMINI_API_KEY
-    secret: GEMINI_API_KEY
+    secret: GEMINI_API_KEY@1
     availability: [RUNTIME]
   - variable: ELEVENLABS_API_KEY
-    secret: ELEVENLABS_API_KEY
+    secret: ELEVENLABS_API_KEY@1
     availability: [RUNTIME]
   - variable: SESSION_SECRET
-    secret: SESSION_SECRET
+    secret: SESSION_SECRET@1
     availability: [RUNTIME]
   - variable: GEMINI_MODEL
     value: gemini-4-hydrogen
