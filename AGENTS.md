@@ -51,7 +51,7 @@ Test observable behavior and expensive-to-break rules, not implementation detail
 | UI interaction | Exercise the changed path at phone width. Add browser automation only when it protects an important journey. |
 | Copy, styles or documentation | Inspect the result and check relevant links/layout; no new unit tests. |
 
-At application scaffolding, provide `npm run check` for typecheck, lint and the small deterministic unit suite; `npm run build` for production compilation; and `npm run test:e2e` for a few Playwright smoke journeys. These commands do not exist yet: do not report them as passing until implemented and run. Add emulator checks when persistence is implemented.
+- Run `npm run check` for typecheck, lint, deterministic Vitest cases and Python importer checks; `npm run test:emulator` for isolated Firestore integration checks; and `npm run build` before `npm run test:e2e` for production compilation and Playwright smoke journeys. Report a check as passing only after running it.
 
 - Before handing off application code, run the quick check and any affected integration/browser checks. Keep the quick check roughly within a minute; split slow tests instead of dropping valuable checks.
 - Before merging application changes or preparing a demo deployment, run the production build and the small smoke suite against the combined result. Do not rebuild after each tiny edit when no new concern warrants it.
