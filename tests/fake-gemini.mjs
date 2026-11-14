@@ -7,6 +7,11 @@ createServer(async (request, response) => {
   let input = "";
   for await (const part of request) input += part;
   const envelope = JSON.parse(input);
+  // Exercise the selected model's request settings through the real SDK.
+  if (envelope.model !== "gemini-3.5-flash-lite" || envelope.generation_config?.thinking_level !== "minimal"
+    || ["temperature", "top_p", "top_k"].some(key => key in (envelope.generation_config ?? {}))) {
+    response.writeHead(400); response.end('{"error":{"message":"unexpected model settings"}}'); return;
+  }
   const { userMessage, scope } = JSON.parse(envelope.input);
   if (userMessage === "provider failure") { response.writeHead(503); response.end('{"error":{"message":"fixture unavailable"}}'); return; }
   // Verify bounded model context at the actual SDK HTTP boundary.

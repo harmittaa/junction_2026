@@ -42,7 +42,7 @@ spending requires query. An ordinary spending question such as "How much did I s
     input: JSON.stringify({ scope: context, userMessage: text }),
     response_format: { type: "text", mime_type: "application/json", schema: z.toJSONSchema(interpretationSchema) },
     // The cap includes thinking: a 700-token cap exhausted before JSON on follow-ups.
-    generation_config: { thinking_level: "low", max_output_tokens: 2048, temperature: 0.2 },
+    generation_config: { thinking_level: env.GEMINI_THINKING_LEVEL, max_output_tokens: 2048 },
   }, { signal: deadline, timeout_ms: 20000, retries: { strategy: "none" }, ...(testURL ? { server_url: testURL } : {}) });
   deadline.throwIfAborted();
   if (result.status !== "completed" || !result.output_text) {
