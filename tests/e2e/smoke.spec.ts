@@ -162,6 +162,18 @@ test("free questions, profile, taxi and six-month hypothetical reduction remain 
   expect(profile.activity.analysis.kind).toBe("profile");
   expect(profile.merchantNoticed?.merchantId).toBe("MRC-ENT-0052");
   await page.getByRole("button", { name: /See the \d+ payments/ }).click();
+  const payments = page.getByRole("dialog", { name: /August.*payments/ });
+  await expect(payments.locator(".ac-payment-row")).toHaveCount(59);
+  await expect(payments.locator(".ac-sheet-subtitle")).toContainText(/59 payments · 4\s448,78\s€/);
+  await expect(payments.locator(".ac-day-heading").first()).toHaveText("Sat 29 Aug");
+  await expect(payments.getByRole("button", { name: "Everyday 52", exact: true })).toBeVisible();
+  await expect(payments.getByRole("button", { name: "Regular 4", exact: true })).toBeVisible();
+  await expect(payments.getByRole("button", { name: "Unexpected 3", exact: true })).toBeVisible();
+  await payments.getByRole("button", { name: "Unexpected 3", exact: true }).click();
+  await expect(payments.locator(".ac-payment-row")).toHaveCount(3);
+  await expect(payments.locator(".ac-sheet-subtitle")).toContainText(/3 payments · 125,07\s€/);
+  await payments.getByRole("button", { name: "All 59", exact: true }).click();
+  await expect(payments.locator(".ac-payment-row")).toHaveCount(59);
   const merchantNote = page.locator(".ac-noticed").filter({ hasText: "Still worth it to you?" });
   await expect(merchantNote).toHaveCount(1);
   await expect(merchantNote).toContainText(/4 payments here in August, 445,98\s€\./);

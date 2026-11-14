@@ -68,12 +68,21 @@ function jarMessage(state: SessionState, welcome = false) {
   if (jar.overCents) return `${welcome ? "Welcome back. " : ""}Your jar is ${euros(jar.overCents)} over the rim. ${jar.topDays.length ? `The biggest days this past week were ${jar.topDays.map(row => fullDate.format(utc(row.date))).join(" and ")}.` : "We can take a closer look together."}`;
   return `${euros(jar.leftCents)} left in your ${month.format(utc(state.demoDate))} jar, with ${jar.daysLeft} days to go.${jar.daysLeft ? " Your daily room is on screen." : ""}`;
 }
+// Response bounds for listed payments. A profile is one whole calendar month, so it
+// lists every payment up to a bound above the busiest month in this slice (73).
+// Other analysis cards stay at 40 rows; totals always use all matching records.
+function evidenceLimit(kind: Analysis["kind"]) {
+  return kind === "profile" ? 100 : 40;
+}
 function currentEvidence(state: SessionState) {
   if (["jar", "pace", "overspend"].includes(state.mode)) return calculateJar(checkupInput(state)).evidence;
   if (["save", "goal", "spend_week"].includes(state.mode)) return [];
   if (state.mode === "usual") return calculateUsualComparison(checkupInput(state)).evidence;
   if (state.mode === "reveal") return spending(state).evidence.slice(0, 40);
-  if (state.mode === "analysis" && state.analysis?.kind !== "cashflow") return analysis(state).evidence.slice(0, 40);
+  if (state.mode === "analysis" && state.analysis?.kind !== "cashflow") {
+    const result = analysis(state);
+    return result.evidence.slice(0, evidenceLimit(result.kind));
+  }
   return [];
 }
 const itemNotice = "Single items and real merchant names aren't in the data. This is a wider total, not an item total.";
@@ -376,7 +385,7 @@ export function toView(state: SessionState): CoachView {
   if (state.mode === "checkin") activity = { kind: "checkin", spending: spending(state), completed: state.completedDates.includes(state.demoDate) };
   if (state.mode === "analysis") activity = { kind: "analysis", analysis: analysis(state) };
   if (activity.kind === "reveal" || activity.kind === "checkin") activity.spending.evidence = activity.spending.evidence.slice(0, 40);
-  if (activity.kind === "analysis") activity.analysis.evidence = activity.analysis.evidence.slice(0, 40);
+  if (activity.kind === "analysis") activity.analysis.evidence = activity.analysis.evidence.slice(0, evidenceLimit(activity.analysis.kind));
 
   let noticedRow: Noticed | null = null;
   if (activity.kind === "save") {
