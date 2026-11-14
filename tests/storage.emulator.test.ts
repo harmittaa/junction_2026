@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getFirestore } from "firebase-admin/firestore";
 import { beforeAll, describe, expect, it } from "vitest";
-import { getFirestore } from "firebase-admin/firestore";
 import { readSession, updateSession, consumeBudget } from "@/server/storage/sessions";
 import { transition, toView } from "@/server/coach";
 
