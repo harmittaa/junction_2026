@@ -11,6 +11,11 @@ import "./checkup-screen.css";
 type RequestState = { kind: "idle" } | { kind: "sending" } | { kind: "error"; message: string; outdated?: boolean };
 const ribbon = <svg viewBox="0 0 120 120"><path d="M69 10C107 34 39 80 77 110M43 10C81 34 13 80 51 110" /></svg>;
 const bankCards = [["Accounts", "S-Tili · Taloustili"], ["Payments and e-invoices", "Make a new payment or view e-invoices"], ["Cards", "S-Etukortti Visa Credit/Debit"], ["Säästäjä", "Oma tavoitteeni"], ["Investments", "Value of your investments"]];
+const questions = {
+  pace: "Am I still on track?", usual: "What have I spent more on than usual?",
+  profile: "What kind of spender am I?", taxi: "How much did I spend on taxis this year?",
+  whatif: "What if I cut dining out by 20%?", days: "Which days pushed me over?", jar: "Show my jar",
+};
 
 class SessionLoadError extends Error {
   constructor(message: string, readonly outdated = false) { super(message); }
@@ -53,7 +58,7 @@ export function Sponky() {
     onError: setVoiceError,
   });
   const busy = requestState.kind === "sending";
-  const hasContent = content || !!view?.jar.overCents;
+  const hasContent = content || !!view?.jar.overCents || (view?.activity.kind !== undefined && view.activity.kind !== "none");
   const { prepare } = voice;
   const ready = entered && view !== null;
   useEffect(() => { if (ready) prepare(); }, [ready, prepare]);
@@ -191,7 +196,11 @@ export function Sponky() {
   const isProfileAnalysis = view?.activity.kind === "analysis" && view.activity.analysis.kind === "profile";
   const hideCaptionVisual = !hasContent || !view || ["save", "goal", "spend_week", "jar"].includes(view.activity.kind) || isProfileAnalysis;
   const hideQuestionVisual = ["save", "goal"].includes(view?.activity.kind ?? "") || isProfileAnalysis;
-  const showQuestion = question && coachState === "thinking" && !hideQuestionVisual;
+  const showQuestion = Boolean(question && !hideQuestionVisual);
+  const suggested = view?.jar.overCents
+    ? [questions.days, questions.usual, questions.whatif, questions.profile, questions.taxi, questions.jar]
+    : [questions.pace, questions.usual, questions.profile, questions.taxi, questions.whatif, questions.jar];
+  const suggestions = suggested.filter(value => value !== question);
 
   if (!entered) return <main className="app bank">
     <header className="bank-header"><h1>S-Bank</h1></header>
@@ -239,7 +248,7 @@ export function Sponky() {
         </div>
       </>}
       {view && hasContent && !reward && <div className="checkup-answer" key={view.activity.kind === "jar" || view.activity.kind === "spend_week" ? "jar" : `${view.activity.kind}:${view.revision}`}>
-        {(entryCaption && view.jar.overCents > 0) || view.activity.kind === "jar" || view.activity.kind === "spend_week" ? <Jar jar={view.jar} move={view.move} spendWeek={view.spendWeek} goal={view.goal} noticed={view.noticed} revision={view.revision} onAction={request => void send(request)} onAsk={text => void send({ action: "ask", revision: view.revision, text })} revealKey={revealKey} demoDate={view.demoDate} busy={busy} onSelectMonth={month => void send({ action: "select-month", revision: view.revision, month })} /> : <Activities view={view} busy={busy} countActive={voice.state !== "loading"} onAction={request => void send(request)} />}
+        {(entryCaption && view.jar.overCents > 0) || view.activity.kind === "jar" || view.activity.kind === "spend_week" ? <Jar jar={view.jar} move={view.move} spendWeek={view.activity.kind === "spend_week" ? view.spendWeek : undefined} goal={view.goal} noticed={view.noticed} revision={view.revision} onAction={request => void send(request)} onAsk={text => void send({ action: "ask", revision: view.revision, text })} revealKey={revealKey} demoDate={view.demoDate} busy={busy} onSelectMonth={month => void send({ action: "select-month", revision: view.revision, month })} /> : <Activities view={view} busy={busy} countActive={voice.state !== "loading"} onAction={request => void send(request)} />}
       </div>}
     </section>
     {view && hasContent && !reward && <IdeasButton due={view.checkup.due} onClick={() => setIdeasOpen(true)} className="checkup-ideas-answer" />}
@@ -254,7 +263,10 @@ export function Sponky() {
           <button className="text-button" onClick={() => setVoiceError("")}>Dismiss</button>
         </>}
       </div>}
-      {view?.move && <button className="text-button" disabled={busy} onClick={() => void send({ action: "undo-move", revision: view.revision })}>Undo basket move</button>}
+      {view && <div className="checkup-chips" key={view.revision}>
+        {view.move && <button disabled={busy} onClick={() => void send({ action: "undo-move", revision: view.revision })}>Undo basket move</button>}
+        {suggestions.map(text => <button key={text} disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text })}>{text}</button>)}
+      </div>}
       {voice.state === "starting" && <p className="meta" role="status">Starting microphone…</p>}
       {voice.state === "transcribing" && <p className="meta" role="status">Finishing your words…</p>}
       {["starting", "transcribing", "loading"].includes(voice.state) && <button className="text-button" onClick={voice.cancel}>Cancel voice</button>}

@@ -180,3 +180,12 @@ The latest typed and English voice journeys passed on version 2. The sponsored p
 | Dataset provenance/import | `data/README.md`, `scripts/import-transactions.py` |
 
 Shared contracts keep provider objects out of UI/domain code; cards accept data/callbacks and History can move without a server change. A new journey/provider can reuse calculations and confirmed operations. No generalized plugin framework or speculative backend was added.
+
+## Integrated coach and demo journey rollout — 14 November 2026
+
+Integration of Coach 3/7, 4/7, and 5/7 with verified full smoke and voice test suites.
+
+- All product code reads from `/api/coach` and `/api/session`; fixture preview route returns null in production.
+- GoalCard uses `changeGoalText` from `src/domain/replies.ts`.
+- Checkup chips and welcome stack layout separated with 260px intro padding; pointer events and gestures preserved across 390px mobile viewport.
+- Full local suite passes 100%: `npm run check` (228 unit/integration tests + 3 python tests), `npm run test:emulator` (7 persistence/isolation tests), `npm run build` (Next.js production Turbopack compilation), and `npm run test:e2e` (7 Playwright end-to-end journeys covering welcome, check-up, jar, necessity corrections, session isolation, month switching, stretch goal setting with reload persistence, and speech/voice interactions).

@@ -11,12 +11,10 @@ import {
   type Noticed,
   type SafeToSave,
 } from "@/shared/contracts";
+import { changeGoalText } from "@/domain/replies";
 import { euros } from "@/domain/spending";
 import { goalAmount, lastDayOfMonth, monthRange, dayHeading, minusEuros } from "./answer-format";
 import "./answer-cards.css";
-
-// shortcut: import changeGoalText from replies.ts after Coach 3/7 merges, Coach 6/7 checks it
-export const CHANGE_GOAL_ASK = "I want to change my goal";
 
 export const subscribeMotion = (notify: () => void) => {
   if (typeof window === "undefined") return () => {};
@@ -296,7 +294,7 @@ export function GoalCard({
               type="button"
               className="ac-press"
               disabled={busy}
-              onClick={() => onAction({ action: "ask", revision, text: CHANGE_GOAL_ASK })}
+              onClick={() => onAction({ action: "ask", revision, text: changeGoalText })}
             >
               Change the goal
             </button>
@@ -322,7 +320,7 @@ export function GoalCard({
               type="button"
               className="sp-secondary ac-press"
               disabled={busy}
-              onClick={() => onAction({ action: "ask", revision, text: CHANGE_GOAL_ASK })}
+              onClick={() => onAction({ action: "ask", revision, text: changeGoalText })}
             >
               Change it
             </button>
