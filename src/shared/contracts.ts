@@ -106,3 +106,40 @@ export type CoachRequest = z.infer<typeof requestSchema>;
 export const speechRequestSchema = z.object({ revision }).strict();
 export const voiceTokenSchema = z.object({ token: z.string().min(1), modelId: z.string().min(1) });
 export const apiErrorSchema = z.object({ error: z.string(), retryable: z.boolean() });
+
+export const monthlyLimitSchema = z.object({
+  amountCents: money.positive(), activeSince: z.string().regex(/^\d{4}-\d{2}$/),
+}).strict();
+export type MonthlyLimit = z.infer<typeof monthlyLimitSchema>;
+export const customerProfileSchema = z.object({
+  firstName: z.string().min(1).max(60), everydayLimit: monthlyLimitSchema,
+}).strict();
+export const jarSchema = z.object({
+  period: periodSchema, limitCents: money, spentCents: money,
+  leftCents: money, overCents: money,
+  elapsedDays: z.number().int().positive(), daysLeft: z.number().int().nonnegative(),
+  dailySpentCents: money, dailyRemainingCents: money,
+  projectedCents: money, projectedOverCents: money,
+  unexpectedCents: money,
+  months: z.array(z.object({ month: z.string(), spentCents: money, inside: z.boolean() })),
+  contributionPeriod: periodSchema,
+  topDays: z.array(z.object({ date: dateSchema, amountCents: money, count: z.number().int().positive() })),
+  evidence: z.array(evidenceSchema),
+}).strict();
+export type JarStatus = z.infer<typeof jarSchema>;
+export const usualComparisonSchema = z.object({
+  period: periodSchema, baseline: periodSchema, monthCount: z.number().int().positive(),
+  rows: z.array(z.object({ category: z.string(), currentCents: money, usualCents: money,
+    paymentDates: z.array(dateSchema), count: z.number().int().nonnegative() })),
+  evidence: z.array(evidenceSchema),
+}).strict();
+export type UsualComparison = z.infer<typeof usualComparisonSchema>;
+export const weeklyCheckupSchema = z.object({
+  weekStart: dateSchema, completed: z.boolean(), due: z.boolean(),
+  streak: z.number().int().nonnegative(), completedDates: z.array(dateSchema),
+}).strict();
+export type WeeklyCheckup = z.infer<typeof weeklyCheckupSchema>;
+export const basketMoveSchema = z.object({
+  transactionId: z.string(), amountCents: money, from: basketSchema, to: basketSchema,
+}).strict();
+export type BasketMove = z.infer<typeof basketMoveSchema>;
