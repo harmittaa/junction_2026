@@ -23,7 +23,7 @@
 .checkup-welcome-stack { position: absolute; left: 16px; right: 16px; bottom: 32px; display: flex; flex-direction: column; gap: 12px; z-index: 2; }
 .checkup-ideas-welcome { align-self: flex-end; }
 .checkup-welcome-checkup { width: 100%; min-height: 52px; border: 0; border-radius: 9999px; background: var(--fill-action); color: var(--onPrimary); font: 700 17px/1.5 var(--font-ux), sans-serif; cursor: pointer; }
-.checkup-ideas-answer { position: absolute; right: 16px; bottom: 10px; gap: 38px; z-index: 2; }
+.checkup-ideas-answer { position: absolute; right: 16px; bottom: 10px; z-index: 2; }
 .sponky-entry.has-bubble { align-items: flex-end; text-align: left; }
 button.sponky-entry-bubble {
   border: 0;
@@ -74,7 +74,7 @@ button.sponky-entry-label-btn {
 .checkup-screen.intro { --checkup-intro-orb-size: clamp(112px, calc(50dvh - 200px), 168px); height: auto; min-height: 100dvh; padding-bottom: 24px; overflow: visible; }
 .checkup-screen.intro .checkup-canvas { display: contents; }
 .checkup-screen.intro .checkup-welcome { position: static; order: 1; margin-top: 24px; }
-.checkup-screen.intro .checkup-orb { position: relative; top: auto; bottom: auto; left: auto; align-self: center; order: 2; }
+.checkup-screen.intro .checkup-orb { position: relative; top: auto; bottom: auto; left: auto; align-self: center; order: 2; margin-top: 28px; }
 .checkup-screen.intro .checkup-welcome-stack { position: static; order: 3; margin-top: auto; }
 .checkup-screen.intro .checkup-talk { order: 4; margin-top: 0; }
 .checkup-screen.intro .sp-coach-orb { width: var(--checkup-intro-orb-size); height: var(--checkup-intro-orb-size); margin: 0; }

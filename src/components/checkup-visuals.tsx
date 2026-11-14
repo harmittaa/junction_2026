@@ -433,9 +433,9 @@ export function IdeasSheet({
   useEffect(() => {
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const firstButton = panelRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)");
-    firstButton?.focus();
+    firstButton?.focus({ preventScroll: true });
     return () => {
-      previousFocus.current?.focus();
+      previousFocus.current?.focus({ preventScroll: true });
     };
   }, []);
 
