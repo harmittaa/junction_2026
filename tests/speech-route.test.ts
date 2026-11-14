@@ -14,13 +14,13 @@ it("authorizes speech from the current server state, withholds pending facts, an
   const send = (body: object) => POST(new Request("https://demo.example/api/speech", {
     method: "POST", headers: { origin: "https://demo.example", "Content-Type": "application/json" }, body: JSON.stringify(body),
   }));
-  const pending = { ...transition(initialState(), { action: "ask", revision: 0, text: "October groceries" }, {
-    kind: "spending", query: { category: "Groceries", start: "2024-10-01", end: "2024-10-31" }, percent: null, direct: false, reply: "none",
+  const pending = { ...transition(initialState(), { action: "ask", revision: 0, text: "August groceries" }, {
+    kind: "spending", query: { category: "Groceries", start: "2026-08-01", end: "2026-08-31" }, percent: null, direct: false, reply: "none",
   }), revision: 1 };
   io.read.mockResolvedValue(pending);
   expect((await send({ revision: 1 })).status).toBe(200);
   expect(spoken[0]).toContain("Want to guess");
-  expect(spoken[0]).not.toMatch(/752|3251|11 transactions|MRC/);
+  expect(spoken[0]).not.toMatch(/1111|7990|11 transactions|MRC/);
   io.read.mockResolvedValue({ ...transition(pending, { action: "reveal", revision: 1, guessCents: null }), revision: 2 });
   expect((await send({ revision: 1 })).status).toBe(409);
   expect((await send({ revision: 2, text: "You saved 200 euros on taxis" })).status).toBe(400);
@@ -28,12 +28,12 @@ it("authorizes speech from the current server state, withholds pending facts, an
   const revealed = await send({ revision: 2 });
   expect(revealed.status).toBe(200);
   expect(revealed.headers.get("Content-Type")).toBe("audio/mpeg");
-  expect(spoken[1]).toContain("752 euros and 75 cents");
-  expect(spoken[1]).toContain("groceries in October 2024, across 11 payments");
-  const later = transition({ ...initialState(), demoDate: "2024-11-30" }, { action: "ask", revision: 0, text: "Health in November, just show me" }, {
-    kind: "spending", query: { category: "Health", start: "2024-11-01", end: "2024-11-30" }, percent: null, direct: true, reply: "none",
+  expect(spoken[1]).toContain("1111 euros and 6 cents");
+  expect(spoken[1]).toContain("groceries in August 2026, across 16 payments");
+  const later = transition({ ...initialState(), demoDate: "2026-09-30" }, { action: "ask", revision: 0, text: "Health in September, just show me" }, {
+    kind: "spending", query: { category: "Health", start: "2026-09-01", end: "2026-09-30" }, percent: null, direct: true, reply: "none",
   });
   io.read.mockResolvedValue(later);
   expect((await send({ revision: 0 })).status).toBe(200);
-  expect(spoken[2]).toContain("1030 euros and 75 cents");
+  expect(spoken[2]).toContain("73 euros and 15 cents");
 });

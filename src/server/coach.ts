@@ -86,7 +86,7 @@ export function transition(current: SessionState, request: CoachRequest, interpr
         : result.reply === "positive" ? "Love hearing that! What was the best bit of your day?"
           : "I'm all ears. What's on your mind? We don't have to talk money."
       : result.reply === "scope" ? `Ah, that's outside what I can see. I only know this demo customer's records ${period({ start: dataset.period.start, end: state.demoDate })}, our simulated today, and I can't move money. Try ${new Intl.ListFormat("en", { type: "disjunction" }).format(categories.map(category => category.toLowerCase()))}?`
-        : "Happy to dig in! Which category and when? For example, groceries in October.";
+        : "Happy to dig in! Which category and when? For example, groceries in August.";
     return { ...state, mode: "none", query: null, guessCents: null, percent: null,
       message };
   }

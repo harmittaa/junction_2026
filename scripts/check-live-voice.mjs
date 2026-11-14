@@ -187,11 +187,11 @@ try {
       report[stage] = await (await page.request.get(`${base}/api/session`)).json();
       if (stage === 'invitation') {
         assert.equal(report[stage].activity.kind, 'invitation');
-        assert.doesNotMatch(JSON.stringify(report[stage]), /752|totalCents|evidence/);
-        assert.doesNotMatch(await page.getByRole('main').innerText(), /752/);
+        assert.doesNotMatch(JSON.stringify(report[stage]), /1111|totalCents|evidence/);
+        assert.doesNotMatch(await page.getByRole('main').innerText(), /1\s?111/);
       } else {
-        assert.equal(report[stage].activity.spending.totalCents, 75275);
-        assert.equal(report[stage].activity.spending.evidence.length, 11);
+        assert.equal(report[stage].activity.spending.totalCents, 111106);
+        assert.equal(report[stage].activity.spending.evidence.length, 16);
       }
       await page.screenshot({ path: `${out}/${label}-${stage}-speaking.png`, fullPage: true });
       await expect.poll(() => page.evaluate(i => window.__playbacks[i]?.endedAt ?? null, index), { timeout: 30000 }).not.toBeNull();

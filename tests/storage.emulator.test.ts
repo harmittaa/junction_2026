@@ -17,18 +17,18 @@ describe("Firestore server persistence", () => {
     expect(opened.completedDates).toEqual([]);
     const reloaded = await readSession(a);
     expect(reloaded.habit).toEqual(habit);
-    expect(reloaded.completedDates).toEqual(["2024-11-04"]);
+    expect(reloaded.completedDates).toEqual(["2026-09-01"]);
     expect((await readSession(b)).habit).toBeNull();
     expect((await readSession(b)).completedDates).toEqual([]);
     await updateSession(a, 3, state => transition(state, { action: "complete", revision: 3, confirmed: true, reflection: "done" }));
-    expect((await readSession(a)).completedDates).toEqual(["2024-11-04"]);
+    expect((await readSession(a)).completedDates).toEqual(["2026-09-01"]);
     const tomorrow = await updateSession(a, 4, state => transition(state, { action: "advance", revision: 4, confirmed: true }));
     const view = toView(tomorrow);
-    expect(view.demoDate).toBe("2024-11-05");
+    expect(view.demoDate).toBe("2026-09-02");
     expect(view.activity.kind).toBe("checkin");
     if (view.activity.kind === "checkin") expect(view.activity.spending.totalCents).toBe(0);
     await updateSession(a, 5, state => transition(state, { action: "complete", revision: 5, confirmed: true, reflection: "adjust" }));
-    expect((await readSession(a)).completedDates).toEqual(["2024-11-04", "2024-11-05"]);
+    expect((await readSession(a)).completedDates).toEqual(["2026-09-01", "2026-09-02"]);
   });
   it("bounds concurrent paid work and denies direct unauthenticated database access", async () => {
     const id = randomUUID();

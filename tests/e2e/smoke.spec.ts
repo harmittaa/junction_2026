@@ -23,9 +23,9 @@ test("provider failure and fabricated prose preserve typing, saved state and ses
   expect(await (await page.request.get("/api/session")).json()).toEqual(before);
   // The production per-session burst limit is intentionally preserved in E2E.
   await page.waitForTimeout(750);
-  const direct = await ask(page, "October groceries, just show me");
-  expect(direct.activity.spending.totalCents).toBe(75275);
-  await expect(page.locator(".coach-message")).toContainText("752,75");
+  const direct = await ask(page, "August groceries, just show me");
+  expect(direct.activity.spending.totalCents).toBe(111106);
+  await expect(page.locator(".coach-message")).toContainText(/1\s111,06/);
   await page.waitForTimeout(750);
   await ask(page, "provider failure");
   await expect(page.getByRole("main").getByRole("alert")).toContainText("couldn't interpret");
@@ -51,25 +51,25 @@ test("provider failure and fabricated prose preserve typing, saved state and ses
 test("phone visit keeps the answer hidden, corrects a scenario, and persists one check-in per date", async ({ page }, testInfo) => {
   await enter(page);
   await page.screenshot({ path: testInfo.outputPath("ready-light.png"), fullPage: true });
-  const hidden = await ask(page, "October groceries");
+  const hidden = await ask(page, "August groceries");
   expect(hidden.activity.kind).toBe("invitation");
-  expect(JSON.stringify(hidden)).not.toMatch(/752|totalCents|evidence|MRC/);
-  await expect(page.locator("body")).not.toContainText("752,75");
+  expect(JSON.stringify(hidden)).not.toMatch(/1111|totalCents|evidence|MRC/);
+  await expect(page.locator("body")).not.toContainText(/1\s111,06/);
   await page.getByRole("button", { name: "Guess first", exact: true }).click();
   await page.screenshot({ path: testInfo.outputPath("guess-light.png"), fullPage: true });
   await page.getByRole("button", { name: "Lock in my guess", exact: true }).click();
-  await expect(page.locator(".coach-message")).toContainText("752,75");
-  await expect(page.locator(".sp-amount [aria-hidden]")).toHaveText(/752,75/);
+  await expect(page.locator(".coach-message")).toContainText(/1\s111,06/);
+  await expect(page.locator(".sp-amount [aria-hidden]")).toHaveText(/1\s111,06/);
   await page.screenshot({ path: testInfo.outputPath("reveal-light.png"), fullPage: true });
   await page.getByRole("button", { name: "Explore this", exact: true }).click();
-  await page.getByText("Evidence & basket corrections (11)", { exact: true }).click();
+  await page.getByText("Evidence & basket corrections (16)", { exact: true }).click();
   await page.getByLabel("Basket interpretation", { exact: true }).first().selectOption("regular");
   await page.getByRole("button", { name: "Confirm correction", exact: true }).click();
   await expect(page.locator(".coach-message")).toContainText("The amount stays the same");
-  await expect(page.locator(".sp-basket[data-basket=regular]")).toContainText("32,51");
-  await page.getByText("Evidence & basket corrections (11)", { exact: true }).click();
+  await expect(page.locator(".sp-basket[data-basket=regular]")).toContainText("79,90");
+  await page.getByText("Evidence & basket corrections (16)", { exact: true }).click();
   await page.getByRole("button", { name: "Confirm what-if", exact: true }).click();
-  await expect(page.locator(".coach-message")).toContainText("144,05");
+  await expect(page.locator(".coach-message")).toContainText("206,23");
   await expect(page.locator(".coach-message")).toContainText("hypothetical");
   await page.getByRole("button", { name: "Dark appearance", exact: true }).click();
   await page.screenshot({ path: testInfo.outputPath("explore-dark.png"), fullPage: true });
@@ -79,7 +79,7 @@ test("phone visit keeps the answer hidden, corrects a scenario, and persists one
   await page.getByRole("button", { name: "Confirm habit", exact: true }).click();
   await expect(page.locator(".coach-message")).toContainText("Habit saved");
   await page.getByRole("button", { name: "Daily check-in", exact: true }).click();
-  await expect(page.locator(".coach-message")).toContainText("535,20");
+  await expect(page.locator(".coach-message")).toContainText("903,42");
   await page.getByRole("radio", { name: "I’m just reflecting today", exact: true }).check();
   await page.getByRole("button", { name: "Complete check-in", exact: true }).click();
   await expect(page.locator(".sp-days")).toContainText("1 completed reflection day");
@@ -91,7 +91,7 @@ test("phone visit keeps the answer hidden, corrects a scenario, and persists one
   await page.screenshot({ path: testInfo.outputPath("complete-light.png"), fullPage: true });
   await page.getByText("Demo controls", { exact: true }).click();
   await page.getByRole("button", { name: "Advance simulated day", exact: true }).click();
-  await expect(page.locator(".demo-date")).toContainText("2024-11-05");
+  await expect(page.locator(".demo-date")).toContainText("2026-09-02");
   await expect(page.locator(".coach-message")).toContainText("no housing spending recorded");
   await page.getByRole("radio", { name: "I followed my action", exact: true }).check();
   await page.getByRole("button", { name: "Complete check-in", exact: true }).click();
@@ -143,8 +143,8 @@ for (const action of ["complete", "advance"] as const) {
     await page.getByRole("button", { name: "Retry", exact: true }).click();
     await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
     const after = await state();
-    expect(after.demoDate).toBe("2024-11-05");
-    expect(after.completedDates).toEqual(action === "complete" ? ["2024-11-04"] : []);
+    expect(after.demoDate).toBe("2026-09-02");
+    expect(after.completedDates).toEqual(action === "complete" ? ["2026-09-01"] : []);
     await expect(page.getByRole("button", { name: "Complete check-in", exact: true })).toBeDisabled();
   });
 }

@@ -5,21 +5,23 @@ was imported, and no age, household, motive or affordability is inferred.
 
 ## Selection and provenance
 
-- Customer `CUST00001`, account `ACC000001` (preferred customer was suitable).
-- Inclusive period: **2024-10-01 through 2024-11-30**. All **39** source rows for
-  this customer in these two months are preserved, in source order: CSV lines
-  **2–40**, IDs `row-2` through `row-40`. October has 18 rows; November has 21.
-- Initial **simulated reference date: 2024-11-04**. “Last month” means October
-  2024, not the current calendar month. The app must cap queries at its active
-  reference date: the file intentionally also contains later November records.
-  Import does not filter by reference date or economic purpose.
+- Customer `CUST04060`, account `ACC004060`: a richer customer with a full history.
+- Inclusive period: **2024-10-01 through 2026-09-30**. All **1,082** source rows for
+  this customer are preserved, in source order: contiguous CSV lines
+  **2,897,327–2,898,408**, IDs `row-2897327` through `row-2898408`. Types:
+  purchase 935, housing_payment 24, utilities_payment 72, salary 24,
+  investment_deposit 24, other_income 3.
+- Initial **simulated reference date: 2026-09-01**. “Last month” means August
+  2026, not the current calendar month. The app must cap queries at its active
+  reference date: the file intentionally also contains later September 2026
+  records. Import does not filter by reference date or economic purpose.
 - Full source: [pinned Git LFS media CSV](https://media.githubusercontent.com/media/hackjunction/Junction-2026-S-pankki/fbdecdedf1a1f49dd641c2e6b9f2b62d0dc0cc8f/tx_junction_transactions.csv).
 - Source commit: `fbdecdedf1a1f49dd641c2e6b9f2b62d0dc0cc8f`.
 - Full source size: **362,796,501 bytes**, **3,626,755 data records**.
 - Full source SHA-256:
   `49b3265d8e44e751de305a074dcffcda732bb79aa1e07b46fcca774ce76f1e63`.
 - Generated JSON SHA-256:
-  `9ebe451c383ab10926db7a33884011805a5de292724b5d2103ad2ed40e50e3f4`.
+  `96f2a4a8da60bad84f649a134747a53950582d026c2f9b99bc60152ad3d0b69c`.
 
 `sourceRow` is the 1-based physical CSV line where the record starts, including
 the header as line 1. The source has one record per line. Customer/account/date,
@@ -105,10 +107,10 @@ That is a narrower evidence-based proxy, not proof of a trip's purpose or a
 precise taxi-only classification. Never rename the whole Transportation
 category “taxis,” or infer taxis from missing MCCs.
 
-This selected customer has **no Transportation, MCC 4121 or Restaurants rows**
-in these two months. A taxi query therefore has zero matching records in this
-slice, not six invented rides. Use **Groceries** for the nonzero demo reveal;
-do not substitute a different customer's taxi rows.
+This selected customer has **12 rows with MCC 4121** (first: 2024-12-25, 58.81 EUR;
+last: 2026-06-04, 32.36 EUR) among their Transportation rows. They are a taxi
+proxy only; never treat the whole Transportation category as taxis, and do not
+infer taxis from missing MCCs. The demo's starter question uses Groceries.
 
 ## Recommended application spending rule and independent reconciliation
 
@@ -124,42 +126,32 @@ rule before claiming net totals. Filtering and calculations belong to the app,
 not this lossless import. Category/basket interpretations do not change amounts.
 
 The following amounts were independently calculated directly from the CSV
-using Python `Decimal` (not the importer's integer parser), and all 39 JSON
-records/fields were separately compared with their CSV rows.
+using Python `Decimal` (not the importer's integer parser). The generated JSON
+(1,082 rows, lines 2,897,327–2,898,408) and the application's `calculateSpending`
+match them.
 
-| Category | October spending (cents) | Full November spending (cents) |
+| Category | August 2026 spending (cents) | Rows |
 | --- | ---: | ---: |
-| Groceries | 75,275 | 70,172 |
-| Housing | 51,190 | 53,520 |
-| Utilities | 6,828 | 14,039 |
-| Lifestyle | 83,442 | 49,220 |
-| Health | 0 | 103,075 |
-| Home & Tech | 0 | 13,104 |
-| All other source categories | 0 | 0 |
-| **Total** | **216,735 (€2,167.35)** | **303,130 (€3,031.30)** |
+| Entertainment | 51,654 | 5 |
+| Groceries | 111,106 | 16 |
+| Health | 12,507 | 3 |
+| Home & Tech | 39,420 | 5 |
+| Housing | 88,679 | 1 |
+| Lifestyle | 52,543 | 4 |
+| Restaurants | 17,205 | 10 |
+| Transportation | 38,472 | 9 |
+| Travel | 23,252 | 3 |
+| Utilities | 10,040 | 3 |
+| **Total** | **444,878 (€4,448.78)** | **59** |
 
-Full November is a reconciliation only: **do not expose it at November 4/5**.
-October's 16 spending rows: Groceries lines 3, 5, 6, 7, 10, 12, 14, 15, 17, 18,
-19; Utilities 2, 9, 16; Housing 4; Lifestyle 8. Excluded October rows: salary
-line 11 **+228,078 cents** and investment deposit line 13 **−21,964 cents**.
-All October rows net **−10,621 cents** (not the spending total).
-
-November's 19 spending rows: Groceries 20, 22, 24, 25, 26, 29, 30, 34, 35, 39;
-Utilities 21, 28, 36; Housing 23; Lifestyle 27; Health 32, 37, 38; Home & Tech 40.
-Excluded: salary line 31 **+245,348 cents**, investment deposit line 33
-**−23,627 cents**. All November rows net **−81,409 cents**.
-
-### Simulated daily check-ins
-
-- November 1: Groceries line 20, **4,594 cents** spending.
-- November 3: Utilities line 21, **4,015 cents**, and Groceries line 22,
-  **7,329 cents**. November-to-date groceries at November 4/5: **11,923 cents**.
-- November 4: Housing line 23, **53,520 cents**; no groceries that day.
-- November 5: **no records**, not a missing import. Reflection can still be
-  completed; do not fabricate a new purchase. November-to-date total at both
-  November 4 and 5: **69,458 cents**.
-- First future row after November 5 is November 8 (line 24). User-confirmed
-  habit/check-in completion is app state, not inferred from these transactions.
+August 2026 is the “last month” at the 2026-09-01 reference date. Rows dated
+September 2026 stay in the file for later simulated days and must not be
+exposed before their date. At the reference date, September 1 has Health line
+2,898,352 (**1,627 cents**) and Housing line 2,898,353 (**90,342 cents**).
+September 2 has Entertainment line 2,898,354 (**2,786 cents**) and no
+Housing; the first Groceries row after the reference date is September 4.
+User-confirmed habit/check-in completion is app state, not inferred from
+these transactions.
 
 ## Checks
 
@@ -167,7 +159,7 @@ Excluded: salary line 31 **+245,348 cents**, investment deposit line 33
   integer precision), invalid fractional cents, BOM, physical source lines,
   date/customer scope, boundary inclusion, preserving refund/transfer fixture
   rows, missing-field normalization, and checksum rejection.
-- Complete pinned-source import and independent field-by-field reconciliation:
-  39/39 records, source lines 2–40, with the totals above.
+- Complete pinned-source import and independent Decimal reconciliation: 1,082
+  records, the type counts, August 2026 category totals and MCC 4121 rows above.
 - Regenerate to a second output and byte-compare it to the committed JSON.
-- No app, provider or browser checks are implied by this data-only change.
+- No app, provider or browser checks are implied by this data-only description.

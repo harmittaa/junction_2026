@@ -6,7 +6,7 @@ import { initialState } from "@/server/storage/state";
 import { type Interpretation, interpret } from "@/server/providers/gemini";
 import { signSession, verifySession } from "@/server/session";
 
-const query = { category: "Groceries", start: "2024-10-01", end: "2024-10-31" };
+const query = { category: "Groceries", start: "2026-08-01", end: "2026-08-31" };
 const operation: Interpretation = { kind: "spending", query, direct: false, percent: null, reply: "none" };
 const ask = { action: "ask", text: "Groceries last month?", revision: 0 } as const;
 describe("coordinator boundaries", () => {
@@ -14,14 +14,14 @@ describe("coordinator boundaries", () => {
     const pending = transition(initialState(), ask, operation);
     const hidden = toView(pending);
     expect(hidden.activity).toEqual({ kind: "invitation", query });
-    expect(JSON.stringify(hidden)).not.toMatch(/752|3251|MRC|totalCents|evidence|Untrusted/);
+    expect(JSON.stringify(hidden)).not.toMatch(/1111|7990|MRC|totalCents|evidence|Untrusted/);
     const revealed = toView(transition(pending, { action: "reveal", revision: 0, guessCents: 20000 }));
     expect(revealed.activity.kind).toBe("reveal");
-    if (revealed.activity.kind === "reveal") expect(revealed.activity.spending.totalCents).toBe(75275);
-    expect(revealed.message).toMatch(/552,75\s€ more than your guess of 200,00\s€/);
+    if (revealed.activity.kind === "reveal") expect(revealed.activity.spending.totalCents).toBe(111106);
+    expect(revealed.message).toMatch(/911,06\s€ more than your guess of 200,00\s€/);
     const empty = toView(transition(initialState(), ask, { ...operation, direct: true,
-      query: { category: "Health", start: "2024-10-01", end: "2024-10-31" } }));
-    expect(empty.message).toContain("no health spending in your records in October 2024");
+      query: { category: "Health", start: "2026-08-01", end: "2026-08-09" } }));
+    expect(empty.message).toContain("no health spending in your records from 1 August 2026 to 9 August 2026");
     expect(empty.message).toContain("outside this dataset wouldn't show up");
   });
   it("honors direct answers, remembers a declined game, and leaves a game when the topic changes", () => {
@@ -38,16 +38,16 @@ describe("coordinator boundaries", () => {
   });
   it("only corrects revealed evidence and recalculates the everyday scenario without changing history", () => {
     const hidden = transition(initialState(), ask, operation);
-    const correct = { action: "correct", revision: 0, transactionId: "row-3", basket: "regular", confirmed: true } as const;
+    const correct = { action: "correct", revision: 0, transactionId: "row-2898292", basket: "regular", confirmed: true } as const;
     expect(() => transition(hidden, correct)).toThrow("revealed evidence");
     expect(() => transition(hidden, { action: "scenario", revision: 0, percent: 20 })).toThrow("Reveal");
     const revealed = transition(hidden, { action: "reveal", revision: 0, guessCents: null });
-    expect(() => transition(revealed, { ...correct, transactionId: "row-40" })).toThrow("revealed evidence");
+    expect(() => transition(revealed, { ...correct, transactionId: "row-2898357" })).toThrow("revealed evidence");
     const changed = transition(revealed, correct);
     const result = toView(transition(changed, { action: "scenario", revision: 0, percent: 20 }));
     if (result.activity.kind !== "reveal") throw new Error("Expected reveal");
-    expect(result.activity.spending.totalCents).toBe(75275);
-    expect(result.activity.scenario).toEqual({ percent: 20, baseCents: 72024, reductionCents: 14405, remainingCents: 57619 });
+    expect(result.activity.spending.totalCents).toBe(111106);
+    expect(result.activity.scenario).toEqual({ percent: 20, baseCents: 103116, reductionCents: 20623, remainingCents: 82493 });
     expect(result.message).toContain("hypothetical");
     expect(changed.habit).toBeNull();
     expect(changed.completedDates).toEqual([]);
@@ -61,7 +61,7 @@ describe("coordinator boundaries", () => {
     expect(() => transition(current, { action: "complete", revision: 0, reflection: "done", confirmed: true })).toThrow();
   });
   it.each(["chat", "clarify", "spending"])("rejects fabricated %s prose before it can become display or speech text", async kind => {
-    const context = { categories: ["Groceries"], start: "2024-10-01", end: "2024-11-30", referenceDate: "2024-11-04", previousQuery: null };
+    const context = { categories: ["Groceries"], start: "2024-10-01", end: "2026-09-30", referenceDate: "2026-09-01", previousQuery: null };
     const fabricated = { ...operation, kind, reply: "You spent 900 euros on taxis and saved 200 euros. Cut taxis to grow your balance." };
     await expect(interpret("Tell me about spending", context, undefined, async () => JSON.stringify(fabricated))).rejects.toThrow("couldn't interpret");
     const valid = await interpret("A long day", context, undefined, async () => JSON.stringify({ ...operation, kind: "chat", query: null, reply: "tired" }));
@@ -70,8 +70,8 @@ describe("coordinator boundaries", () => {
     expect(JSON.stringify(view)).not.toMatch(/900|200|taxi|balance|saved/);
   });
   it("normalizes malformed, out-of-scope and failed reasoning without trusting model output", async () => {
-    const context = { categories: ["Groceries"], start: "2024-10-01", end: "2024-11-30", referenceDate: "2024-11-04", previousQuery: null };
-    const future = { ...operation, query: { ...query, end: "2024-11-30" } };
+    const context = { categories: ["Groceries"], start: "2024-10-01", end: "2026-09-30", referenceDate: "2026-09-01", previousQuery: null };
+    const future = { ...operation, query: { ...query, end: "2026-09-30" } };
     expect((await interpret("November", context, undefined, async () => JSON.stringify(future))).kind).toBe("clarify");
     await expect(interpret("hello", context, undefined, async () => '{"kind":"complete"}')).rejects.toThrow("saved activity is safe");
     await expect(interpret("hello", context, undefined, async () => { throw new Error("secret provider response"); })).rejects.toThrow("couldn't interpret");
@@ -84,7 +84,7 @@ describe("coordinator boundaries", () => {
     expect(verifySession(token.replace("12345678", "12345679"), "test-only-secret", 1800000000)).toBeNull();
   });
   it("reports real SDK HTTP limits and retry hints without leaking provider bodies, headers or input", async () => {
-    const context = { categories: ["Groceries"], start: "2024-10-01", end: "2024-11-30", referenceDate: "2024-11-04", previousQuery: null };
+    const context = { categories: ["Groceries"], start: "2024-10-01", end: "2026-09-30", referenceDate: "2026-09-01", previousQuery: null };
     const cases = [
       { status: 429, providerStatus: "RESOURCE_EXHAUSTED", retry: "4160", seconds: 4160, at: undefined },
       { status: 503, providerStatus: "UNAVAILABLE", retry: "Sat, 14 Nov 2026 08:00:00 GMT", seconds: undefined, at: "2026-11-14T08:00:00.000Z" },
@@ -128,7 +128,7 @@ describe("coordinator boundaries", () => {
     }
   });
   it("cancels a stalled real SDK transport at the deadline or caller interruption without retrying", async () => {
-    const context = { categories: ["Groceries"], start: "2024-10-01", end: "2024-11-30", referenceDate: "2024-11-04", previousQuery: null };
+    const context = { categories: ["Groceries"], start: "2024-10-01", end: "2026-09-30", referenceDate: "2026-09-01", previousQuery: null };
     let requests = 0, disconnected = 0;
     const caller = new AbortController();
     const server = createServer((request, response) => {

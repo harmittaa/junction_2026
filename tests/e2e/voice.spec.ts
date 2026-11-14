@@ -88,7 +88,7 @@ test(`prerecorded voice, interruption and typing recovery (${reducedMotion})`, a
   expect(sentTexts).toEqual(["How much did I spend on groceries last month?"]);
   await expect(draft).toHaveValue("My unsent typed draft");
   expect(speechRevisions).toEqual([{ revision: 1 }]);
-  await expect(page.locator(".coach-message")).not.toContainText("752,75");
+  await expect(page.locator(".coach-message")).not.toContainText(/1\s111,06/);
   await expect.poll(async () => Math.max(...await barLengths())).toBeGreaterThan(5);
   await expect.poll(() => bars.evaluateAll(lines => lines.every(line => line.getAttribute("opacity") === "1"))).toBe(true);
   if (reducedMotion === "reduce") {
@@ -278,7 +278,7 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
   await page.getByRole("button", { name: "Close history", exact: true }).tap();
   await expect(page.getByRole("region", { name: "Conversation history" })).toHaveCount(0);
   if (compact) {
-    await draft.fill("October groceries");
+    await draft.fill("August groceries");
     await draft.press("Enter");
     await expect(page.getByRole("button", { name: "Guess first", exact: true })).toBeVisible();
   }
@@ -366,7 +366,7 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
   await expect.poll(() => closed).toBe(2);
   await expect.poll(() => probe.evaluate(value => value.tracks.length === 2 && value.tracks.every(track => track.readyState === "ended"))).toBe(true);
   await expect(draft).toHaveValue("I've had a long day");
-  await expect(page.locator("body")).not.toContainText("752,75");
+  await expect(page.locator("body")).not.toContainText(/1\s111,06/);
   expect(submitted).toEqual([finalText]);
   await expect.poll(() => tokens).toBe(3); // Each hold uses one; the next is prefetched.
   expect(commits).toBe(1);
