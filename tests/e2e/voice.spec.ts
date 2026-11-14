@@ -355,7 +355,7 @@ test(`expanded voice target holds, cancels and leaves the page usable (${width}p
   await page.waitForTimeout(750); // Keep the production reasoning burst limit, and catch delayed duplicate sends.
   expect(submitted).toEqual([finalText]);
   await draft.press("Enter");
-  await expect(page.locator(".coach-message")).toContainText("We don't need to turn it into a money task");
+  await expect(page.locator(".coach-message")).toContainText("We can skip the money talk");
   expect(submitted).toEqual([finalText, "I've had a long day"]);
   await page.getByText("Demo controls", { exact: true }).tap();
   await page.evaluate(() => window.scrollTo(0, 0));

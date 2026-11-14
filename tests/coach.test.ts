@@ -18,10 +18,11 @@ describe("coordinator boundaries", () => {
     const revealed = toView(transition(pending, { action: "reveal", revision: 0, guessCents: 20000 }));
     expect(revealed.activity.kind).toBe("reveal");
     if (revealed.activity.kind === "reveal") expect(revealed.activity.spending.totalCents).toBe(75275);
+    expect(revealed.message).toMatch(/552,75\s€ more than your guess of 200,00\s€/);
     const empty = toView(transition(initialState(), ask, { ...operation, direct: true,
       query: { category: "Health", start: "2024-10-01", end: "2024-10-31" } }));
-    expect(empty.message).toContain("No matching health spending records");
-    expect(empty.message).toContain("isn't proof of no spending");
+    expect(empty.message).toContain("no health spending in your records in October 2024");
+    expect(empty.message).toContain("outside this dataset wouldn't show up");
   });
   it("honors direct answers, remembers a declined game, and leaves a game when the topic changes", () => {
     const direct = transition(initialState(), ask, { ...operation, direct: true });
