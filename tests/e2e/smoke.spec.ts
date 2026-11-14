@@ -134,7 +134,8 @@ test("phone visit keeps the answer hidden, corrects a scenario, and persists one
   await page.getByRole("button", { name: "Confirm habit", exact: true }).click();
   await expect(page.locator(".coach-message")).toContainText("Habit saved");
   await page.getByRole("button", { name: "Daily check-in", exact: true }).click();
-  await expect(page.locator(".coach-message")).toContainText("903,42");
+  await expect(page.locator(".coach-message")).toContainText("no housing spending recorded");
+  await expect(page.locator(".sp-amount")).toContainText("0,00");
   await page.getByRole("radio", { name: "I’m just reflecting today", exact: true }).check();
   await page.getByRole("button", { name: "Complete check-in", exact: true }).click();
   await expect(page.locator(".sp-days")).toContainText("1 completed reflection day");
