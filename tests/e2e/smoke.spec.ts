@@ -113,8 +113,12 @@ test("welcome, weekly reward, jar, spoken necessity correction, undo and hidden 
   const reward = page.getByRole("button", { name: "3 weeks in a row. Check-up complete. Continue." });
   await expect(reward).toBeVisible();
   await expect(reward).toHaveAttribute("data-landed", "true");
+  await expect(reward.locator(".checkup-reward-skip")).toHaveText("Click to continue");
+  await expect(reward).not.toContainText("Enter");
+  await page.waitForTimeout(2600);
+  await expect(reward).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("weekly-reward.png"), fullPage: true });
-  await reward.press("Enter");
+  await reward.click();
   const jar = page.getByRole("region", { name: "September spending jar" });
   await expect(jar).toContainText(/912,29\s€ left/);
   await expect(jar.locator("[data-counter]")).toHaveText(/912,29/);
