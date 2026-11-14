@@ -55,7 +55,7 @@ test("prerecorded voice, interruption and suggestion recovery", async ({ page })
   await expect.poll(() => nonzero && pcmBytes > 8000).toBe(true);
   await expect(page.locator("body")).not.toContainText(interim);
   expect(await page.locator("body").ariaSnapshot()).not.toContain(interim);
-  await expect(page.getByRole("button", { name: "Am I still on track?", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: /Ideas to ask/ })).toBeEnabled();
   await expect(bars).toHaveCount(32);
   await expect(page.locator(".sp-coach-bars")).toHaveAttribute("aria-hidden", "true");
   await expect.poll(async () => Math.max(...await barLengths())).toBeGreaterThan(5);
@@ -95,7 +95,8 @@ test("prerecorded voice, interruption and suggestion recovery", async ({ page })
   await expect(page.locator("body")).not.toContainText(interim);
   await expect(page.getByRole("button", { name: "Play reply", exact: true })).toHaveCount(0);
   // A new answer still speaks automatically and can be interrupted without a replay control.
-  await page.getByRole("button", { name: "Am I still on track?", exact: true }).click();
+  await page.getByRole("button", { name: /Ideas to ask/ }).click();
+  await page.getByRole("dialog", { name: "Ideas to ask" }).getByRole("button", { name: "What kind of spender am I?", exact: true }).click();
   await expect(page.getByRole("button", { name: "Sponky. Hold to interrupt", exact: true })).toBeVisible();
   await trigger.focus();
   await page.keyboard.down("Space");
@@ -104,7 +105,8 @@ test("prerecorded voice, interruption and suggestion recovery", async ({ page })
   // A neighboring control cancels the capture; a suggestion then recovers without typing.
   await page.getByRole("button", { name: "Sound on", exact: true }).click();
   await page.keyboard.up("Space");
-  await page.getByRole("button", { name: "What have I spent more on than usual?", exact: true }).click();
+  await page.getByRole("button", { name: /Ideas to ask/ }).click();
+  await page.getByRole("dialog", { name: "Ideas to ask" }).getByRole("button", { name: "What have I spent more on than usual?", exact: true }).click();
   await expect(page.getByRole("heading", { name: "This month, compared with usual" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sponky. Hold to talk", exact: true })).toBeVisible();
   await expect.poll(hiddenBars).toBe(true);
@@ -117,7 +119,7 @@ test("prerecorded voice, interruption and suggestion recovery", async ({ page })
   await expect(page.getByRole("main").getByRole("alert")).toContainText("choose a suggestion");
   await expect(page.getByRole("main").getByRole("alert")).toContainText("Could not connect to voice transcription");
   await page.keyboard.up("Enter");
-  await expect(page.getByRole("button", { name: "Am I still on track?", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: /Ideas to ask/ })).toBeEnabled();
   await expect(page.locator(".sp-coach")).toHaveAttribute("data-state", "ready");
   await expect.poll(hiddenBars).toBe(true);
 });
@@ -154,15 +156,17 @@ test("expanded voice target holds, cancels and leaves the page usable", async ({
   const coach = page.locator(".sp-coach");
   const trigger = page.locator(".sp-coach-trigger");
   const orb = page.locator(".sp-coach-orb");
-  const recovery = page.getByRole("button", { name: "What have I spent more on than usual?", exact: true });
+  const ideas = page.getByRole("button", { name: /Ideas to ask/ });
+  const usual = page.getByRole("dialog", { name: "Ideas to ask" }).getByRole("button", { name: "What have I spent more on than usual?", exact: true });
   await expect(trigger).toBeEnabled();
   await expect(trigger).toHaveCSS("-webkit-tap-highlight-color", "rgba(0, 0, 0, 0)");
   // Neighbors above the enlarged region must still receive their own touches.
   await page.getByRole("button", { name: "Sound on", exact: true }).tap();
   await expect(page.getByRole("button", { name: "Sound off", exact: true })).toHaveAttribute("aria-pressed", "true");
   if (compact) {
-    await page.getByRole("button", { name: "Am I still on track?", exact: true }).tap();
-    await expect(page.getByRole("heading", { name: "A little room each day" })).toBeVisible();
+    await ideas.tap();
+    await usual.tap();
+    await expect(page.getByRole("heading", { name: "This month, compared with usual" })).toBeVisible();
   }
   page.on("request", request => {
     if (request.url().endsWith("/api/coach") && request.postDataJSON().action === "ask") submitted.push(request.postDataJSON().text);
@@ -236,7 +240,7 @@ test("expanded voice target holds, cancels and leaves the page usable", async ({
   await expect.poll(() => probe.evaluate(value => value.tracks.length > 0 && value.tracks.every(track => track.readyState === "ended"))).toBe(true);
   expect(commits).toBe(0);
   expect(submitted).toEqual([]);
-  await expect(recovery).toBeEnabled();
+  await expect(ideas).toBeEnabled();
 
   // The label-side padding outside the visible circle is part of the hold target too.
   const side = { x: regionBox.x + 12, y: labelBox.y + labelBox.height / 2 };
@@ -264,7 +268,7 @@ test("expanded voice target holds, cancels and leaves the page usable", async ({
   await expect(coach).toHaveAttribute("data-state", "ready");
   await expect.poll(() => closed).toBe(2);
   await expect.poll(() => probe.evaluate(value => value.tracks.length === 2 && value.tracks.every(track => track.readyState === "ended"))).toBe(true);
-  await expect(recovery).toBeEnabled();
+  await expect(ideas).toBeEnabled();
   await expect(page.getByRole("button", { name: "Guess first", exact: true })).toHaveCount(0);
   expect(submitted).toEqual([finalText]);
   await expect.poll(() => tokens).toBe(3); // Each hold uses one; the next is prefetched.
@@ -273,7 +277,8 @@ test("expanded voice target holds, cancels and leaves the page usable", async ({
   // Suggestions remain touchable after cancellation and do not duplicate voice submissions.
   await page.waitForTimeout(750); // Keep the production reasoning burst limit, and catch delayed duplicate sends.
   expect(submitted).toEqual([finalText]);
-  await recovery.tap();
+  await ideas.tap();
+  await usual.tap();
   await expect(page.getByRole("heading", { name: "This month, compared with usual" })).toBeVisible();
   expect(submitted).toEqual([finalText, "What have I spent more on than usual?"]);
   const canvas = page.locator(".checkup-canvas");

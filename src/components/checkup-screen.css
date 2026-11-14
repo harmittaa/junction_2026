@@ -16,9 +16,10 @@
 .checkup-question { align-self: flex-end; max-width: 88%; background: var(--surfaceAccent); color: var(--textSecondary); border-radius: 16px 16px 4px 16px; padding: 8px 12px; font-size: 14px; margin: 0; animation: checkup-rise .4s var(--checkup-spring) both; }
 .checkup-screen .coach-message { font-size: 16px; line-height: 1.4; text-align: center; text-wrap: balance; margin: 0; max-height: 116px; overflow-y: auto; }
 .checkup-screen .error { margin: 0; max-height: 150px; overflow-y: auto; }
-.checkup-chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 6px; margin: 0 -16px; scrollbar-width: none; }
-.checkup-chips button { flex: none; min-height: 48px; padding: 8px 14px; border: 1.5px solid var(--border); background: var(--surface); color: var(--textBrand); font-size: 14px; white-space: nowrap; animation: checkup-rise .45s var(--checkup-spring) both; }
-.checkup-chips button.main { background: var(--fill-action); color: var(--onPrimary); border-color: transparent; }
+.checkup-undo { display: flex; justify-content: center; }
+.checkup-undo button { min-height: 48px; padding: 8px 14px; border: 1.5px solid var(--border); background: var(--surface); color: var(--textBrand); font-size: 14px; white-space: nowrap; animation: checkup-rise .45s var(--checkup-spring) both; }
+.checkup-streak-icon { flex: none; width: 14px; height: 14px; fill: currentColor; }
+.checkup-setting svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .checkup-welcome-stack { position: absolute; left: 16px; right: 16px; bottom: 32px; display: flex; flex-direction: column; gap: 12px; z-index: 2; }
 .checkup-ideas-welcome { align-self: flex-end; }
 .checkup-welcome-checkup { width: 100%; min-height: 52px; border: 0; border-radius: 9999px; background: var(--fill-action); color: var(--onPrimary); font: 700 17px/1.5 var(--font-ux), sans-serif; cursor: pointer; }
@@ -74,8 +75,8 @@ button.sponky-entry-label-btn {
 .checkup-screen.intro .checkup-canvas { display: contents; }
 .checkup-screen.intro .checkup-welcome { position: static; order: 1; margin-top: 24px; }
 .checkup-screen.intro .checkup-orb { position: relative; top: auto; bottom: auto; left: auto; align-self: center; order: 2; }
-.checkup-screen.intro .checkup-welcome-stack { position: static; order: 3; }
-.checkup-screen.intro .checkup-talk { order: 4; }
+.checkup-screen.intro .checkup-welcome-stack { position: static; order: 3; margin-top: auto; }
+.checkup-screen.intro .checkup-talk { order: 4; margin-top: 0; }
 .checkup-screen.intro .sp-coach-orb { width: var(--checkup-intro-orb-size); height: var(--checkup-intro-orb-size); margin: 0; }
 .checkup-screen.intro .sp-coach-trigger { gap: calc(var(--checkup-intro-orb-size) * 42 / 116 + 8px); }
 .checkup-screen .sp-card { margin: 8px 0; padding: 14px; }
