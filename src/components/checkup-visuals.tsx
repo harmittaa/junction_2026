@@ -55,7 +55,7 @@ export function Jar({ jar, move = null, revealKey }: { jar: JarStatus; move?: Ba
   const month = monthFormat.format(calendarDate(jar.period.start));
   const currentMonth = jar.period.start.slice(0, 7);
   const moveKey = move ? `${move.transactionId}:${move.from}:${move.to}:${move.amountCents}` : "";
-  const movesToUnexpected = move?.to === "unexpected" && move.from !== "unexpected";
+  const movesToUnexpected = move?.to === "unexpected" && move.from !== "unexpected" && jar.evidence.some(row => row.id === move.transactionId);
   const showUnexpected = movesToUnexpected;
   const label = `${over ? "over the rim of" : "left in"} your ${month} jar`;
 
@@ -133,7 +133,7 @@ export function Jar({ jar, move = null, revealKey }: { jar: JarStatus; move?: Ba
       contents.setAttribute("visibility", state.fill > 0 ? "visible" : "hidden");
       front.setAttribute("d", wave(y, amplitude, phase));
       back.setAttribute("d", wave(y - 4, amplitude * 1.3, phase * .8 + 2));
-      dome.setAttribute("ry", String(Math.max(0, state.dome)));
+      dome.setAttribute("ry", String(reveal && state.fill < .999 ? 0 : Math.max(0, state.dome)));
       mini.setAttribute("y", String(220 - 98 * state.mini));
       spent.setAttribute("y", String(Math.min(204, y + 30)));
       spent.textContent = state.fill > .18 ? `${euros(Math.round(state.spent))} spent` : "";

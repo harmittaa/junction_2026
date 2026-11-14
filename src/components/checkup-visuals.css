@@ -25,14 +25,14 @@
 @keyframes checkup-rise { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
 
 .checkup-jar { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.checkup-jar-hero { text-align: center; }
+.checkup-jar-hero { flex: none; text-align: center; }
 .checkup-jar-amount { font: 800 clamp(44px, 15.4vw, 60px)/1 var(--font-display), sans-serif; color: var(--textBrand); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .checkup-jar[data-over=true] .checkup-jar-amount { color: var(--status-warningText); }
 .checkup-jar[data-revealing=true] .checkup-jar-amount { filter: blur(.7px); }
 .checkup-jar-label { margin-top: 6px; color: var(--textMuted); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .checkup-jar-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
 .checkup-jar-tags span { border-radius: 9999px; background: var(--surfaceAccent); color: var(--textBrand); padding: 4px 10px; font-size: 12px; font-weight: 600; }
-.checkup-jar-stage { width: 100%; max-width: 320px; height: auto; display: block; margin: 0 auto; overflow: visible; }
+.checkup-jar-stage { width: 100%; max-width: 320px; height: auto; min-height: 0; display: block; margin: 0 auto; overflow: visible; }
 .checkup-main-jar { transform: translateX(40px); transition: transform 800ms var(--checkup-glide); }
 .checkup-jar[data-two=true] .checkup-main-jar { transform: none; }
 .checkup-glass { fill: none; stroke: var(--textBrand); stroke-width: 4; stroke-linecap: round; }
@@ -49,7 +49,7 @@
 .checkup-mini-label { fill: var(--status-infoText); font: 600 11px var(--font-ux), sans-serif; }
 .checkup-payment-bubble { fill: var(--status-warningBorder); pointer-events: none; }
 .checkup-payment-bubble.checkup-bubble-arriving { fill: var(--status-infoBorder); }
-.checkup-months { display: grid; grid-template-columns: repeat(auto-fit, minmax(28px, 1fr)); gap: 8px 4px; list-style: none; padding: 0; margin: 0; text-align: center; color: var(--textMuted); font-size: 11px; }
+.checkup-months { flex: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(28px, 1fr)); gap: 8px 4px; list-style: none; padding: 0; margin: 0; text-align: center; color: var(--textMuted); font-size: 11px; }
 .checkup-months li { animation: checkup-rise 450ms var(--checkup-spring) both; animation-delay: calc(200ms + var(--month) * 70ms); }
 .checkup-month-mark { display: block; width: 22px; height: 22px; margin: 0 auto 3px; border-radius: 50%; font-size: 12px; font-weight: 700; line-height: 22px; }
 .checkup-months [data-inside=true] .checkup-month-mark { background: var(--fill-action, var(--primaryPressed)); color: var(--onPrimary); }
