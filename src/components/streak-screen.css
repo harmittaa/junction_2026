@@ -1,0 +1,367 @@
+.streak-screen {
+  --checkup-spring: linear(0, 0.6 10%, 1.12 35%, 0.94 55%, 1.03 75%, 1);
+  --checkup-glide: cubic-bezier(0.22, 1, 0.36, 1);
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  margin: 0 auto;
+  max-width: 480px;
+  height: 100dvh;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px 16px 140px;
+  display: flex;
+  flex-direction: column;
+  background: #004628;
+  color: #F7FCF7;
+  font-family: var(--font-ux, Figtree, -apple-system, sans-serif);
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.streak-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  margin-bottom: 8px;
+}
+
+.streak-back {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 4px;
+  margin: 0 0 0 -8px;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: #F7FCF7;
+  font: inherit;
+  font-size: 28px;
+  font-weight: 600;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  touch-action: manipulation;
+}
+
+.streak-back:focus-visible {
+  outline: 2px solid #00EB5A;
+  outline-offset: 2px;
+}
+
+.streak-back:active {
+  transform: scale(0.97);
+  transition: transform 120ms ease;
+}
+
+.streak-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font: 800 28px/1 var(--font-display, "Barlow Condensed", sans-serif);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #F7FCF7;
+}
+
+.streak-hero {
+  flex: none;
+  text-align: center;
+  margin-bottom: 16px;
+  animation: streak-rise 900ms var(--checkup-glide) both;
+}
+
+.streak-flame {
+  display: block;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 4px;
+  fill: #00EB5A;
+}
+
+.streak-count {
+  font: 800 132px/1 var(--font-display, "Barlow Condensed", sans-serif);
+  color: #00EB5A;
+  animation: streak-pop 750ms var(--checkup-spring) 300ms both;
+}
+
+.streak-unit {
+  font: 800 32px/1 var(--font-display, "Barlow Condensed", sans-serif);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.streak-hero-copy {
+  max-width: 290px;
+  margin: 10px auto 0;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.streak-road {
+  flex: none;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 8px;
+}
+
+.streak-road-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.streak-road-label {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #99D59F;
+}
+
+.streak-road-progress {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 700;
+}
+
+.streak-slots-wrapper {
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.streak-road-line {
+  position: absolute;
+  top: 26px;
+  left: 22px;
+  right: 22px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.15);
+  transform-origin: left;
+  animation: streak-road-draw 600ms var(--checkup-glide) 200ms both;
+}
+
+.streak-slots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.streak-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.streak-jar-svg {
+  width: 44px;
+  height: 52px;
+  display: block;
+  overflow: visible;
+}
+
+.streak-jar-liquid {
+  transform-origin: 22px 46px;
+  animation: streak-liquid-fill 450ms var(--checkup-spring) both;
+  animation-delay: calc(300ms + var(--jar-index, 0) * 120ms);
+}
+
+.streak-jar-tick {
+  transform-origin: 22px 21px;
+  animation: streak-tick-pop 350ms var(--checkup-spring) both;
+  animation-delay: calc(650ms + var(--jar-index, 0) * 120ms);
+}
+
+.streak-slot-title {
+  display: block;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.streak-slot-title.due {
+  font-weight: 700;
+  color: #00EB5A;
+}
+
+.streak-slot-amount {
+  display: block;
+  margin-top: -6px;
+  font-size: 11px;
+  line-height: 16px;
+  color: #99D59F;
+  min-height: 16px;
+}
+
+.streak-slot-amount.due {
+  color: #00EB5A;
+}
+
+.streak-mark-number {
+  font: 800 26px var(--font-display, "Barlow Condensed", sans-serif);
+}
+
+.streak-road-footnote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: #99D59F;
+}
+
+.streak-stats {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.streak-stat-card {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.streak-stat-label {
+  display: block;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #99D59F;
+}
+
+.streak-stat-value {
+  display: block;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 700;
+}
+
+.streak-action {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 24px;
+  max-width: calc(480px - 32px);
+  margin: 0 auto;
+  text-align: center;
+}
+
+.streak-btn {
+  display: block;
+  width: 100%;
+  min-height: 56px;
+  padding: 14px 20px;
+  margin: 0 0 8px;
+  border: 0;
+  border-radius: 9999px;
+  background: #00EB5A;
+  color: #004628;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.streak-btn:focus-visible {
+  outline: 2px solid #F7FCF7;
+  outline-offset: 2px;
+}
+
+.streak-btn:active {
+  transform: scale(0.97);
+  transition: transform 120ms ease;
+}
+
+.streak-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.streak-due-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: #99D59F;
+}
+
+@keyframes streak-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes streak-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes streak-road-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes streak-liquid-fill {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes streak-tick-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streak-screen *,
+  .streak-screen *::before,
+  .streak-screen *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
