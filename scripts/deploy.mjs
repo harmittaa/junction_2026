@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { readFileSync, appendFileSync, readdirSync, existsSync } from "node:fs";
 import { createRequire } from "node:module";
+import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
 const project = "sponky-junction-2026";
@@ -104,10 +105,19 @@ async function deploy() {
   const archive = output.match(/Uploaded at (gs:\/\/[^\s\u001b]+)/)?.[1];
   const created = (await rollouts()).filter(rollout => !before.some(previous => previous.name === rollout.name));
   assert.equal(created.length, 1, "Expected exactly one new rollout; never accept an old successful deployment");
-  const rollout = created[0];
+  let rollout = created[0];
   assert.ok(rollout.build.startsWith(`${backend}/builds/`), "Unexpected build scope");
+  const deadline = Date.now() + 60000;
+  while ((["QUEUED", "PENDING", "PROGRESSING"].includes(rollout.state) || rollout.reconciling) && Date.now() < deadline) {
+    await delay(2000);
+    rollout = await api(`https://firebaseapphosting.googleapis.com/v1beta/${rollout.name}`);
+  }
   const build = await api(`https://firebaseapphosting.googleapis.com/v1beta/${rollout.build}`);
-  const service = await api(`https://run.googleapis.com/v2/${serviceName}`);
+  let service = await api(`https://run.googleapis.com/v2/${serviceName}`);
+  while (service.reconciling && Date.now() < deadline) {
+    await delay(2000);
+    service = await api(`https://run.googleapis.com/v2/${serviceName}`);
+  }
   // Independently bind success to this source upload and the serving revision.
   verifyRollout(rollout, build, service, archive);
   await firebase("hosting"); // Existing rewrite follows the active service; never pin a tag.
