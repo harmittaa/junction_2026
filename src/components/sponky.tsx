@@ -11,12 +11,10 @@ import "./checkup-screen.css";
 
 type RequestState = { kind: "idle" } | { kind: "sending" } | { kind: "error"; message: string; outdated?: boolean };
 const ribbon = <svg viewBox="0 0 120 120"><path d="M69 10C107 34 39 80 77 110M43 10C81 34 13 80 51 110" /></svg>;
+const flame = <svg className="checkup-streak-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1c1 3 4 4 4 8a4 4 0 0 1-8 0c0-1.5.7-2.5 1.5-3.2C6 7.5 7.5 5 8 1Z" /></svg>;
+const speaker = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z" /><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /></svg>;
+const mutedSpeaker = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z" /><path d="M16 9.5l5 5M21 9.5l-5 5" /></svg>;
 const bankCards = [["Accounts", "S-Tili · Taloustili"], ["Payments and e-invoices", "Make a new payment or view e-invoices"], ["Cards", "S-Etukortti Visa Credit/Debit"], ["Säästäjä", "Oma tavoitteeni"], ["Investments", "Value of your investments"]];
-const questions = {
-  pace: "Am I still on track?", usual: "What have I spent more on than usual?",
-  profile: "What kind of spender am I?", taxi: "How much did I spend on taxis this year?",
-  whatif: "What if I cut dining out by 20%?", days: "Which days pushed me over?", jar: "Show my jar",
-};
 
 class SessionLoadError extends Error {
   constructor(message: string, readonly outdated = false) { super(message); }
@@ -200,10 +198,6 @@ export function Sponky() {
   const hideCaptionVisual = !hasContent || !view || ["save", "goal", "spend_week", "jar"].includes(view.activity.kind) || isProfileAnalysis;
   const hideQuestionVisual = ["save", "goal"].includes(view?.activity.kind ?? "") || isProfileAnalysis;
   const showQuestion = Boolean(question && !hideQuestionVisual);
-  const suggested = view?.jar.overCents
-    ? [questions.days, questions.usual, questions.whatif, questions.profile, questions.taxi, questions.jar]
-    : [questions.pace, questions.usual, questions.profile, questions.taxi, questions.whatif, questions.jar];
-  const suggestions = suggested.filter(value => value !== question);
 
   if (!entered) return <main className="app bank">
     <header className="bank-header"><h1>S-Bank</h1></header>
@@ -238,15 +232,14 @@ export function Sponky() {
       <button className="icon-button checkup-back" aria-label="Back to entry" onClick={() => { voice.cancel(); cancelRequest(); setEntered(false); }}>‹</button>
       <div className="checkup-heading"><h1 onPointerDown={event => { if (event.button !== 0) return; clearHold(); titleHold.current = setTimeout(() => void openSession(true), 1100); }}
         onPointerUp={clearHold} onPointerLeave={clearHold} onPointerCancel={clearHold} onContextMenu={event => event.preventDefault()}>Sponky</h1></div>
-      <button ref={streakPillRef} type="button" className="checkup-streak" aria-label={`${view?.checkup.streak ?? 0} week check-up streak, open`} onClick={() => { const now = performance.now(); dateTaps.current = [...dateTaps.current.filter(t => now - t < 800), now]; if (dateTaps.current.length === 3) { dateTaps.current = []; if (view && !busy) void send({ action: "next-week", revision: view.revision }); return; } setStreakOpen(true); }}><span aria-hidden="true">♨</span> {view?.checkup.streak ?? 0} weeks</button>
-      <button className="checkup-setting" aria-label={voice.muted ? "Sound off" : "Sound on"} aria-pressed={voice.muted} onClick={() => { voice.toggleMute(); if (!voice.muted) void sounds.current?.suspend(); }}>{voice.muted ? "♪̸" : "♪"}</button>
+      <button ref={streakPillRef} type="button" className="checkup-streak" aria-label={`${view?.checkup.streak ?? 0} week check-up streak, open`} onClick={() => { const now = performance.now(); dateTaps.current = [...dateTaps.current.filter(t => now - t < 800), now]; if (dateTaps.current.length === 3) { dateTaps.current = []; if (view && !busy) void send({ action: "next-week", revision: view.revision }); return; } setStreakOpen(true); }}>{flame} {view?.checkup.streak ?? 0} weeks</button>
+      <button className="checkup-setting" aria-label={voice.muted ? "Sound off" : "Sound on"} aria-pressed={voice.muted} onClick={() => { voice.toggleMute(); if (!voice.muted) void sounds.current?.suspend(); }}>{voice.muted ? mutedSpeaker : speaker}</button>
     </header>
     <section className="checkup-canvas" aria-label="Current answer" aria-busy={busy}>
       {view && !hasContent && <>
         <CheckupWelcome firstName={view.profile.firstName} date={view.demoDate} due={view.checkup.due} />
         <div className="checkup-welcome-stack">
-          {view.entryNoticed && <NoticedRow noticed={view.entryNoticed} busy={busy} revision={view.revision} onAction={request => void send(request)} />}
-          {view.upcomingNoticed && <NoticedRow noticed={view.upcomingNoticed} busy={busy} revision={view.revision} onAction={request => void send(request)} />}
+          <NoticedRow noticed={view.upcomingNoticed ?? view.entryNoticed} busy={busy} revision={view.revision} onAction={request => void send(request)} />
           <IdeasButton due={view.checkup.due} onClick={() => setIdeasOpen(true)} className="checkup-ideas-welcome" />
           {view.checkup.due && <button type="button" className="checkup-welcome-checkup" disabled={busy} onClick={() => void send({ action: "weekly-checkup", revision: view.revision })}>Let&apos;s do my check-up</button>}
         </div>
@@ -267,9 +260,8 @@ export function Sponky() {
           <button className="text-button" onClick={() => setVoiceError("")}>Dismiss</button>
         </>}
       </div>}
-      {view && <div className="checkup-chips" key={view.revision}>
-        {view.move && <button disabled={busy} onClick={() => void send({ action: "undo-move", revision: view.revision })}>Undo basket move</button>}
-        {suggestions.map(text => <button key={text} disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text })}>{text}</button>)}
+      {view?.move && <div className="checkup-undo" key={view.revision}>
+        <button disabled={busy} onClick={() => void send({ action: "undo-move", revision: view.revision })}>Undo basket move</button>
       </div>}
       {voice.state === "starting" && <p className="meta" role="status">Starting microphone…</p>}
       {voice.state === "transcribing" && <p className="meta" role="status">Finishing your words…</p>}

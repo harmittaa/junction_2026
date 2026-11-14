@@ -1,8 +1,9 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Response } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { viewSchema } from "../../src/shared/contracts";
 
 const headers = { Origin: "http://localhost:3200" };
+// Ideas lists the fixed questions; the others are asked by voice.
 const questions = {
   pace: "Am I still on track?", usual: "What have I spent more on than usual?",
   profile: "What kind of spender am I?", taxi: "How much did I spend on taxis this year?",
@@ -21,6 +22,12 @@ async function enter(page: Page, mute = true) {
   await expect(page.locator(".coach-message")).toContainText("check-up");
   await expect(page.locator(".sp-coach-trigger")).toBeEnabled();
   if (mute) await page.getByRole("button", { name: "Sound on", exact: true }).click();
+}
+
+async function heard(say: (text: string) => Promise<Response>, text: string) {
+  const response = await say(text);
+  expect(response.status()).toBe(200);
+  return viewSchema.parse(await response.json());
 }
 
 async function chip(page: Page, name: string) {
@@ -109,22 +116,17 @@ test("welcome, weekly reward, jar, spoken necessity correction, undo and hidden 
   await expect(jar).toContainText(/127,20\s€ over the rim/);
   await expect(jar.locator("[data-counter]")).toHaveText(/127,20/);
   await page.screenshot({ path: testInfo.outputPath("over-limit.png"), fullPage: true });
-  const days = await chip(page, questions.days);
+  const days = await heard(say, questions.days);
   expect(days.jar.topDays).toEqual([{ date: "2026-09-21", amountCents: 35915, count: 4 }, { date: "2026-09-19", amountCents: 28004, count: 6 }]);
   await expect(page.getByRole("heading", { name: "The days that filled your jar" })).toBeVisible();
   await expect(page.locator(".sp-activities")).toContainText("177,96");
-  await page.getByRole("button", { name: questions.jar, exact: true }).scrollIntoViewIfNeeded();
-  await expect.poll(() => page.locator(".checkup-chips").evaluate(element => element.scrollLeft)).toBeGreaterThan(30);
   const exactWords = "The 177,96 € payment on 2026-09-21 was necessary because of a burst pipe.";
-  const correctedResponse = await say(exactWords);
-  expect(correctedResponse.status()).toBe(200);
-  const corrected = viewSchema.parse(await correctedResponse.json());
+  const corrected = await heard(say, exactWords);
   expect(corrected).toMatchObject({ jar: { spentCents: 214924, leftCents: 5076, overCents: 0 },
     move: { transactionId: "row-2898396", amountCents: 17796, from: "everyday", to: "unexpected" } });
   expect(spoken).toEqual([questions.days, exactWords]);
   await expect(jar).toContainText(/50,76\s€ left/);
   await expect(jar.locator("[data-counter]")).toHaveText(/50,76/);
-  await expect.poll(() => page.locator(".checkup-chips").evaluate(element => element.scrollLeft)).toBe(0);
   await expect(page.getByRole("button", { name: "Undo basket move", exact: true })).toBeInViewport({ ratio: 1 });
   await page.screenshot({ path: testInfo.outputPath("corrected.png"), fullPage: true });
   const undone = await chip(page, "Undo basket move");
@@ -146,9 +148,10 @@ test("welcome, weekly reward, jar, spoken necessity correction, undo and hidden 
 });
 
 test("free questions, profile, taxi and six-month hypothetical reduction remain grounded", async ({ page }, testInfo) => {
+  const say = await installVoice(page);
   await enter(page);
   for (const question of ["pace", "usual"] as const) {
-    const result = await chip(page, questions[question]);
+    const result = question === "pace" ? await heard(say, questions.pace) : await chip(page, questions.usual);
     expect(result.activity.kind).toBe(question);
     expect(result.checkup).toMatchObject({ due: true, completed: false, streak: 2, completedDates: ["2026-09-02", "2026-09-09"] });
     await expect(page.getByLabel("2 week check-up streak")).toBeVisible();
@@ -183,7 +186,7 @@ test("free questions, profile, taxi and six-month hypothetical reduction remain 
   expect(reflection.message).toContain("What did you value about those payments?");
   expect(reflection.checkup).toEqual(profile.checkup);
   await expect(page.getByRole("dialog", { name: /August.*payments/ })).toHaveCount(0);
-  const taxi = await chip(page, questions.taxi);
+  const taxi = await heard(say, questions.taxi);
   expect(taxi.activity.kind).toBe("reveal");
   if (taxi.activity.kind !== "reveal") throw new Error("Expected direct taxi result");
   expect(taxi.activity.spending.query).toMatchObject({ merchantType: "taxi", start: "2026-01-01", end: "2026-09-16" });
@@ -206,8 +209,28 @@ test("free questions, profile, taxi and six-month hypothetical reduction remain 
   await page.emulateMedia({ reducedMotion: "reduce" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("whatif-360.png"), fullPage: true });
-  const jar = await chip(page, questions.jar);
+  const jar = await heard(say, questions.jar);
   expect(jar).toMatchObject({ activity: { kind: "jar" }, jar: { leftCents: 91229 }, checkup: { due: true, streak: 2 } });
+});
+
+test("welcome fits 390 by 844 with one notice, Ideas and check-up, and no suggestion strip", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await enter(page);
+  await expect(page.locator(".checkup-welcome-stack .ac-noticed")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: questions.usual, exact: true })).toHaveCount(0);
+  const layout = await page.evaluate(() => {
+    const selectors = [".checkup-header", ".checkup-welcome h2", ".checkup-orb .sp-coach-orb", ".checkup-welcome-stack .ac-noticed", ".checkup-ideas-welcome", ".checkup-welcome-checkup"];
+    return { fits: document.documentElement.scrollHeight <= innerHeight,
+      boxes: selectors.map(selector => { const box = document.querySelector(selector)!.getBoundingClientRect(); return { top: box.top, bottom: box.bottom }; }) };
+  });
+  expect(layout.fits).toBe(true);
+  for (let index = 1; index < layout.boxes.length; index++) expect(layout.boxes[index].top).toBeGreaterThanOrEqual(layout.boxes[index - 1].bottom);
+  await expect(page.getByRole("button", { name: "Let's do my check-up", exact: true })).toBeInViewport({ ratio: 1 });
+  await page.getByRole("button", { name: /Ideas to ask/ }).click();
+  const sheet = page.getByRole("dialog", { name: "Ideas to ask" });
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole("button", { name: "Close ideas" }).click();
+  await expect(sheet).toHaveCount(0);
 });
 
 test("welcome car-cost notice opens the verified winter breakdown at phone width", async ({ page }) => {
@@ -216,7 +239,9 @@ test("welcome car-cost notice opens the verified winter breakdown at phone width
   const notice = page.locator(".checkup-welcome-stack").filter({ hasText: "Winter tire season is ahead." });
   await expect(notice).toContainText(/Last December your transport costs hit 729,89\s€\./);
   const question = "What did I spend on transport last winter?";
+  await expect(page.locator(".checkup-welcome-stack .ac-noticed")).toHaveCount(1);
   await expect(notice.getByRole("button").filter({ hasText: question })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Let's do my check-up", exact: true })).toBeVisible();
   const response = page.waitForResponse(response => response.url().endsWith("/api/coach"));
   await notice.getByRole("button").filter({ hasText: question }).click();
   const result = viewSchema.parse(await (await response).json());
@@ -246,7 +271,7 @@ test("welcome car-cost notice opens the verified winter breakdown at phone width
   await expect(page.getByRole("dialog", { name: "Ideas to ask" }).getByRole("button", { name: question, exact: true })).toBeVisible();
 });
 
-test("provider failure and fabricated prose preserve suggestions, saved state and session isolation", async ({ page, context }) => {
+test("provider failure and fabricated prose preserve Ideas, saved state and session isolation", async ({ page, context }) => {
   const say = await installVoice(page);
   await enter(page);
   const before = await (await page.request.get("/api/session")).json();
@@ -255,9 +280,9 @@ test("provider failure and fabricated prose preserve suggestions, saved state an
     await expect(page.getByRole("main").getByRole("alert")).toContainText("couldn't interpret");
     await expect(page.locator(".coach-message")).not.toContainText("saved 200");
     expect(await (await page.request.get("/api/session")).json()).toEqual(before);
-    await expect(page.getByRole("button", { name: questions.pace, exact: true })).toBeEnabled();
+    await expect(page.getByRole("button", { name: /Ideas to ask/ })).toBeEnabled();
   }
-  const recovered = await chip(page, questions.pace);
+  const recovered = await heard(say, questions.pace);
   expect(recovered.activity.kind).toBe("pace");
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   const fallbackResponse = await say("fabricated composition");
@@ -274,8 +299,9 @@ test("provider failure and fabricated prose preserve suggestions, saved state an
 });
 
 test("selecting a past month jar updates the display and answers jar questions in that month's context", async ({ page }) => {
+  const say = await installVoice(page);
   await enter(page);
-  await chip(page, questions.jar);
+  await heard(say, questions.jar);
   await expect(page.getByLabel("September spending jar")).toBeVisible();
   await expect(page.locator(".checkup-jar-amount")).toHaveText("912,29 €");
 
@@ -296,12 +322,12 @@ test("selecting a past month jar updates the display and answers jar questions i
   expect((await augReturn).status()).toBe(200);
   await expect(page.getByLabel("August spending jar")).toBeVisible();
 
-  const overspend = await chip(page, questions.days);
+  const overspend = await heard(say, questions.days);
   expect(overspend.activity.kind).toBe("overspend");
   await expect(page.getByRole("heading", { name: "The days that filled your jar" })).toBeVisible();
   await expect(page.locator(".sp-meta").first()).toContainText("2026-08-01 – 2026-08-31");
 
-  await chip(page, questions.jar);
+  await heard(say, questions.jar);
   await expect(page.getByLabel("August spending jar")).toBeVisible();
 
   const sep = page.waitForResponse(response => response.url().endsWith("/api/coach"));
