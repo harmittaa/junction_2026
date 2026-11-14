@@ -107,4 +107,59 @@ describe("verified model-written replies", () => {
     };
     expect(verifyReply("You spent 172,05 € and 50,00 €.", multiFacts)).toBe(false);
   });
+
+  it("verifies save, spend_week, and goal messages verbatim, rejecting invented amounts, second euros, chat safe-to-spend, and saved claims", () => {
+    const saveFacts: ReplyFacts = {
+      kind: "save",
+      subject: "Monthly safe to save",
+      period: "in August 2026",
+      values: [],
+      notes: ["A usual month leaves 16,90 € to save after your three baskets."],
+      required: ["A usual month leaves 16,90 € to save after your three baskets."],
+      fallback: "A usual month leaves 16,90 € to save after your three baskets.",
+    };
+    const spendWeekFacts: ReplyFacts = {
+      kind: "spend_week",
+      subject: "Weekly safe to spend",
+      period: "in August 2026",
+      values: [],
+      notes: ["You have 260,64 € safe to spend this week and stay inside your jar."],
+      required: ["You have 260,64 € safe to spend this week and stay inside your jar."],
+      fallback: "You have 260,64 € safe to spend this week and stay inside your jar.",
+    };
+    const goalFacts: ReplyFacts = {
+      kind: "goal",
+      subject: "Savings goal",
+      period: "in August 2026",
+      values: [],
+      notes: ["Possible, but a stretch: it needs 419,68 € less everyday spending a month, and you managed that in 3 of the last 6 months."],
+      required: ["Possible, but a stretch: it needs 419,68 € less everyday spending a month, and you managed that in 3 of the last 6 months."],
+      fallback: "Possible, but a stretch: it needs 419,68 € less everyday spending a month, and you managed that in 3 of the last 6 months.",
+    };
+
+    expect(verifyReply(saveFacts.fallback, saveFacts)).toBe(true);
+    expect(verifyReply(spendWeekFacts.fallback, spendWeekFacts)).toBe(true);
+    expect(verifyReply(goalFacts.fallback, goalFacts)).toBe(true);
+    expect(verifyReply(`${saveFacts.fallback} You've got this.`, saveFacts)).toBe(true);
+
+    expect(verifyReply("A usual month leaves 900,00 € to save after your three baskets.", saveFacts)).toBe(false);
+    expect(verifyReply(`${saveFacts.fallback} 10,00 €.`, saveFacts)).toBe(false);
+    expect(verifyReply(`${spendWeekFacts.fallback} 5,00 €.`, spendWeekFacts)).toBe(false);
+
+    const chatFacts: ReplyFacts = {
+      kind: "chat",
+      subject: "conversation",
+      period: "",
+      values: [],
+      notes: ["I'm all ears."],
+      fallback: "I'm all ears.",
+    };
+    expect(verifyReply("You have 100,00 € safe to spend this week.", chatFacts)).toBe(false);
+    expect(verifyReply("safe to spend is easy.", chatFacts)).toBe(false);
+
+    expect(verifyReply("You saved 100,00 €.", goalFacts)).toBe(false);
+    expect(verifyReply("Your goal saved 100,00 €.", goalFacts)).toBe(false);
+    expect(verifyReply("goal saved", goalFacts)).toBe(false);
+    expect(verifyReply(`${goalFacts.fallback} You saved.`, goalFacts)).toBe(false);
+  });
 });

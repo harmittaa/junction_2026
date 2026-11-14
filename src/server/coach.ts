@@ -2,11 +2,12 @@ import "server-only";
 import { calculateSpending, euros, nextDate, percentageScenario, queryLabel } from "@/domain/spending";
 import { calculateAnalysis, recentCompleteQuery } from "@/domain/exploration";
 import { calculateJar, calculateUsualComparison, completeWeeklyCheckup, weeklyCheckup } from "@/domain/checkup";
-import { quantities, speechText, type ReplyFacts } from "@/domain/replies";
-import { analysisKindSchema, analysisOperationSchema, basketLabels, type Analysis, type CoachRequest, type CoachView, type Activity, viewSchema } from "@/shared/contracts";
+import { goalVerdict, noticed, safeToSave, safeToSpendWeek, usualMonth } from "@/domain/coaching";
+import { changeGoalText, quantities, speechText, type ReplyFacts } from "@/domain/replies";
+import { analysisKindSchema, analysisOperationSchema, basketLabels, type Analysis, type CoachRequest, type CoachView, type Activity, type Noticed, viewSchema } from "@/shared/contracts";
 import { categories, dataset } from "./data";
 import { AppError } from "./errors";
-import { compose, interpret, validatePlan, type Interpretation } from "./providers/gemini";
+import { compose, interpret, scopePlan, validatePlan, type Interpretation } from "./providers/gemini";
 import { consumeBudget, readSession, updateSession } from "./storage/sessions";
 import { type SessionState } from "./storage/state";
 
@@ -42,8 +43,20 @@ function activePeriod(state: SessionState): { start: string; end: string } {
   return { start: `${m}-01`, end: m === state.demoDate.slice(0, 7) ? state.demoDate : lastDayOfMonth(m) };
 }
 function checkupInput(state: SessionState) {
+  let limit = state.profile.everydayLimit;
+  if (state.goal) {
+    const usual = usualMonth({
+      rows: dataset.transactions,
+      customerId: state.customerId,
+      referenceDate: state.demoDate,
+      corrections: state.corrections,
+      datasetStart: dataset.period.start,
+    });
+    const verdict = goalVerdict(state.goal, usual, state.demoDate);
+    limit = { ...limit, amountCents: verdict.neededJarCents };
+  }
   return { rows: dataset.transactions, customerId: state.customerId, referenceDate: state.demoDate,
-    corrections: state.corrections, limit: state.profile.everydayLimit, jarMonth: activeMonth(state) };
+    corrections: state.corrections, limit, jarMonth: activeMonth(state) };
 }
 function jarMessage(state: SessionState, welcome = false) {
   const jar = calculateJar(checkupInput(state));
@@ -56,6 +69,7 @@ function jarMessage(state: SessionState, welcome = false) {
 }
 function currentEvidence(state: SessionState) {
   if (["jar", "pace", "overspend"].includes(state.mode)) return calculateJar(checkupInput(state)).evidence;
+  if (["save", "goal", "spend_week"].includes(state.mode)) return [];
   if (state.mode === "usual") return calculateUsualComparison(checkupInput(state)).evidence;
   if (state.mode === "reveal") return spending(state).evidence.slice(0, 40);
   if (state.mode === "analysis" && state.analysis?.kind !== "cashflow") return analysis(state).evidence.slice(0, 40);
@@ -124,6 +138,7 @@ function scenario(state: SessionState, percent: number): SessionState {
 const refusal = /\b(?:(?:is|was|were|are|do|does|did|has|have|had|could|would|should|ai)n[’']?t|can[’']?t|won[’']?t|cannot|not|no|nope|never|neither|nor|without|nothing|unnecessary|skip|if|suppose|imagine|example|pretend|hypothetical|maybe|might|would|could|should|assuming|quote|quoted|said)\b/i;
 const asking = /\?|^\s*(?:was|were|is|are|did|do|does|can|could|would|should)\b|\b(?:who|which|what|whether|why|how)\b/i;
 const checkupRequest = /^\s*(?:(?:ok(?:ay)?|yes|yeah|please|hey sponky)[,.!]?\s+)*(?:(?:let[’']?s|let us)\s+|(?:i(?:\s+(?:want|wanna|would like|need)|[’']d like)\s+to\s+)|(?:i[’']?m ready to\s+)|(?:please\s+)?)(?:do|start|begin|complete|finish)\s+(?:my|the|a|our)\s+(?:weekly\s+)?check[- ]?up[\s.!]*$/i;
+const clearGoalRequest = /^\s*(?:(?:ok(?:ay)?|yes|yeah|please|hey sponky)[,.!]?\s+)*(?:(?:let[’']?s|let us)\s+|(?:i(?:\s+(?:want|wanna|would like|need)|[’']d like)\s+to\s+)|(?:please\s+)?)(?:remove|clear|delete|drop)\s+(?:my|the|a|our)\s+(?:savings\s+)?goal[\s.!]*$/i;
 const necessityStatement = /\b(?:(?:was|were|is|it[’']?s|that[’']?s)\s+(?:(?:a|an|the|my|really|truly|actually|definitely|absolutely|very)\s+)*(?:necessity|necessary|essential|emergency|urgent|unavoidable|must[- ]have|must|burst pipe)\b|had to (?:pay|buy|get|fix|replace|cover)\b)/i;
 export function transition(current: SessionState, request: CoachRequest, interpretation?: Interpretation): SessionState {
   if (current.customerId !== dataset.customerId) throw new AppError("This session uses another dataset.", 409);
@@ -163,6 +178,49 @@ export function transition(current: SessionState, request: CoachRequest, interpr
         ? `${topOver ? `${topOver.category}: ${euros(topOver.currentCents)} in ${month.format(utc(jar.period.start))}. ` : "No category was above its usual month. "}The full comparison is on screen. Your usual month averages the previous 6 complete months.`
         : `${topOver ? `${topOver.category}: ${euros(topOver.currentCents)} so far. ` : "No category is above its usual full month yet. "}The full comparison is on screen. Your usual month averages the previous 6 complete months.`;
       return { ...state, message: mode === "pace" ? paceMessage : mode === "usual" ? usualMessage : jarMessage(state) };
+    }
+    if (result.kind === "save") {
+      state = { ...state, mode: "save", query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null };
+      const usual = usualMonth({ rows: dataset.transactions, customerId: state.customerId, referenceDate: state.demoDate, corrections: state.corrections, datasetStart: dataset.period.start });
+      const safe = safeToSave(usual);
+      const message = safe.safeToSaveCents > 0
+        ? `A usual month leaves ${euros(safe.safeToSaveCents)} to save after your three baskets.`
+        : "A usual month leaves nothing to save yet. Look at your everyday spending first.";
+      return { ...state, message };
+    }
+    if (result.kind === "spend_week") {
+      state = { ...state, mode: "spend_week", query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null };
+      const jar = calculateJar(checkupInput(state));
+      const spendWeek = safeToSpendWeek(jar, state.demoDate);
+      const message = spendWeek.amountCents > 0
+        ? `You have ${euros(spendWeek.amountCents)} safe to spend this week and stay inside your jar.`
+        : "Nothing is safe to spend this week. The jar is full.";
+      return { ...state, message };
+    }
+    if (result.kind === "goal") {
+      if (result.goal) {
+        state = { ...state, mode: "goal", proposedGoal: result.goal, query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null };
+        const usual = usualMonth({ rows: dataset.transactions, customerId: state.customerId, referenceDate: state.demoDate, corrections: state.corrections, datasetStart: dataset.period.start });
+        const verdict = goalVerdict(result.goal, usual, state.demoDate);
+        let message: string;
+        if (verdict.verdict === "on_track") {
+          message = `On track: your usual month already leaves room for ${euros(verdict.monthlyCents)} a month.`;
+        } else if (verdict.verdict === "stretch") {
+          message = `Possible, but a stretch: it needs ${euros(verdict.cutCents)} less everyday spending a month, and you managed that in ${verdict.monthsInside} of the last 6 months.`;
+        } else {
+          message = "Out of reach by that month; try a smaller amount or a later month.";
+        }
+        return { ...state, message };
+      }
+      if (clearGoalRequest.test(request.text) && !refusal.test(request.text) && !asking.test(request.text)) {
+        return transition(state, { action: "clear-goal", revision: request.revision, confirmed: true });
+      }
+      if (/remove|clear|delete|drop/i.test(request.text)) {
+        return { ...state, mode: "none", query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null,
+          message: "Say “remove my goal” and I will do it." };
+      }
+      return { ...state, mode: "none", query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null,
+        message: "How much do you want to save, and by which month?" };
     }
     if (result.kind === "move") {
       const criteria = result.correction;
@@ -263,13 +321,47 @@ export function transition(current: SessionState, request: CoachRequest, interpr
     return checkin({ ...state, demoDate: date, mode: "none", query: null, guessCents: null, percent: null,
       message: "Simulated date advanced. This is historical data, not a live feed." });
   }
+  if (request.action === "set-goal") {
+    const currentYear = Number(state.demoDate.slice(0, 4));
+    const currentMon = Number(state.demoDate.slice(5, 7));
+    const targetYear = Number(request.goal.targetMonth.slice(0, 4));
+    const targetMon = Number(request.goal.targetMonth.slice(5, 7));
+    const months = (targetYear - currentYear) * 12 + (targetMon - currentMon);
+    if (!Number.isInteger(request.goal.amountCents) || request.goal.amountCents <= 0 || request.goal.amountCents > 100_000_000 || targetMon < 1 || targetMon > 12 || months <= 0 || months > 60) {
+      throw new AppError("Choose a future target month within 5 years and a valid amount.");
+    }
+    const usual = usualMonth({ rows: dataset.transactions, customerId: state.customerId, referenceDate: state.demoDate, corrections: state.corrections, datasetStart: dataset.period.start });
+    const verdict = goalVerdict(request.goal, usual, state.demoDate);
+    if (verdict.verdict === "out_of_reach") {
+      throw new AppError("That goal is out of reach. Try a smaller amount or a later month.");
+    }
+    state = { ...state, goal: request.goal, proposedGoal: null, mode: "jar", query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null };
+    return { ...state, message: `Your goal is set. The jar limit is now ${euros(verdict.neededJarCents)} a month.` };
+  }
+  if (request.action === "clear-goal") {
+    if (!state.goal) throw new AppError("There is no goal to remove.");
+    delete state.goal;
+    state = { ...state, proposedGoal: null, mode: "jar", query: null, analysis: null, itemLimitation: false, guessCents: null, percent: null };
+    return { ...state, message: `Goal removed. The jar limit is back to ${euros(state.profile.everydayLimit.amountCents)} a month.` };
+  }
   return state;
 }
 
 export function toView(state: SessionState): CoachView {
   let activity: Activity = { kind: "none" };
   const jar = calculateJar(checkupInput(state));
-  if (state.mode === "jar" || state.mode === "pace" || state.mode === "overspend") activity = { kind: state.mode };
+  if (state.mode === "jar" || state.mode === "pace" || state.mode === "overspend" || state.mode === "spend_week") activity = { kind: state.mode };
+  if (state.mode === "save") {
+    const usual = usualMonth({ rows: dataset.transactions, customerId: state.customerId, referenceDate: state.demoDate, corrections: state.corrections, datasetStart: dataset.period.start });
+    activity = { kind: "save", save: safeToSave(usual) };
+  }
+  if (state.mode === "goal") {
+    const targetGoal = state.proposedGoal ?? state.goal;
+    if (targetGoal) {
+      const usual = usualMonth({ rows: dataset.transactions, customerId: state.customerId, referenceDate: state.demoDate, corrections: state.corrections, datasetStart: dataset.period.start });
+      activity = { kind: "goal", verdict: goalVerdict(targetGoal, usual, state.demoDate) };
+    }
+  }
   if (state.mode === "usual") activity = { kind: "usual", comparison: calculateUsualComparison(checkupInput(state)) };
   if (state.mode === "invitation" && state.query) activity = { kind: "invitation", query: state.query };
   if (state.mode === "reveal") {
@@ -281,12 +373,33 @@ export function toView(state: SessionState): CoachView {
   if (state.mode === "analysis") activity = { kind: "analysis", analysis: analysis(state) };
   if (activity.kind === "reveal" || activity.kind === "checkin") activity.spending.evidence = activity.spending.evidence.slice(0, 40);
   if (activity.kind === "analysis") activity.analysis.evidence = activity.analysis.evidence.slice(0, 40);
+
+  let noticedRow: Noticed | null = null;
+  if (activity.kind === "save") {
+    noticedRow = noticed({ place: "save", safe: activity.save });
+  } else if (activity.kind === "goal") {
+    noticedRow = noticed({ place: "goal", verdict: activity.verdict, comparison: calculateUsualComparison(checkupInput(state)) });
+  } else if (activity.kind === "jar" || activity.kind === "spend_week") {
+    noticedRow = noticed({ place: "jar", jar, goal: state.goal ?? null });
+  } else if (activity.kind === "analysis" && activity.analysis.kind === "profile") {
+    const usual = usualMonth({ rows: dataset.transactions, customerId: state.customerId, referenceDate: state.demoDate, corrections: state.corrections, datasetStart: dataset.period.start });
+    noticedRow = noticed({ place: "spender", usual });
+  }
+
+  const entryNoticed = noticed({
+    place: "entry",
+    rows: dataset.transactions,
+    customerId: state.customerId,
+    referenceDate: state.demoDate,
+    corrections: state.corrections,
+    datasetStart: dataset.period.start,
+  });
+
   return viewSchema.parse({ revision: state.revision, demoDate: state.demoDate, message: state.message, activity,
     entryMessage: jar.overCents ? jarMessage(state, true) : "A little check-up, or something on your mind? I'm here for both.",
     profile: state.profile, checkup: weeklyCheckup(state.weeklyCompletedDates, state.demoDate), jar, move: state.move,
-    // placeholder until Coach 3/7
-    goal: state.goal ?? null, noticed: null, entryNoticed: null,
-    spendWeek: { dailyCents: jar.dailyRemainingCents, daysLeftInWeek: 0, amountCents: 0, weekEnd: state.demoDate },
+    goal: state.goal ?? null, noticed: noticedRow, entryNoticed,
+    spendWeek: safeToSpendWeek(jar, state.demoDate),
     habit: state.habit, completedDates: state.completedDates, categories, period: { start: dataset.period.start, end: state.demoDate } });
 }
 
@@ -298,11 +411,19 @@ export async function coach(id: string, request: CoachRequest, signal?: AbortSig
   // calls atomically; an SDK retry cannot exceed the three-call turn ceiling.
   const deadline = AbortSignal.any([AbortSignal.timeout(27000), ...(signal ? [signal] : [])]);
   if (request.action === "ask") {
-    await consumeBudget(id, "reasoning", new Date(), 3);
-    interpretation = await interpret(request.text, { categories, ...dataset.period, referenceDate: state.demoDate, previousQuery: state.query, selectedMonth: activeMonth(state) }, deadline);
+    if (request.text === changeGoalText) {
+      interpretation = { ...scopePlan, kind: "goal", goal: null, reply: "none" };
+    } else {
+      await consumeBudget(id, "reasoning", new Date(), 3);
+      interpretation = await interpret(request.text, { categories, ...dataset.period, referenceDate: state.demoDate, previousQuery: state.query, selectedMonth: activeMonth(state) }, deadline);
+    }
   }
   let next = transition(state, request, interpretation);
-  if ((request.action === "ask" && !["checkin", "habit", "scenario", "weekly_checkup", "move"].includes(interpretation!.kind)) || request.action === "reveal") {
+  const skipCompose = interpretation && (
+    ["checkin", "habit", "scenario", "weekly_checkup", "move"].includes(interpretation.kind) ||
+    (interpretation.kind === "goal" && interpretation.goal === null)
+  );
+  if ((request.action === "ask" && !skipCompose) || request.action === "reveal") {
     if (request.action === "reveal") await consumeBudget(id, "reasoning", new Date(), 2);
     next = { ...next, message: await compose(replyFacts(next, interpretation), deadline) };
   }
@@ -326,11 +447,15 @@ export function replyFacts(state: SessionState, plan?: Interpretation): ReplyFac
     period: state.query ? period(state.query) : "", values: [], notes: [], required: [], fallback: state.message };
   // Do not calculate, serialize or forward the hidden answer to the writer.
   if (state.mode === "invitation") return base;
-  if (["jar", "pace", "usual", "overspend"].includes(state.mode)) {
+  if (["jar", "pace", "usual", "overspend", "save", "goal", "spend_week"].includes(state.mode)) {
     // These captions include guidance and comparisons, so preserve the entire
     // verified financial clause rather than accepting a bag of valid numbers
     // that could swap "left"/"spent" or "so far"/"usual".
-    base.subject = state.mode === "usual" ? "Everyday spending against your usual month" : "Everyday monthly limit";
+    base.subject = state.mode === "usual" ? "Everyday spending against your usual month"
+      : state.mode === "save" ? "Monthly safe to save"
+      : state.mode === "spend_week" ? "Weekly safe to spend"
+      : state.mode === "goal" ? "Savings goal"
+      : "Everyday monthly limit";
     base.period = period(activePeriod(state));
     base.required = [state.message];
     base.notes = [state.message];
