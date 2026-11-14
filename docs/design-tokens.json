@@ -126,11 +126,13 @@
     "fontFamily": {
       "display": {
         "primary": "S Bonus Display",
-        "fallback": ["Inter", "SF Pro Display", "Roboto", "sans-serif"]
+        "substitute": "Barlow Condensed",
+        "fallback": ["Barlow Condensed", "Figtree", "sans-serif"]
       },
       "body": {
         "primary": "S Bonus UX",
-        "fallback": ["Inter", "SF Pro Text", "Roboto", "sans-serif"]
+        "substitute": "Figtree",
+        "fallback": ["Figtree", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"]
       }
     },
     "fontWeight": {

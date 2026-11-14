@@ -118,12 +118,6 @@ export function Sponky() {
     document.documentElement.dataset.theme = dark ? "light" : "dark";
   }
 
-  function toggleTalk() {
-    if (voice.state === "listening") void voice.stop();
-    else if (voice.state === "starting") voice.cancel();
-    else startCoach();
-  }
-
   if (!entered) return <main className="app bank">
     <header className="bank-header"><h1>S-Bank</h1></header>
     <ul className="bank-cards">
@@ -156,8 +150,5 @@ export function Sponky() {
     {busy && <button className="text-button" onClick={cancelRequest}>Stop waiting</button>}
     {view && !busy && voice.state === "ready" && view.revision > 0 && <button className="text-button replay" disabled={voice.muted} onClick={() => void voice.speak(view.revision)}>Play reply</button>}
     <details className="demo-controls"><summary>Demo controls</summary><p className="demo-date">Simulated date {view?.demoDate ?? "2026-09-01"}</p><button className="secondary" disabled={!view || busy} onClick={() => { if (view) void send({ action: "advance", revision: view.revision, confirmed: true }); }}>Advance simulated day</button></details>
-    <button className="talk-toggle" disabled={!view || !["ready", "speaking", "listening", "starting"].includes(voice.state)} aria-pressed={voice.state === "listening" || voice.state === "starting"} onClick={toggleTalk}>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
-      <span className="sr-only">{voice.state === "listening" ? "Tap to send" : voice.state === "starting" ? "Tap to cancel" : "Tap to talk"}</span></button>
   </main>;
 }

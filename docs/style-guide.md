@@ -74,7 +74,14 @@ Use these consistent colors across charts, category pills, and AI explanations:
 
 ## 4. Typography
 
-S-Pankki uses **S Bonus Display** for headings and **S Bonus UX** for UI body text. In Flutter/React Native prototypes without licensed font files, use `Inter` or system geometric sans-serif (`SF Pro` on iOS, `Roboto` on Android).
+S-mobiili uses two licensed Spoke Type families (reference screenshots: [issue #12](https://github.com/harmittaa/junction_2026/issues/12)). We do not have their font files, so the web app self-hosts the closest open (SIL OFL) stand-ins through `next/font` in `src/app/layout.tsx`:
+
+| S-mobiili family | Where S-mobiili uses it | Sponky stand-in | CSS variable |
+| :--- | :--- | :--- | :--- |
+| **S Bonus Display** | Condensed, heavy, uppercase titles (`S-ETUKORTTI` header, store headlines) | `Barlow Condensed` 800, uppercase | `--font-display` |
+| **S Bonus UX** | All in-app text: card titles (`Accounts`, `Säästäjä`), body, amounts, tabs | `Figtree` (variable 300–900, tabular figures) | `--font-ux` |
+
+Use the display face sparingly, only for short uppercase titles. Everything else uses the UX face; card titles use weight `750`–`800`, matching S-mobiili's heavy in-card headings.
 
 | Token | Size (px/dp) | Line Height | Weight | Usage |
 | :--- | :--- | :--- | :--- | :--- |
