@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { verifyReply } from "@/domain/replies";
+import { speechText, verifyReply } from "@/domain/replies";
 import { replyFacts, toView, transition } from "@/server/coach";
 import { scopePlan, type Interpretation } from "@/server/providers/gemini";
 import { initialState, type SessionState } from "@/server/storage/state";
@@ -196,6 +196,12 @@ describe("evidence-bound necessity moves", () => {
 });
 
 describe("financial reply clauses", () => {
+  it.each(["2026-09-16", "2026-09-23", "2026-09-30"])("keeps the usual-month caption speakable on %s", date => {
+    const state = ask({ ...initialState(), demoDate: date }, "Compare with usual", { ...scopePlan, kind: "usual" });
+    expect(speechText(state.message).length).toBeLessThanOrEqual(600);
+    expect(state.message.match(/against/g)?.length ?? 0).toBeLessThanOrEqual(2);
+  });
+
   it.each(["jar", "pace", "usual", "overspend"] as const)("requires intact %s facts and rejects unsupported additions", kind => {
     const state = ask(kind === "overspend" ? nextWeek() : initialState(), "Show my results", { ...scopePlan, kind });
     const facts = replyFacts(state);

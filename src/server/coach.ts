@@ -123,7 +123,7 @@ export function transition(current: SessionState, request: CoachRequest, interpr
       const usual = mode === "usual" ? calculateUsualComparison(checkupInput(state)) : null;
       return { ...state, message: mode === "pace"
         ? `So far, ${euros(jar.dailySpentCents)} a day. ${jar.overCents ? `You're already ${euros(jar.overCents)} over this month's limit.` : jar.daysLeft ? `${euros(jar.dailyRemainingCents)} a day for the ${jar.daysLeft} days left stays inside the limit.` : "This month is complete."} ${jar.projectedOverCents ? `At this pace, the month would finish ${euros(jar.projectedOverCents)} over.` : ""}`.trim()
-        : usual ? `${usual.rows.filter(row => row.currentCents > row.usualCents).map(row => `${row.category}: ${euros(row.currentCents)} so far, against ${euros(row.usualCents)} in your usual full month`).join("; ") || "No category is above its usual full month yet"}. Your usual month averages the previous 6 complete months.`
+        : usual ? `${usual.rows.filter(row => row.currentCents > row.usualCents).sort((a, b) => (b.currentCents - b.usualCents) - (a.currentCents - a.usualCents)).slice(0, 2).map(row => `${row.category}: ${euros(row.currentCents)} so far, against ${euros(row.usualCents)} in your usual full month`).join("; ") || "No category is above its usual full month yet"}. Your usual month averages the previous 6 complete months.`
           : jarMessage(state) };
     }
     if (result.kind === "move") {
