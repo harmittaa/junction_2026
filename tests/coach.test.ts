@@ -82,6 +82,50 @@ describe("coordinator boundaries", () => {
     expect(verifySession(token, "test-only-secret", 1800000001)).toBeNull();
     expect(verifySession(token.replace("12345678", "12345679"), "test-only-secret", 1800000000)).toBeNull();
   });
+  it("reports real SDK HTTP limits and retry hints without leaking provider bodies, headers or input", async () => {
+    const context = { categories: ["Groceries"], start: "2024-10-01", end: "2024-11-30", referenceDate: "2024-11-04", previousQuery: null };
+    const cases = [
+      { status: 429, providerStatus: "RESOURCE_EXHAUSTED", retry: "4160", seconds: 4160, at: undefined },
+      { status: 503, providerStatus: "UNAVAILABLE", retry: "Sat, 14 Nov 2026 08:00:00 GMT", seconds: undefined, at: "2026-11-14T08:00:00.000Z" },
+      { status: 429, providerStatus: "RESOURCE_EXHAUSTED", retry: "0", seconds: 0, at: undefined },
+      { status: 429, providerStatus: "private-provider-body", retry: "private-header", seconds: undefined, at: undefined },
+    ];
+    let requests = 0;
+    const server = createServer((request, response) => {
+      request.resume();
+      const fixture = cases[requests++];
+      response.writeHead(fixture.status, { "Content-Type": "application/json", "Retry-After": fixture.retry, "X-Private": "private-header" });
+      response.end(JSON.stringify({ error: { code: fixture.status, status: fixture.providerStatus,
+        message: "private-provider-body", details: [{ secret: "fixture-only" }] } }));
+    }).listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Missing fixture port");
+    vi.stubEnv("SPONKY_TEST_GEMINI_URL", `http://127.0.0.1:${address.port}`);
+    vi.stubEnv("FIRESTORE_EMULATOR_HOST", "127.0.0.1:8180");
+    vi.stubEnv("GOOGLE_CLOUD_PROJECT", "demo-sponky-tests");
+    vi.stubEnv("GEMINI_API_KEY", "fixture-only");
+    vi.stubEnv("ELEVENLABS_API_KEY", "fixture-only");
+    vi.stubEnv("SESSION_SECRET", "fixture-only-secret-at-least-32-characters");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      for (const fixture of cases) {
+        await expect(interpret("private-user-input", context)).rejects.toMatchObject({ status: 503, retryable: true });
+        expect(warn).toHaveBeenLastCalledWith("Reasoning failed", {
+          type: "http", elapsedMs: expect.any(Number), status: fixture.status,
+          providerStatus: fixture.providerStatus === "private-provider-body" ? undefined : fixture.providerStatus,
+          retryAfterSeconds: fixture.seconds, retryAt: fixture.at,
+        });
+      }
+      expect(requests).toBe(cases.length); // No automatic paid retries.
+      expect(JSON.stringify(warn.mock.calls)).not.toMatch(/private-|fixture-only|Groceries/);
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
   it("cancels a stalled real SDK transport at the deadline or caller interruption without retrying", async () => {
     const context = { categories: ["Groceries"], start: "2024-10-01", end: "2024-11-30", referenceDate: "2024-11-04", previousQuery: null };
     let requests = 0, disconnected = 0;
@@ -102,14 +146,18 @@ describe("coordinator boundaries", () => {
     vi.stubEnv("GEMINI_API_KEY", "fixture-only");
     vi.stubEnv("ELEVENLABS_API_KEY", "fixture-only");
     vi.stubEnv("SESSION_SECRET", "fixture-only-secret-at-least-32-characters");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const started = Date.now();
       await expect(interpret("Groceries last month?", context)).rejects.toThrow("saved activity is safe");
       expect(Date.now() - started).toBeLessThan(22000);
+      expect(warn).toHaveBeenLastCalledWith("Reasoning failed", expect.objectContaining({ type: "deadline", status: undefined }));
       await expect(interpret("Groceries last month?", context, caller.signal)).rejects.toThrow("saved activity is safe");
+      expect(warn).toHaveBeenLastCalledWith("Reasoning failed", expect.objectContaining({ type: "cancelled", status: undefined }));
       await vi.waitFor(() => expect(disconnected).toBe(2));
       expect(requests).toBe(2);
     } finally {
+      warn.mockRestore();
       vi.unstubAllEnvs();
       server.closeAllConnections();
       await new Promise<void>(resolve => server.close(() => resolve()));

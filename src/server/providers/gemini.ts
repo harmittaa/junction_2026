@@ -14,6 +14,16 @@ export type Interpretation = z.infer<typeof interpretationSchema>;
 export type InterpretationContext = { categories: string[]; start: string; end: string; referenceDate: string; previousQuery: SpendingQuery | null };
 type Transport = (text: string, context: InterpretationContext, signal?: AbortSignal) => Promise<string>;
 
+// The Interactions SDK wraps HTTP errors as { status, headers, error: { error } }.
+// Pick only safe diagnostics; provider messages/bodies can contain input or keys.
+const failureSchema = z.object({
+  status: z.number().int().min(100).max(599).optional().catch(undefined),
+  headers: z.instanceof(Headers).optional().catch(undefined),
+  error: z.object({ error: z.object({
+    status: z.enum(["RESOURCE_EXHAUSTED", "UNAVAILABLE", "INVALID_ARGUMENT", "PERMISSION_DENIED", "UNAUTHENTICATED", "INTERNAL", "DEADLINE_EXCEEDED", "NOT_FOUND"]).optional().catch(undefined),
+  }).optional().catch(undefined) }).optional().catch(undefined),
+});
+
 const generate: Transport = async (text, context, signal) => {
   const env = config();
   const testURL = process.env.SPONKY_TEST_GEMINI_URL;
@@ -43,6 +53,7 @@ spending requires query. An ordinary spending question such as "How much did I s
 };
 
 export async function interpret(text: string, context: InterpretationContext, signal?: AbortSignal, transport: Transport = generate): Promise<Interpretation> {
+  const started = performance.now();
   try {
     const result = interpretationSchema.parse(JSON.parse(await transport(text, context, signal)));
     if (result.kind === "spending" && !result.query) throw new Error("Missing query");
@@ -54,8 +65,18 @@ export async function interpret(text: string, context: InterpretationContext, si
     return result;
   } catch (error) {
     // Log only classifications, never prompts, provider bodies or credentials.
-    console.warn("Reasoning failed", { type: error instanceof z.ZodError ? "schema" : error instanceof SyntaxError ? "json" : "transport",
-      status: typeof error === "object" && error !== null && "status" in error && typeof error.status === "number" ? error.status : undefined });
+    const failure = failureSchema.safeParse(error).data;
+    const retryAfter = failure?.headers?.get("retry-after");
+    const retryAfterSeconds = retryAfter && /^\d{1,10}$/.test(retryAfter) ? Number(retryAfter) : undefined;
+    const retryAt = retryAfter && retryAfterSeconds === undefined ? Date.parse(retryAfter) : NaN;
+    const timedOut = error instanceof Error && ["APIConnectionTimeoutError", "TimeoutError"].includes(error.name);
+    console.warn("Reasoning failed", {
+      type: signal?.aborted ? "cancelled" : timedOut ? "deadline" : failure?.status ? "http"
+        : error instanceof z.ZodError ? "schema" : error instanceof SyntaxError ? "json" : "transport",
+      elapsedMs: Math.round(performance.now() - started), status: failure?.status,
+      providerStatus: failure?.error?.error?.status, retryAfterSeconds,
+      retryAt: Number.isFinite(retryAt) ? new Date(retryAt).toISOString() : undefined,
+    });
     throw new AppError("The coach couldn't interpret that just now. Your saved activity is safe. Please retry or type a shorter question.", 503, true);
   }
 }
