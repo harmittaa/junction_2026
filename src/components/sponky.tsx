@@ -6,6 +6,7 @@ import { Coach } from "./coach";
 import { Activities } from "./activities";
 import { NoticedRow } from "./answer-cards";
 import { CheckupWelcome, IdeasButton, IdeasSheet, Jar, WeeklyReward } from "./checkup-visuals";
+import { StreakScreen } from "./streak-screen";
 import "./checkup-screen.css";
 
 type RequestState = { kind: "idle" } | { kind: "sending" } | { kind: "error"; message: string; outdated?: boolean };
@@ -41,6 +42,7 @@ export function Sponky() {
   const [voiceError, setVoiceError] = useState("");
   const [question, setQuestion] = useState("");
   const [ideasOpen, setIdeasOpen] = useState(false);
+  const [streakOpen, setStreakOpen] = useState(false);
   const [content, setContent] = useState(false);
   const [reward, setReward] = useState(false);
   const [revealKey, setRevealKey] = useState<number | undefined>();
@@ -52,6 +54,7 @@ export function Sponky() {
   const travelFrom = useRef<DOMRect | null>(null);
   const titleHold = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dateTaps = useRef<number[]>([]);
+  const streakPillRef = useRef<HTMLButtonElement>(null);
   const sounds = useRef<AudioContext | null>(null);
   const voice = useVoice({
     onTranscript: transcript => { if (view) void send({ action: "ask", revision: view.revision, text: transcript }); },
@@ -235,7 +238,7 @@ export function Sponky() {
       <button className="icon-button checkup-back" aria-label="Back to entry" onClick={() => { voice.cancel(); cancelRequest(); setEntered(false); }}>‹</button>
       <div className="checkup-heading"><h1 onPointerDown={event => { if (event.button !== 0) return; clearHold(); titleHold.current = setTimeout(() => void openSession(true), 1100); }}
         onPointerUp={clearHold} onPointerLeave={clearHold} onPointerCancel={clearHold} onContextMenu={event => event.preventDefault()}>Sponky</h1></div>
-      <span className="checkup-streak" aria-label={`${view?.checkup.streak ?? 0} week check-up streak`} onClick={() => { const now = performance.now(); dateTaps.current = [...dateTaps.current.filter(t => now - t < 800), now]; if (dateTaps.current.length === 3) { dateTaps.current = []; if (view && !busy) void send({ action: "next-week", revision: view.revision }); } }}><span aria-hidden="true">♨</span> {view?.checkup.streak ?? 0} weeks</span>
+      <button ref={streakPillRef} type="button" className="checkup-streak" aria-label={`${view?.checkup.streak ?? 0} week check-up streak, open`} onClick={() => { const now = performance.now(); dateTaps.current = [...dateTaps.current.filter(t => now - t < 800), now]; if (dateTaps.current.length === 3) { dateTaps.current = []; if (view && !busy) void send({ action: "next-week", revision: view.revision }); return; } setStreakOpen(true); }}><span aria-hidden="true">♨</span> {view?.checkup.streak ?? 0} weeks</button>
       <button className="checkup-setting" aria-label={voice.muted ? "Sound off" : "Sound on"} aria-pressed={voice.muted} onClick={() => { voice.toggleMute(); if (!voice.muted) void sounds.current?.suspend(); }}>{voice.muted ? "♪̸" : "♪"}</button>
     </header>
     <section className="checkup-canvas" aria-label="Current answer" aria-busy={busy}>
@@ -275,6 +278,7 @@ export function Sponky() {
     <div ref={orb} className="checkup-orb"><Coach state={coachState} readBands={voice.readBands} onStart={startCoach}
       onRelease={() => void voice.stop()} onCancel={voice.cancel} starting={voice.state === "starting"} disabled={!view || reward} /></div>
     {view && reward && <WeeklyReward streak={view.checkup.streak} onChime={chime} onFinish={() => { setReward(false); setRevealKey(view.revision); void voice.speak(view.revision); }} />}
+    {view && streakOpen && <StreakScreen view={view} streakJars={view.streakJars} busy={busy} onClose={() => { setStreakOpen(false); streakPillRef.current?.focus({ preventScroll: true }); }} onDoCheckup={() => { setStreakOpen(false); void send({ action: "weekly-checkup", revision: view.revision }); }} />}
     {view && ideasOpen && <IdeasSheet due={view.checkup.due} busy={busy} onClose={() => setIdeasOpen(false)} onCheckup={() => { setIdeasOpen(false); void send({ action: "weekly-checkup", revision: view.revision }); }} onAsk={text => { setIdeasOpen(false); void send({ action: "ask", revision: view.revision, text }); }} />}
   </main>;
 }

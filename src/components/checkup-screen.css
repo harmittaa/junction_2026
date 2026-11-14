@@ -3,7 +3,8 @@
 .checkup-back { min-width: 48px; padding: 4px; margin-left: -8px; }
 .checkup-heading { flex: 1; min-width: 0; }
 .checkup-heading h1 { margin: 0; font: 800 28px/1 var(--font-display),sans-serif; letter-spacing: .3px; text-transform: uppercase; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.checkup-streak { display: inline-flex; gap: 6px; white-space: nowrap; align-items: center; border-radius: 999px; padding: 6px 10px; background: var(--disc); color: var(--textBrand); font-size: 13px; font-weight: 700; }
+.checkup-streak { display: inline-flex; gap: 6px; white-space: nowrap; align-items: center; border-radius: 999px; padding: 6px 10px; background: var(--disc); color: var(--textBrand); font-size: 13px; font-weight: 700; border: 0; font-family: inherit; cursor: pointer; touch-action: manipulation; }
+.checkup-streak:focus-visible { outline: 2px solid var(--textBrand); outline-offset: 1px; }
 .checkup-setting { background: transparent; color: var(--textBrand); padding: 4px; min-width: 48px; min-height: 48px; font-size: 22px; }
 .checkup-canvas { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; overflow-y: auto; scrollbar-width: thin; }
 .checkup-answer { min-height: 0; width: 100%; margin-block: auto; }

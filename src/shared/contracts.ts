@@ -190,5 +190,6 @@ export const viewSchema = z.object({
   goal: goalSchema.nullable(), spendWeek: safeToSpendWeekSchema, noticed: noticedSchema.nullable(), entryNoticed: noticedSchema.nullable(),
   habit: habitSchema.nullable(), completedDates: z.array(dateSchema),
   categories: z.array(z.string()), period: z.object({ start: dateSchema, end: dateSchema }),
+  streakJars: z.array(z.object({ date: dateSchema, leftCents: money })).optional(),
 });
 export type CoachView = z.infer<typeof viewSchema>;

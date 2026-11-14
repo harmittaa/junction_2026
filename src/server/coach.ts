@@ -395,9 +395,17 @@ export function toView(state: SessionState): CoachView {
     datasetStart: dataset.period.start,
   });
 
+  const checkup = weeklyCheckup(state.weeklyCompletedDates, state.demoDate);
+  const streakCount = Math.min(checkup.streak, 4);
+  const recentCompleted = streakCount > 0 ? checkup.completedDates.slice(-streakCount) : [];
+  const streakJars = recentCompleted.map(date => ({
+    date,
+    leftCents: calculateJar({ ...checkupInput(state), referenceDate: date, jarMonth: null }).leftCents,
+  }));
+
   return viewSchema.parse({ revision: state.revision, demoDate: state.demoDate, message: state.message, activity,
     entryMessage: jar.overCents ? jarMessage(state, true) : "A little check-up, or something on your mind? I'm here for both.",
-    profile: state.profile, checkup: weeklyCheckup(state.weeklyCompletedDates, state.demoDate), jar, move: state.move,
+    profile: state.profile, checkup, streakJars, jar, move: state.move,
     goal: state.goal ?? null, noticed: noticedRow, entryNoticed,
     spendWeek: safeToSpendWeek(jar, state.demoDate),
     habit: state.habit, completedDates: state.completedDates, categories, period: { start: dataset.period.start, end: state.demoDate } });
