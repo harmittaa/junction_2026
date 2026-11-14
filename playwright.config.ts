@@ -8,6 +8,7 @@ const installedChrome = existsSync(browserDir) ? `${browserDir}/${readdirSync(br
 const testEnv = {
   GOOGLE_CLOUD_PROJECT: "demo-sponky-tests", FIRESTORE_EMULATOR_HOST: "127.0.0.1:8180",
   SPONKY_TEST_GEMINI_URL: "http://127.0.0.1:3201", GEMINI_API_KEY: "test-only-no-paid-provider",
+  GEMINI_MODEL: "gemini-3.5-flash-lite", GEMINI_THINKING_LEVEL: "minimal",
   ELEVENLABS_API_KEY: "test-only-no-paid-provider", SESSION_SECRET: "test-only-session-secret-at-least-32-characters",
 };
 export default defineConfig({

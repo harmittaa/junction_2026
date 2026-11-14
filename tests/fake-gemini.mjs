@@ -7,6 +7,11 @@ createServer(async (request, response) => {
   let input = "";
   for await (const part of request) input += part;
   const envelope = JSON.parse(input);
+  // Exercise the selected model's request settings through the real SDK.
+  if (envelope.model !== "gemini-3.5-flash-lite" || envelope.generation_config?.thinking_level !== "minimal"
+    || ["temperature", "top_p", "top_k"].some(key => key in (envelope.generation_config ?? {}))) {
+    response.writeHead(400); response.end('{"error":{"message":"unexpected model settings"}}'); return;
+  }
   const { phase, userMessage, scope, facts } = JSON.parse(envelope.input);
   const respond = result => {
     response.setHeader("Content-Type", "application/json");

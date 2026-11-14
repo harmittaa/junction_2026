@@ -106,6 +106,8 @@ describe("coordinator boundaries", () => {
     vi.stubEnv("FIRESTORE_EMULATOR_HOST", "127.0.0.1:8180");
     vi.stubEnv("GOOGLE_CLOUD_PROJECT", "demo-sponky-tests");
     vi.stubEnv("GEMINI_API_KEY", "fixture-only");
+    vi.stubEnv("GEMINI_MODEL", "fixture-model");
+    vi.stubEnv("GEMINI_THINKING_LEVEL", "minimal");
     vi.stubEnv("ELEVENLABS_API_KEY", "fixture-only");
     vi.stubEnv("SESSION_SECRET", "fixture-only-secret-at-least-32-characters");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -145,6 +147,8 @@ describe("coordinator boundaries", () => {
     vi.stubEnv("FIRESTORE_EMULATOR_HOST", "127.0.0.1:8180");
     vi.stubEnv("GOOGLE_CLOUD_PROJECT", "demo-sponky-tests");
     vi.stubEnv("GEMINI_API_KEY", "fixture-only");
+    vi.stubEnv("GEMINI_MODEL", "fixture-model");
+    vi.stubEnv("GEMINI_THINKING_LEVEL", "minimal");
     vi.stubEnv("ELEVENLABS_API_KEY", "fixture-only");
     vi.stubEnv("SESSION_SECRET", "fixture-only-secret-at-least-32-characters");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

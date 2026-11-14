@@ -12,12 +12,14 @@ npm ci
 cp .env.example .env.local
 ```
 
-In `.env.local`, set `GEMINI_API_KEY`, `ELEVENLABS_API_KEY` and a random `SESSION_SECRET` of at least 32 characters. Keep these server-only and uncommitted. Retain the supplied model/voice settings (`GEMINI_MODEL`, `ELEVENLABS_STT_MODEL`, `ELEVENLABS_TTS_MODEL`, `ELEVENLABS_VOICE_ID`), and replace the project setting/add the emulator setting:
+In `.env.local`, set `GEMINI_API_KEY`, `ELEVENLABS_API_KEY` and a random `SESSION_SECRET` of at least 32 characters. Keep these server-only and uncommitted. Retain the supplied model/voice settings (`GEMINI_MODEL`, `GEMINI_THINKING_LEVEL`, `ELEVENLABS_STT_MODEL`, `ELEVENLABS_TTS_MODEL`, `ELEVENLABS_VOICE_ID`), and replace the project setting/add the emulator setting:
 
 ```dotenv
 GOOGLE_CLOUD_PROJECT=demo-sponky-local
 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
 ```
+
+`GEMINI_MODEL` and `GEMINI_THINKING_LEVEL` are required environment settings with no code defaults. Existing local setups must add `GEMINI_THINKING_LEVEL=minimal` when switching to `gemini-3.5-flash-lite`. Production values live in `apphosting.yaml`; choose a thinking level supported by the selected model.
 
 Start Firestore in one terminal (no Google credentials or cloud database required):
 

@@ -36,6 +36,8 @@ describe("speech frequency bands", () => {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.stubEnv("GEMINI_API_KEY", "fake-gemini");
+  vi.stubEnv("GEMINI_MODEL", "fixture-model");
+  vi.stubEnv("GEMINI_THINKING_LEVEL", "minimal");
   vi.stubEnv("ELEVENLABS_API_KEY", "private-fixture-key");
   vi.stubEnv("SESSION_SECRET", "test-session-secret-with-32-characters");
   vi.stubEnv("ELEVENLABS_STT_MODEL", "scribe_v3_live");
