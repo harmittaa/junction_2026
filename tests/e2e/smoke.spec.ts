@@ -26,7 +26,16 @@ async function enter(page: Page, mute = true) {
 async function chip(page: Page, name: string) {
   await page.waitForTimeout(750); // Preserve the production per-session reasoning burst limit.
   const response = page.waitForResponse(response => response.url().endsWith("/api/coach"));
-  await page.getByRole("button", { name, exact: true }).click();
+  const direct = page.getByRole("button", { name, exact: true });
+  if (await direct.isVisible()) {
+    await direct.click();
+  } else {
+    const ideas = page.getByRole("button", { name: /Ideas to ask/ });
+    await ideas.click();
+    const sheet = page.getByRole("dialog", { name: "Ideas to ask" });
+    await expect(sheet).toBeVisible();
+    await sheet.getByRole("button", { name, exact: true }).click();
+  }
   const result = await response;
   expect(result.status()).toBe(200);
   return viewSchema.parse(await result.json());

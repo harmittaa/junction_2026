@@ -15,10 +15,28 @@
 .checkup-question { align-self: flex-end; max-width: 88%; background: var(--surfaceAccent); color: var(--textSecondary); border-radius: 16px 16px 4px 16px; padding: 8px 12px; font-size: 14px; margin: 0; animation: checkup-rise .4s var(--checkup-spring) both; }
 .checkup-screen .coach-message { font-size: 16px; line-height: 1.4; text-align: center; text-wrap: balance; margin: 0; max-height: 116px; overflow-y: auto; }
 .checkup-screen .error { margin: 0; max-height: 150px; overflow-y: auto; }
-.checkup-try { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--textMuted); margin: 4px 0 -4px; }
-.checkup-chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 6px; margin: 0 -16px; scrollbar-width: none; }
-.checkup-chips button { flex: none; min-height: 48px; padding: 8px 14px; border: 1.5px solid var(--border); background: var(--surface); color: var(--textBrand); font-size: 14px; white-space: nowrap; animation: checkup-rise .45s var(--checkup-spring) both; }
-.checkup-chips button.main { background: var(--fill-action); color: var(--onPrimary); border-color: transparent; }
+.checkup-welcome-stack { position: absolute; left: 16px; right: 16px; bottom: 32px; display: flex; flex-direction: column; gap: 12px; z-index: 2; }
+.checkup-ideas-welcome { align-self: flex-end; }
+.checkup-welcome-checkup { width: 100%; min-height: 52px; border: 0; border-radius: 9999px; background: var(--fill-action); color: var(--onPrimary); font: 700 17px/1.5 var(--font-ux), sans-serif; cursor: pointer; }
+.checkup-ideas-answer { position: absolute; right: 16px; bottom: 10px; gap: 38px; z-index: 2; }
+.sponky-entry.has-bubble { align-items: flex-end; text-align: left; }
+.sponky-entry-bubble {
+  width: 236px;
+  max-width: min(236px, calc(100vw - 120px));
+  box-sizing: border-box;
+  background: var(--surface);
+  padding: 12px 14px;
+  border-radius: 16px 16px 4px 16px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / .12);
+  color: var(--textPrimary);
+  transform-origin: bottom right;
+  animation: sponky-entry-bubble-rise 400ms var(--checkup-spring) 500ms both;
+}
+.sponky-entry-bubble .sponky-entry-kicker { display: block; font-size: 11px; line-height: 16px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--textBrand); }
+.sponky-entry-bubble .sponky-entry-text { display: block; margin-top: 2px; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--textPrimary); }
+.sponky-entry-bubble .sponky-entry-action { display: block; margin-top: 6px; font-size: 14px; line-height: 20px; font-weight: 600; color: var(--textBrand); }
+@keyframes sponky-entry-bubble-rise { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .sponky-entry-bubble { animation: none !important; } }
 .checkup-orb { position: absolute; width: 168px; left: calc(50% - 84px); bottom: 2px; transform-origin: 50% 36px; z-index: 1; }
 .checkup-orb .sp-coach-trigger { padding: 4px 0 8px; gap: 6px; }
 .checkup-orb .sp-coach-orb { width: 64px; height: 64px; margin: 24px 0; transition: transform .3s var(--checkup-spring); }
