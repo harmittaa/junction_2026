@@ -1,10 +1,16 @@
 # Sponky demo acceptance record
 
-Demo address: **https://sponky.web.app**. Firebase Hosting routes to the existing App Hosting Cloud Run service; the original `hosted.app` address remains available. The short URL follows the service’s active revision (intentionally no `pinTag`), so future App Hosting deployments appear there automatically.
+Demo address: **https://sponky.web.app**. Firebase Hosting routes to the existing App Hosting Cloud Run service; the original `hosted.app` address remains available. The short URL targets the service’s active revision (intentionally no `pinTag`). After each successful App Hosting rollout, deploy Hosting too: this clears its CDN cache of Next.js static HTML so the short URL serves the new UI.
 
-Deploy routing changes with `npx firebase deploy --only hosting --project sponky-junction-2026`; deploy application changes with the existing App Hosting command. Hosting forwards only `__session`, so keep that signed session-cookie name. The `sponky` Cloud Run service permits public invocation (`roles/run.invoker` on this service only), as required for Hosting rewrites; application session validation still protects all session data. Each hostname has separate browser cookies: opening the new address starts a new demo session. The address and HTTPS require no domain purchase; runtime/provider usage still uses the existing billing settings.
+Deploy application changes with the existing App Hosting command, wait for rollout readiness, then run `npx firebase deploy --only hosting --project sponky-junction-2026`. The same Hosting command deploys routing changes. Hosting forwards only `__session`, so keep that signed session-cookie name. The `sponky` Cloud Run service permits public invocation (`roles/run.invoker` on this service only), as required for Hosting rewrites; application session validation still protects all session data. Each hostname has separate browser cookies: opening the new address starts a new demo session. The address and HTTPS require no domain purchase; runtime/provider usage still uses the existing billing settings.
 
-## Current release: radial orb and hold-to-talk
+## Short URL rollout — 14 November 2026
+
+Source `31e57f2` deployed successfully as `build-2026-11-14-008` at 09:08 UTC, with revision 008 serving 100% of traffic. This includes the merged mock S-Bank entry screen and native touch-highlight fix. Hosting was released again after backend readiness to invalidate the old HTML cache; the new entry screen was verified at phone width on `https://sponky.web.app`.
+
+Checks passed on the combined source: typecheck/lint, 50 Vitest tests, 3 importer checks, production build, 12 browser journeys, and [CI](https://github.com/harmittaa/junction_2026/actions/runs/43578809747). The 2 Firestore emulator checks passed for the session change. Independent review found no blockers. Live short-URL checks passed: secure HttpOnly session creation, one real Gemini query returning the validated 75,275-cent October grocery total, reload preserving the response, isolated new sessions, cross-origin POST rejection, one ElevenLabs temporary transcription token and one real MP3 speech response. No physical microphone/playback retest was performed for this URL change. The existing Safari playback limitation remains deferred.
+
+## Previous release: radial orb and hold-to-talk
 
 Application source [d9bd112](https://github.com/harmittaa/junction_2026/commit/d9bd11273cd69a9715a90230b2d700f718149c64) is live at https://sponky--sponky-junction-2026.europe-west4.hosted.app. On 14 November 2026 at 07:59 UTC, rollout `build-2026-11-14-005` succeeded; readback confirmed revision `sponky-build-2026-11-14-005` serving 100% of traffic, `GEMINI_API_KEY@2`, unchanged other secret pins, CPU/memory and revision scaling 0–1. No billing/infrastructure changes or Firestore rule deployment.
 
