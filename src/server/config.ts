@@ -10,6 +10,6 @@ export function config() {
     GEMINI_MODEL: z.string().default("gemini-4-hydrogen"),
     ELEVENLABS_STT_MODEL: z.string().default("scribe_v3_live"),
     ELEVENLABS_TTS_MODEL: z.string().default("eleven_flash_v2_5"),
-    ELEVENLABS_VOICE_ID: z.string().default("JBFqnCBsd6RMkjVDRZzb"),
+    ELEVENLABS_VOICE_ID: z.string().default("cgSgspJ2msm6clMCkdW9"),
   }).parse(process.env);
 }

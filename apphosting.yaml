@@ -30,5 +30,5 @@ env:
     value: eleven_flash_v2_5
     availability: [RUNTIME]
   - variable: ELEVENLABS_VOICE_ID
-    value: JBFqnCBsd6RMkjVDRZzb
+    value: cgSgspJ2msm6clMCkdW9
     availability: [RUNTIME]
