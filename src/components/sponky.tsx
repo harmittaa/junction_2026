@@ -4,17 +4,13 @@ import { apiErrorSchema, viewSchema, type CoachView, type CoachRequest } from "@
 import { useVoice } from "@/client/use-voice";
 import { Coach } from "./coach";
 import { Activities } from "./activities";
-import { CheckupWelcome, Jar, WeeklyReward } from "./checkup-visuals";
+import { NoticedRow } from "./answer-cards";
+import { CheckupWelcome, IdeasButton, IdeasSheet, Jar, WeeklyReward } from "./checkup-visuals";
 import "./checkup-screen.css";
 
 type RequestState = { kind: "idle" } | { kind: "sending" } | { kind: "error"; message: string; outdated?: boolean };
 const ribbon = <svg viewBox="0 0 120 120"><path d="M69 10C107 34 39 80 77 110M43 10C81 34 13 80 51 110" /></svg>;
 const bankCards = [["Accounts", "S-Tili · Taloustili"], ["Payments and e-invoices", "Make a new payment or view e-invoices"], ["Cards", "S-Etukortti Visa Credit/Debit"], ["Säästäjä", "Oma tavoitteeni"], ["Investments", "Value of your investments"]];
-const questions = {
-  pace: "Am I still on track?", usual: "What have I spent more on than usual?",
-  profile: "What kind of spender am I?", taxi: "How much did I spend on taxis this year?",
-  whatif: "What if I cut dining out by 20%?", days: "Which days pushed me over?", jar: "Show my jar",
-};
 
 class SessionLoadError extends Error {
   constructor(message: string, readonly outdated = false) { super(message); }
@@ -39,6 +35,7 @@ export function Sponky() {
   const [requestState, setRequestState] = useState<RequestState>({ kind: "idle" });
   const [voiceError, setVoiceError] = useState("");
   const [question, setQuestion] = useState("");
+  const [ideasOpen, setIdeasOpen] = useState(false);
   const [content, setContent] = useState(false);
   const [reward, setReward] = useState(false);
   const [revealKey, setRevealKey] = useState<number | undefined>();
@@ -160,7 +157,7 @@ export function Sponky() {
         const moved = next.move && (!view?.move || next.move.transactionId !== view.move.transactionId
           || next.move.from !== view.move.from || next.move.to !== view.move.to);
         if (moved) setRevealKey(undefined);
-        else if (next.activity.kind === "jar" && request.action !== "select-month") setRevealKey(next.revision);
+        else if ((next.activity.kind === "jar" || next.activity.kind === "spend_week") && request.action !== "select-month") setRevealKey(next.revision);
         void voice.speak(next.revision);
       }
     } catch (error) {
@@ -191,15 +188,30 @@ export function Sponky() {
   function clearHold() { if (titleHold.current) clearTimeout(titleHold.current); titleHold.current = null; }
   const coachState = voice.state === "listening" ? "listening" : voice.state === "speaking" ? "speaking"
     : busy || ["starting", "transcribing", "loading"].includes(voice.state) ? "thinking" : "ready";
-  const suggested = view?.jar.overCents
-    ? [questions.days, questions.usual, questions.whatif, questions.profile, questions.taxi, questions.jar]
-    : [questions.pace, questions.usual, questions.profile, questions.taxi, questions.whatif, questions.jar];
-  const suggestions = suggested.filter(value => value !== question);
+  const isProfileAnalysis = view?.activity.kind === "analysis" && view.activity.analysis.kind === "profile";
+  const hideCaptionVisual = !hasContent || !view || ["save", "goal", "spend_week", "jar"].includes(view.activity.kind) || isProfileAnalysis;
+  const hideQuestionVisual = ["save", "goal"].includes(view?.activity.kind ?? "") || isProfileAnalysis;
+  const showQuestion = question && coachState === "thinking" && !hideQuestionVisual;
 
   if (!entered) return <main className="app bank">
     <header className="bank-header"><h1>S-Bank</h1></header>
     <ul className="bank-cards">{bankCards.map(([title, detail]) => <li key={title}><span className="bank-icon" aria-hidden="true">{ribbon}</span><span><strong>{title}</strong>{detail}</span><span className="bank-chevron" aria-hidden="true">›</span></li>)}</ul>
-    <button className="sponky-entry" onClick={() => { unlockSound(); setEntered(true); if (view) void voice.speak(view.revision, true); }}><span className="sponky-entry-label">Ask Sponky</span><span className="sponky-entry-orb" aria-hidden="true">{ribbon}</span><span className="sr-only">Talk to Sponky</span></button>
+    <button className={`sponky-entry${view?.entryNoticed ? " has-bubble" : ""}`} onClick={() => {
+      unlockSound();
+      setEntered(true);
+      if (view) {
+        if (view.entryNoticed) void send({ action: "ask", revision: view.revision, text: view.entryNoticed.question });
+        else void voice.speak(view.revision, true);
+      }
+    }}>
+      {view?.entryNoticed ? <span className="sponky-entry-bubble">
+        <span className="sponky-entry-kicker">Sponky noticed</span>
+        <span className="sponky-entry-text">{view.entryNoticed.text}</span>
+        <span className="sponky-entry-action">{view.entryNoticed.rule === "balance_lower" ? "Ask Sponky why ›" : `${view.entryNoticed.question} ›`}</span>
+      </span> : <span className="sponky-entry-label">Ask Sponky</span>}
+      <span className="sponky-entry-orb" aria-hidden="true">{ribbon}</span>
+      <span className="sr-only">{view?.entryNoticed ? `Talk to Sponky. Sponky noticed: ${view.entryNoticed.text} ${view.entryNoticed.question}` : "Talk to Sponky"}</span>
+    </button>
     <nav className="bank-tabs" aria-label="Bank app"><span>Home</span><span>S-Etukortti</span><span aria-current="page">Bank</span><span>Me</span></nav>
   </main>;
 
@@ -212,24 +224,31 @@ export function Sponky() {
       <button className="checkup-setting" aria-label={voice.muted ? "Sound off" : "Sound on"} aria-pressed={voice.muted} onClick={() => { voice.toggleMute(); if (!voice.muted) void sounds.current?.suspend(); }}>{voice.muted ? "♪̸" : "♪"}</button>
     </header>
     <section className="checkup-canvas" aria-label="Current answer" aria-busy={busy}>
-      {view && !hasContent && <CheckupWelcome firstName={view.profile.firstName} date={view.demoDate} due={view.checkup.due} />}
-      {view && hasContent && !reward && <div className="checkup-answer" key={view.activity.kind === "jar" ? "jar" : `${view.activity.kind}:${view.revision}`}>
-        {(entryCaption && view.jar.overCents > 0) || view.activity.kind === "jar" ? <Jar jar={view.jar} move={view.move} revealKey={revealKey} demoDate={view.demoDate} busy={busy} onSelectMonth={month => void send({ action: "select-month", revision: view.revision, month })} /> : <Activities view={view} busy={busy} countActive={voice.state !== "loading"} onAction={request => void send(request)} />}
+      {view && !hasContent && <>
+        <CheckupWelcome firstName={view.profile.firstName} date={view.demoDate} due={view.checkup.due} />
+        <div className="checkup-welcome-stack">
+          {view.entryNoticed && <NoticedRow noticed={view.entryNoticed} busy={busy} revision={view.revision} onAction={request => void send(request)} />}
+          <IdeasButton due={view.checkup.due} onClick={() => setIdeasOpen(true)} className="checkup-ideas-welcome" />
+          {view.checkup.due && <button type="button" className="checkup-welcome-checkup" disabled={busy} onClick={() => void send({ action: "weekly-checkup", revision: view.revision })}>Let&apos;s do my check-up</button>}
+        </div>
+      </>}
+      {view && hasContent && !reward && <div className="checkup-answer" key={view.activity.kind === "jar" || view.activity.kind === "spend_week" ? "jar" : `${view.activity.kind}:${view.revision}`}>
+        {(entryCaption && view.jar.overCents > 0) || view.activity.kind === "jar" || view.activity.kind === "spend_week" ? <Jar jar={view.jar} move={view.move} spendWeek={view.spendWeek} goal={view.goal} noticed={view.noticed} revision={view.revision} onAction={request => void send(request)} onAsk={text => void send({ action: "ask", revision: view.revision, text })} revealKey={revealKey} demoDate={view.demoDate} busy={busy} onSelectMonth={month => void send({ action: "select-month", revision: view.revision, month })} /> : <Activities view={view} busy={busy} countActive={voice.state !== "loading"} onAction={request => void send(request)} />}
       </div>}
     </section>
+    {view && hasContent && !reward && <IdeasButton due={view.checkup.due} onClick={() => setIdeasOpen(true)} className="checkup-ideas-answer" />}
     <section className="checkup-talk" aria-label="Conversation">
-      {question && <p className="checkup-question">{question}</p>}
-      <p className="coach-message" aria-live="polite">{view ? entryCaption ? view.entryMessage : view.message : requestState.kind === "error" ? "Your coach could not open." : "Opening your coach…"}</p>
+      {showQuestion && <p className="checkup-question">{question}</p>}
+      <p className={`coach-message${hideCaptionVisual ? " sr-only" : ""}`} aria-live="polite">{view ? entryCaption ? view.entryMessage : view.message : requestState.kind === "error" ? "Your coach could not open." : "Opening your coach…"}</p>
       {(requestState.kind === "error" || voiceError) && <div className="error" role="alert">
         <p>{requestState.kind === "error" ? requestState.message : voiceError}</p>
         {requestState.kind === "error" && <button className="text-button" onClick={() => { if (!view) void openSession(!!requestState.outdated); else if (lastRequest.current) void send(lastRequest.current); else void openSession(); }}>{requestState.outdated ? "Start fresh" : "Retry"}</button>}
-        {voiceError && <button className="text-button" onClick={() => setVoiceError("")}>Dismiss</button>}
+        {voiceError && <>
+          <button className="text-button" onClick={() => setIdeasOpen(true)}>Open ideas</button>
+          <button className="text-button" onClick={() => setVoiceError("")}>Dismiss</button>
+        </>}
       </div>}
-      {view && <><p className="checkup-try">Try asking</p><div className="checkup-chips" key={view.revision}>
-        {view.checkup.due && <button className="main" disabled={busy} onClick={() => void send({ action: "weekly-checkup", revision: view.revision })}>Let&apos;s do my check-up</button>}
-        {view.move && <button disabled={busy} onClick={() => void send({ action: "undo-move", revision: view.revision })}>Undo basket move</button>}
-        {suggestions.map(text => <button key={text} disabled={busy} onClick={() => void send({ action: "ask", revision: view.revision, text })}>{text}</button>)}
-      </div></>}
+      {view?.move && <button className="text-button" disabled={busy} onClick={() => void send({ action: "undo-move", revision: view.revision })}>Undo basket move</button>}
       {voice.state === "starting" && <p className="meta" role="status">Starting microphone…</p>}
       {voice.state === "transcribing" && <p className="meta" role="status">Finishing your words…</p>}
       {["starting", "transcribing", "loading"].includes(voice.state) && <button className="text-button" onClick={voice.cancel}>Cancel voice</button>}
@@ -238,5 +257,6 @@ export function Sponky() {
     <div ref={orb} className="checkup-orb"><Coach state={coachState} readBands={voice.readBands} onStart={startCoach}
       onRelease={() => void voice.stop()} onCancel={voice.cancel} starting={voice.state === "starting"} disabled={!view || reward} /></div>
     {view && reward && <WeeklyReward streak={view.checkup.streak} onChime={chime} onFinish={() => { setReward(false); setRevealKey(view.revision); void voice.speak(view.revision); }} />}
+    {view && ideasOpen && <IdeasSheet due={view.checkup.due} busy={busy} onClose={() => setIdeasOpen(false)} onCheckup={() => { setIdeasOpen(false); void send({ action: "weekly-checkup", revision: view.revision }); }} onAsk={text => { setIdeasOpen(false); void send({ action: "ask", revision: view.revision, text }); }} />}
   </main>;
 }
