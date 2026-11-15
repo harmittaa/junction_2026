@@ -20,10 +20,10 @@ function nextWeek(): SessionState {
 }
 
 describe("weekly coordinator contract", () => {
-  it("routes the overspend question without a plan and keeps one euro amount", () => {
+  it("routes the overspend question without a plan and has no euro amount (the jar screen already showed it)", () => {
     const state = transition(nextWeek(), { action: "ask", revision: 1, text: overspendQuestion });
     expect(toView(state).activity).toMatchObject({ kind: "overspend", insight: { kind: "large_payments" } });
-    expect(state.message.match(/€/g)).toHaveLength(1);
+    expect(state.message.match(/€/g)).toBeNull();
     expect(state.message.length).toBeLessThan(480);
     expect(verifyReply(state.message, replyFacts(state))).toBe(true);
   });
@@ -282,7 +282,7 @@ describe("month selection and past-month jar questions", () => {
 
     const paceOver = ask(augustState, "How was my pace?", { ...scopePlan, kind: "pace" });
     expect(paceOver.mode).toBe("pace");
-    expect(paceOver.message).toBe(`You went ${euros(113652)} over August 2026's limit. The card shows your full pace details.`);
+    expect(paceOver.message).toBe(`You went ${euros(113652)} over August 2026's limit.`);
     const paceOverView = toView(paceOver);
     expect(paceOverView.demoDate).toBe("2026-09-16");
     expect(paceOverView.checkup).toMatchObject({ streak: 2, due: true, completed: false });
@@ -291,13 +291,14 @@ describe("month selection and past-month jar questions", () => {
     const julyState = transition(initialState(), { action: "select-month", revision: 0, month: "2026-07" });
     const paceUnder = ask(julyState, "How was my pace?", { ...scopePlan, kind: "pace" });
     expect(paceUnder.mode).toBe("pace");
-    expect(paceUnder.message).toBe(`July 2026 finished at ${euros(3212)} a day. The card shows your full pace details.`);
+    expect(paceUnder.message).toBe(`July 2026 finished at ${euros(3212)} a day.`);
 
     const usual = ask(augustState, "Compare with usual", { ...scopePlan, kind: "usual" });
     expect(usual.mode).toBe("usual");
     expect(usual.message).toContain("finished");
     expect(usual.message).toContain("over a usual month in August 2026.");
-    expect(usual.message).toContain("Usual is your average month from February to July.");
+    expect(usual.message).toContain("over too.");
+    expect((usual.message.match(/usual/gi) ?? []).length).toBeLessThanOrEqual(1);
     const usualView = toView(usual);
     expect(usualView.demoDate).toBe("2026-09-16");
     expect(usualView.checkup.completed).toBe(false);
@@ -308,7 +309,7 @@ describe("month selection and past-month jar questions", () => {
 
     const overspend = ask(augustState, "Which days pushed me over?", { ...scopePlan, kind: "overspend" });
     expect(overspend.mode).toBe("overspend");
-    expect(overspend.message).toContain(`Your August 2026 jar went ${euros(113652)} over the rim.`);
+    expect(overspend.message).not.toContain("over the rim");
     const overspendView = toView(overspend);
     expect(overspendView.demoDate).toBe("2026-09-16");
     expect(overspendView.checkup.completed).toBe(false);

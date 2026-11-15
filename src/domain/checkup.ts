@@ -149,14 +149,14 @@ export function usualInsight(comparison: { period: { start: string }; baseline: 
     : kind === "ahead"
       ? `Your ${ahead[0].category} spending is already at ${pctOf(ahead[0].bp)}% of a usual month, and ${elapsedDays} of ${daysInMonth} days have passed.`
       : isPast ? "No category finished well over its usual month." : "Every category is at or below its usual pace so far.";
+  const moreOver = over.slice(kind === "over" ? 1 : 0).map(row => row.category);
   const supporting = [
-    ...over.slice(kind === "over" ? 1 : 0).map(row => `${row.category} is past usual too.`),
-    ...ahead.slice(kind === "ahead" ? 1 : 0).map(row => `${row.category} is at ${pctOf(row.bp)}% of usual with ${pctOf(elapsedBp)}% of the month gone.`),
-    ...under.map(row => `${row.category} is well below usual, at ${pctOf(row.bp)}%.`),
+    ...(moreOver.length ? [`${list(moreOver)} ${moreOver.length === 1 ? "is" : "are"} over too.`] : []),
+    ...ahead.slice(kind === "ahead" ? 1 : 0).map(row => `${row.category} is at ${pctOf(row.bp)}% with ${pctOf(elapsedBp)}% of the month gone.`),
+    ...under.map(row => `${row.category} is well below, at ${pctOf(row.bp)}%.`),
   ].slice(0, 2);
   const message = [headline, ...supporting,
-    ...(!isPast && kind !== "none" ? ["Holding back on these for the rest of the month helps you stay near your usual."] : []),
-    `Usual is your average month from ${longMonth(comparison.baseline.start)} to ${longMonth(comparison.baseline.end)}.`].join(" ");
+    ...(!isPast && kind !== "none" ? ["Holding back on these for the rest of the month helps."] : [])].join(" ");
   return { flags, elapsedDays, daysInMonth, insight: { kind, headline, supporting, message } as const };
 }
 
@@ -168,7 +168,7 @@ export function overspendLead(jar: JarStatus, referenceDate: string) {
     : `Your jar is ${euros(jar.overCents)} over the rim so far.`;
 }
 
-const list = (names: readonly string[]) => names.join(" and ");
+const list = (names: readonly string[]) => names.length < 3 ? names.join(" and ") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 
 // Deterministic reason a jar went over its limit; null when the jar is inside it. Gemini writes no facts.
 export function overspendInsight(input: CheckupInput): OverspendInsight | null {
@@ -214,7 +214,7 @@ export function overspendInsight(input: CheckupInput): OverspendInsight | null {
     : isPast ? `Keeping an eye on ${names[0] ?? "everyday payments"} next month helps keep the jar inside.`
     : `Holding back on ${names[0] ?? "everyday payments"} for the rest of the month helps.`;
   return { kind, headline, supporting: lines.slice(0, 2), wentOverOn: crossing.date, daysLeftAfter, payments: shown, categories,
-    message: [overspendLead(jar, referenceDate), headline, ...lines, advice].join(" ") };
+    message: [headline, ...lines, advice].join(" ") };
 }
 
 export function isoWeekStart(date: string): string {

@@ -64,16 +64,13 @@
 .sp-bar-warning{background:var(--status-warningBorder)}
 .sp-season-headline{margin:8px 0 0;font-size:20px}
 .sp-comparison{margin-top:20px;font-size:14px}
-.sp-basket-list,.sp-evidence{list-style:none;margin:16px 0;padding:0}
+.sp-basket-list{list-style:none;margin:16px 0;padding:0}
 .sp-basket{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px;border-radius:12px;margin:8px 0;font-size:14px}
 .sp-basket strong{flex-shrink:0}
 .sp-basket[data-basket=regular]{color:var(--baskets-mandatoryRegular-color);background:var(--baskets-mandatoryRegular-bg)}
 .sp-basket[data-basket=unexpected]{color:var(--baskets-mandatoryIrregular-color);background:var(--baskets-mandatoryIrregular-bg)}
 .sp-basket[data-basket=everyday]{color:var(--status-warningText);background:var(--baskets-everydaySlipping-bg)}
 .sp-activities summary{min-height:48px;padding:12px 0;cursor:pointer;font-weight:600;color:var(--textBrand)}
-.sp-evidence-row{border-top:1px solid var(--border);padding:16px 0}
-.sp-evidence-row .sp-bar-label strong:first-child{min-width:0;overflow-wrap:anywhere}
-.sp-evidence-row .sp-bar-label strong:last-child{flex-shrink:0}
 .sp-analysis-section{margin:20px 0}
 .sp-analysis-rows{list-style:none;margin:0;padding:0}
 .sp-analysis-rows>li{border-top:1px solid var(--border);padding:12px 0}

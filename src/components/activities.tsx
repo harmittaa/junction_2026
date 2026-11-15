@@ -84,32 +84,21 @@ export function RevealCard({ spending, guessCents, countActive = true, children 
   </Card>;
 }
 
-function CorrectionRow({ row, correctable, busy, revision, onAction }: Actions & { row: Spending["evidence"][number]; correctable: boolean }) {
-  const [basket, setBasket] = useState<Basket>(row.basket);
-  const id = useId();
-  return <li className="sp-evidence-row">
-    <div className="sp-bar-label"><strong>{row.merchant}</strong><strong>{euros(row.amountCents)}</strong></div>
-    <p className="sp-meta">{formatDay(row.date)} · {row.category} · Source row {row.sourceRow}</p>
-    {correctable && <><label htmlFor={id}>Basket interpretation</label>
-    <select id={id} value={basket} disabled={busy} onChange={e => {
-      const selected = baskets.find(b => b === e.target.value);
-      if (selected) setBasket(selected);
-    }}>{baskets.map(b => <option key={b} value={b}>{basketLabels[b]}</option>)}</select>
-    {basket !== row.basket && <button type="button" disabled={busy}
-      onClick={() => onAction({ action: "correct", revision, transactionId: row.id, basket, confirmed: true })}>Confirm correction</button>}</>}
-  </li>;
-}
-
-function Evidence({ evidence, evidenceCount, correctable, ...actions }: Actions & {
-  evidence: Spending["evidence"]; evidenceCount: number; correctable: boolean;
+function Evidence({ evidence, evidenceCount, correctable, monthLabel, merchantNoticed, busy, revision, onAction }: Actions & {
+  evidence: Spending["evidence"]; evidenceCount: number; correctable: boolean; monthLabel: string;
+  merchantNoticed?: CoachView["merchantNoticed"];
 }) {
-  const limited = evidence.length < evidenceCount;
-  return <details><summary>Evidence{correctable ? " & basket corrections" : ""} ({evidenceCount})</summary>
-    <p className="sp-meta">Showing {evidence.length} of {evidenceCount} source transactions{limited ? "; this list is limited. Calculated results use all matching records." : "."}</p>
-    {correctable && <p className="sp-meta">A correction changes the basket, never the payment amount.</p>}
-    <ul className="sp-evidence">{evidence.map(row => <CorrectionRow key={`${row.id}:${row.basket}`} row={row} correctable={correctable} {...actions} />)}</ul>
-    {evidenceCount === 0 && <p>No matching source transactions in this period.</p>}
-  </details>;
+  const [open, setOpen] = useState(false);
+  const link = useRef<HTMLButtonElement>(null);
+  if (evidenceCount === 0) return <p className="sp-meta">No matching payments in this period.</p>;
+  return <>
+    <button ref={link} type="button" className="ac-link ac-press" onClick={() => setOpen(true)}>
+      See the {evidenceCount} {evidenceCount === 1 ? "payment" : "payments"} ›
+    </button>
+    {open && <PaymentsSheet analysis={{ evidence, evidenceCount, sections: [] }} merchantNoticed={merchantNoticed} monthLabel={monthLabel} busy={busy}
+      revision={revision} onAction={onAction} readOnly={!correctable}
+      onClose={() => { setOpen(false); link.current?.focus(); }} />}
+  </>;
 }
 
 export function AnalysisSections({ analysis, skip = 0 }: { analysis: Analysis; skip?: number }) {
@@ -328,7 +317,7 @@ export function EvidenceCard({ spending, ...actions }: Actions & { spending: Spe
     <ul className="sp-basket-list">{baskets.map(basket => <li key={basket} className="sp-basket" data-basket={basket}>
       <span>{basketLabels[basket]}</span><strong>{euros(spending.baskets[basket])}</strong>
     </li>)}</ul>
-    <Evidence evidence={spending.evidence} evidenceCount={spending.evidenceCount} correctable {...actions} />
+    <Evidence evidence={spending.evidence} evidenceCount={spending.evidenceCount} correctable monthLabel={monthRange(spending.query.start, spending.query.end)} {...actions} />
   </Card>;
 }
 
@@ -407,7 +396,7 @@ export function Activities({ view, busy, countActive = true, onAction }: { view:
   const actions = { busy, onAction, revision: view.revision };
   return <div className="sp-activities" aria-busy={busy}>
     {activity.kind === "reveal" && <RevealCard spending={activity.spending} guessCents={activity.guessCents} countActive={countActive}>
-      <Evidence evidence={activity.spending.evidence} evidenceCount={activity.spending.evidenceCount} correctable={false} {...actions} />
+      <Evidence evidence={activity.spending.evidence} evidenceCount={activity.spending.evidenceCount} correctable={false} monthLabel={monthRange(activity.spending.query.start, activity.spending.query.end)} merchantNoticed={view.merchantNoticed} {...actions} />
     </RevealCard>}
     {activity.kind === "save" && <SafeToSaveCard save={activity.save} noticed={view.noticed} countActive={countActive} {...actions} />}
     {activity.kind === "goal" && <GoalCard verdict={activity.verdict} noticed={view.noticed} countActive={countActive} {...actions} />}

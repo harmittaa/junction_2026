@@ -70,22 +70,24 @@ function jarMessage(state: SessionState, welcome = false) {
     return `${euros(jar.leftCents)} left in your ${month.format(utc(jar.period.start))} jar, finishing inside your ${euros(jar.limitCents)} limit.`;
   }
   if (jar.overCents) return `${welcome ? "Welcome back. " : ""}${overspendLead(jar, state.demoDate)} ${overspendInsight(checkupInput(state))!.headline}`;
-  return `${euros(jar.leftCents)} left in your ${month.format(utc(state.demoDate))} jar, with ${jar.daysLeft} days to go.${jar.daysLeft ? " Your daily room is on screen." : ""}`;
+  return `${euros(jar.leftCents)} left in your ${month.format(utc(state.demoDate))} jar, with ${jar.daysLeft} days to go.`;
 }
 // Response bounds for listed payments. A profile is one whole calendar month, so it
 // lists every payment up to a bound above the busiest month in this slice (73).
 // Other analysis cards stay at 40 rows; totals always use all matching records.
-function evidenceLimit(kind: Analysis["kind"]) {
-  return kind === "profile" ? 100 : 40;
+// A single calendar month fits one payments sheet (bounded at 100); longer periods keep the 40-row bound.
+const singleMonth = (query: { start: string; end: string }) => (query.start.slice(0, 7) === query.end.slice(0, 7) ? query.start.slice(0, 7) : null);
+function evidenceLimit(kind: Analysis["kind"], query: { start: string; end: string }) {
+  return kind === "profile" || singleMonth(query) ? 100 : 40;
 }
 function currentEvidence(state: SessionState) {
   if (["jar", "pace", "overspend"].includes(state.mode)) return calculateJar(checkupInput(state)).evidence;
   if (["save", "goal", "spend_week"].includes(state.mode)) return [];
   if (state.mode === "usual") return calculateUsualComparison(checkupInput(state)).evidence;
-  if (state.mode === "reveal") return spending(state).evidence.slice(0, 40);
+  if (state.mode === "reveal") return spending(state).evidence.slice(0, evidenceLimit("breakdown", spending(state).query));
   if (state.mode === "analysis" && state.analysis?.kind !== "cashflow") {
     const result = analysis(state);
-    return result.evidence.slice(0, evidenceLimit(result.kind));
+    return result.evidence.slice(0, evidenceLimit(result.kind, result.query));
   }
   return [];
 }
@@ -97,16 +99,16 @@ function analysisSummary(result: Analysis) {
     if (!result.evidenceCount) return `No matching spending records ${period(result.query)}. That does not establish spending outside this dataset.`;
     const baskets = result.sections[0].rows.map(row => `${row.label}: ${row.sharePercent}%`).join(", ");
     const top = result.sections[1].rows[0];
-    return `Your recorded spending ${period(result.query)}: ${baskets}. ${top ? `Top category: ${top.label}, ${euros(top.amountCents)}. ` : ""}The full breakdown is on screen. These are patterns, not personality labels.`;
+    return `Your recorded spending ${period(result.query)}: ${baskets}. ${top ? `Top category: ${top.label}, ${euros(top.amountCents)}. ` : ""}These are patterns, not personality labels.`;
   }
   if (result.kind === "season") {
     const { months, winterAverage, percent } = seasonFacts(result);
     return `Last winter, in ${months[0].label} and ${months[1].label}, transport averaged ${euros(winterAverage.amountCents)} a month, ${percent}% more than a normal month. Winter may bring this again.`;
   }
-  if (result.kind === "cashflow") return `Recorded ${period(result.query)}: recorded transfers to investments came to ${euros(rows[2].amountCents)}. Income and spending are on screen. Investment deposits are not a verified goal result.`;
+  if (result.kind === "cashflow") return `Recorded ${period(result.query)}: recorded transfers to investments came to ${euros(rows[2].amountCents)}. Investment deposits are not a verified goal result.`;
   if (result.kind === "whatif") return result.insight!.message;
   const headline = selected[0];
-  return `${result.title} ${period(result.query)}: ${headline ? `${headline.label}: ${euros(headline.amountCents)}. ` : ""}The breakdown is on screen. The card shows the payments and calculation.`;
+  return `${result.title} ${period(result.query)}: ${headline ? `${headline.label}: ${euros(headline.amountCents)}.` : ""}`.trim();
 }
 function guessReaction(guessCents: number, totalCents: number) {
   const gap = Math.abs(totalCents - guessCents);
@@ -193,13 +195,13 @@ export function transition(current: SessionState, request: CoachRequest, interpr
       const isPast = activeMonth(state) < state.demoDate.slice(0, 7);
       const paceMessage = isPast
         ? jar.overCents
-          ? `You went ${euros(jar.overCents)} over ${month.format(utc(jar.period.start))}'s limit. The card shows your full pace details.`
-          : `${month.format(utc(jar.period.start))} finished at ${euros(jar.dailySpentCents)} a day. The card shows your full pace details.`
+          ? `You went ${euros(jar.overCents)} over ${month.format(utc(jar.period.start))}'s limit.`
+          : `${month.format(utc(jar.period.start))} finished at ${euros(jar.dailySpentCents)} a day.`
         : jar.overCents
-          ? `You're already ${euros(jar.overCents)} over this month's limit. The card shows your full pace details.`
+          ? `You're already ${euros(jar.overCents)} over this month's limit.`
           : jar.daysLeft
-            ? `That's ${euros(jar.dailyRemainingCents)} a day for the ${jar.daysLeft} days left to stay inside your limit. The card shows your full pace details.`
-            : `This month is complete at ${euros(jar.dailySpentCents)} a day. The card shows your full pace details.`;
+            ? `That's ${euros(jar.dailyRemainingCents)} a day for the ${jar.daysLeft} days left to stay inside your limit.`
+            : `This month is complete at ${euros(jar.dailySpentCents)} a day.`;
       return { ...state, message: mode === "pace" ? paceMessage : mode === "usual" ? usual!.insight.message : mode === "overspend" ? overspendInsight(checkupInput(state))?.message ?? jarMessage(state) : jarMessage(state) };
     }
     if (result.kind === "save") {
@@ -265,7 +267,7 @@ export function transition(current: SessionState, request: CoachRequest, interpr
       state.corrections[row.id] = "unexpected";
       state = { ...state, mode: "jar", query: null, analysis: null, itemLimitation: false, percent: null,
         move: { transactionId: row.id, amountCents: row.amountCents, from: row.basket, to: "unexpected" } };
-      return { ...state, message: `${euros(row.amountCents)} moved to Unexpected. The payment amount hasn't changed. Your updated jar is on screen.` };
+      return { ...state, message: `${euros(row.amountCents)} moved to Unexpected. The payment amount hasn't changed.` };
     }
     if (analysisKindSchema.safeParse(result.kind).success) {
       const query = result.kind === "profile" ? recentCompleteQuery(state.demoDate, dataset.period.start, 1) : result.query;
@@ -395,8 +397,8 @@ export function toView(state: SessionState): CoachView {
   }
   if (state.mode === "checkin") activity = { kind: "checkin", spending: spending(state), completed: state.completedDates.includes(state.demoDate) };
   if (state.mode === "analysis") activity = { kind: "analysis", analysis: analysis(state) };
-  if (activity.kind === "reveal" || activity.kind === "checkin") activity.spending.evidence = activity.spending.evidence.slice(0, 40);
-  if (activity.kind === "analysis") activity.analysis.evidence = activity.analysis.evidence.slice(0, evidenceLimit(activity.analysis.kind));
+  if (activity.kind === "reveal" || activity.kind === "checkin") activity.spending.evidence = activity.spending.evidence.slice(0, evidenceLimit("breakdown", activity.spending.query));
+  if (activity.kind === "analysis") activity.analysis.evidence = activity.analysis.evidence.slice(0, evidenceLimit(activity.analysis.kind, activity.analysis.query));
 
   let noticedRow: Noticed | null = null;
   if (activity.kind === "save") {
@@ -427,8 +429,10 @@ export function toView(state: SessionState): CoachView {
     ? noticedSchema.parse({ rule: "car_season", text: "Winter season ahead: expect higher-than-average vehicle costs.", question: upcomingNoticed.question })
     : entryBalanceNoticed;
 
-  const merchantNoticed = activity.kind === "analysis" && activity.analysis.kind === "profile"
-    ? merchantSpike({ rows: dataset.transactions, customerId: state.customerId, month: activity.analysis.query.start.slice(0, 7), referenceDate: state.demoDate })
+  const sheetQuery = activity.kind === "analysis" ? activity.analysis.query : activity.kind === "reveal" ? activity.spending.query : null;
+  const sheetMonth = activity.kind === "analysis" && activity.analysis.kind === "profile" ? activity.analysis.query.start.slice(0, 7) : sheetQuery ? singleMonth(sheetQuery) : null;
+  const merchantNoticed = sheetMonth
+    ? merchantSpike({ rows: dataset.transactions, customerId: state.customerId, month: sheetMonth, referenceDate: state.demoDate })
     : null;
 
   const checkup = weeklyCheckup(state.weeklyCompletedDates, state.demoDate);
@@ -533,7 +537,7 @@ export function replyFacts(state: SessionState, plan?: Interpretation): ReplyFac
   if (state.itemLimitation) base.required!.unshift(itemNotice);
   if (base.required!.length) base.fallback = [base.fallback, ...base.required!.filter(note => !base.fallback.includes(note))].join(" ");
   if (base.fallback.length > 480 || speechText(base.fallback).length > 600) {
-    base.fallback = `The card shows your results ${base.period}, with the payments and calculation details. ${base.required!.join(" ")}`.trim();
+    base.fallback = `Here are your results ${base.period}. ${base.required!.join(" ")}`.trim();
   }
   return base;
 }

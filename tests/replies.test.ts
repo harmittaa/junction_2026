@@ -74,7 +74,9 @@ describe("verified model-written replies", () => {
     expect(view.activity.kind).toBe("analysis");
     if (view.activity.kind !== "analysis") throw new Error("Expected analysis");
     expect(view.activity.analysis.evidenceCount).toBe(59);
-    expect(view.activity.analysis.evidence).toHaveLength(40);
+    // One calendar month fits the payments sheet; the merchant notice reaches it too.
+    expect(view.activity.analysis.evidence).toHaveLength(59);
+    expect(view.merchantNoticed?.merchantId).toBe("MRC-ENT-0052");
     expect(JSON.stringify(replyFacts(state, plan))).not.toMatch(/customerId|sourceRow|merchantId|MRC/);
     expect(() => transition({ ...initialState(), customerId: "OTHER" }, ask, plan)).toThrow("another dataset");
     expect(toView(transition(initialState(), ask, { ...plan, query: { ...plan.query, end: "2026-09-30" } })).activity.kind).toBe("none");

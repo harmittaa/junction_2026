@@ -241,7 +241,7 @@ describe("usual insight", () => {
     for (const c of ["Entertainment", "Groceries", "Transportation"]) expect(flagOf(c)?.flag).toBeNull();
     expect(usual.insight.kind).toBe("over");
     expect(usual.insight.headline).toBe(`Your Home & Tech spending is already ${euros(9488)} over a usual month, with 14 days to go.`);
-    expect(usual.insight.supporting).toEqual(["Restaurants is past usual too.", "Lifestyle is at 75% of usual with 53% of the month gone."]);
+    expect(usual.insight.supporting).toEqual(["Restaurants is over too.", "Lifestyle is at 75% with 53% of the month gone."]);
     expect(usualComparisonSchema.safeParse(usual).success).toBe(true);
   });
 
@@ -288,7 +288,8 @@ describe("why the jar went over", () => {
       payment("l", "2026-08-20", 300, { category: "Lifestyle" })] })!;
     expect(insight).toMatchObject({ kind: "large_payments", wentOverOn: "2026-08-20", daysLeftAfter: 11,
       payments: [{ date: "2026-08-05", amountCents: 400 }, { date: "2026-08-03", amountCents: 400 }] });
-    expect(insight.message).toContain(`went ${euros(100)} over the rim.`);
+    expect(insight.message.startsWith(insight.headline)).toBe(true);
+    expect(insight.message).not.toContain("over the rim");
   });
 
   it("ignores payments in a category with fewer than three baseline payments", () => {
@@ -308,7 +309,7 @@ describe("why the jar went over", () => {
     const june = overspendInsight({ ...input, jarMonth: "2026-06" })!;
     expect(june).toMatchObject({ kind: "large_payments", wentOverOn: "2026-06-26", daysLeftAfter: 4 });
     expect(june.payments.reduce((sum, row) => sum + row.amountCents, 0)).toBe(21015);
-    expect(june.message.match(/€/g)).toHaveLength(1);
+    expect(june.message.match(/€/g)).toBeNull();
     expect(overspendInsight({ ...input, jarMonth: "2026-08" })!.categories[0].category).toBe("Groceries");
     expect(overspendInsight({ ...input, jarMonth: "2026-07" })).toBeNull();
   });

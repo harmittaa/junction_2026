@@ -336,14 +336,16 @@ export function PaymentsSheet({
   analysis,
   merchantNoticed,
   monthLabel,
+  readOnly = false,
   busy,
   revision,
   onAction,
   onClose,
 }: {
-  analysis: Analysis;
+  analysis: Pick<Analysis, "evidence" | "evidenceCount" | "sections">;
   merchantNoticed?: CoachView["merchantNoticed"];
   monthLabel: string;
+  readOnly?: boolean;
   busy: boolean;
   revision: number;
   onAction: (request: CoachRequest) => void;
@@ -475,7 +477,7 @@ export function PaymentsSheet({
           </button>
         </div>
 
-        <p className="ac-sheet-hint">Tap a payment to move it to another basket. The amount never changes.</p>
+        {!readOnly && <p className="ac-sheet-hint">Tap a payment to move it to another basket. The amount never changes.</p>}
 
         <div className="ac-sheet-list">
           {dates.map(date => {
@@ -493,7 +495,7 @@ export function PaymentsSheet({
                         className="ac-payment-row ac-press"
                         aria-expanded={isExpanded}
                         aria-label={`${row.category}, ${row.merchant}, ${euros(row.amountCents)}, ${row.basket} basket`}
-                        onClick={() => setOpenRowId(isExpanded ? null : row.id)}
+                        onClick={() => { if (!readOnly) setOpenRowId(isExpanded ? null : row.id); }}
                       >
                         <span className={`ac-dot ac-dot-${row.basket}`} aria-hidden="true" />
                         <span className="ac-payment-main">
@@ -501,7 +503,7 @@ export function PaymentsSheet({
                           <span className="ac-payment-merchant">{row.merchant}</span>
                         </span>
                         <span className="ac-payment-amount">{euros(row.amountCents)}</span>
-                        <span className="ac-payment-chevron" aria-hidden="true">›</span>
+                        {!readOnly && <span className="ac-payment-chevron" aria-hidden="true">›</span>}
                       </button>
                       {merchantNoticed && row.id === noticedRow?.id && (
                         <NoticedRow

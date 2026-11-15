@@ -13,7 +13,7 @@
 .checkup-canvas .checkup-welcome { position: absolute; inset: 108px 16px auto; }
 .checkup-canvas .checkup-jar-stage { max-width: 268px; max-height: 228px; }
 .checkup-talk { display: flex; flex: none; flex-direction: column; gap: 8px; margin-top: auto; }
-.checkup-screen .coach-message { font-size: 16px; line-height: 1.4; text-align: center; text-wrap: balance; margin: 0; max-height: 116px; overflow-y: auto; }
+.checkup-screen .coach-message { font-size: 16px; line-height: 1.4; text-align: center; text-wrap: balance; margin: 0; max-height: 180px; overflow-y: auto; }
 .checkup-screen .error { margin: 0; max-height: 150px; overflow-y: auto; }
 .checkup-undo { display: flex; justify-content: center; }
 .checkup-undo button { min-height: 48px; padding: 8px 14px; border: 1.5px solid var(--border); background: var(--surface); color: var(--textBrand); font-size: 14px; white-space: nowrap; animation: checkup-rise .45s var(--checkup-spring) both; }
@@ -101,5 +101,5 @@ button.sponky-entry-label-btn {
 .checkup-usual-track i { position: absolute; width: 2px; top: -3px; bottom: -3px; background: var(--textPrimary); }
 .checkup-screen .checkup-pace { text-align: center; }
 .checkup-pace .sp-amount { font: 700 34px/40px var(--font-ux),sans-serif; letter-spacing: -.5px; font-variant-numeric: tabular-nums; }
-@media(max-height: 720px) { .checkup-screen { gap: 6px; padding-bottom: 142px; } .checkup-canvas .checkup-jar-stage { max-height: 168px; } .checkup-screen .coach-message { max-height: 90px; font-size: 15px; } .checkup-canvas .checkup-welcome { top: 96px; } }
+@media(max-height: 720px) { .checkup-screen { gap: 6px; padding-bottom: 142px; } .checkup-canvas .checkup-jar-stage { max-height: 168px; } .checkup-screen .coach-message { max-height: 126px; font-size: 15px; } .checkup-canvas .checkup-welcome { top: 96px; } }
 @media(prefers-reduced-motion: reduce) { .checkup-screen *, .checkup-screen *::before, .checkup-screen *::after { animation: none !important; transition: none !important; } }
